@@ -46,6 +46,7 @@ game/
   simulation.py      Lap-time formula and non-interactive full race simulation.
   race_session.py    Interactive RaceSession lifecycle and tick simulation.
   telemetry.py       Telemetry history, warnings, mistake/failure probabilities.
+  sorting.py         SortSpec parsing and per-screen list sorting (class-aware).
 
 interfaces/
   cli.py             Terminal state machine, menu flow, guided pickers.
@@ -72,26 +73,34 @@ RaceActionResult(session, tick, screen, error, prize_money)
 Important functions:
 
 ```text
-garage_screen(state)
-drivers_screen()
-events_screen()
-market_screen()
+garage_screen(state, sort_spec=None)
+drivers_screen(state, sort_spec=None)
+events_screen(sort_spec=None)
+market_screen(sort_spec=None)
 car_detail_screen(state, car_id)
 market_car_detail_screen(car_id)
+car_extended_screen(state, car_id)         # full spec sheet (garage)
+market_car_extended_screen(car_id)         # full spec sheet (market)
 driver_detail_screen(driver_id)
 event_detail_screen(event_id)
+race_entry_screen(state, step="events")    # guided race picker (events/cars/drivers)
 tune_fields_screen(state, car_id)
 race_screen(session, tick=None, error="")
 race_command_options()
 
+List screens accept an optional SortSpec (see game/sorting.py).
+
 buy_car_action(state, car_id)
 sell_car_action(state, car_id)
 repair_car_action(state, car_id)
+hire_driver_action(state, driver_id)
+fire_driver_action(state, driver_id)
 tune_car_action(state, car_id, field_name, value)
 save_game_action(state, path="saves/save1.json")
 load_game_action(path="saves/save1.json")
-start_race_action(state, event_id, car_id, driver_id, seed=1)
+start_race_action(state, event_id, car_id, driver_id, seed=None)
 advance_race_action(session, command)
+simulate_to_end_action(session, command="normal")   # fast-forward to flag
 finish_race_action(state, session)
 ```
 
@@ -127,6 +136,15 @@ The market screen is the single place to browse and buy cars. From the market sc
 - enter a number or ID → `market_car_detail_screen()` (read-only detail)
 - type `buy` → inline picker prompts for car number/ID
 - type `buy <id>` or `buy <number>` → direct purchase
+
+List-screen commands (parsed in `interfaces/cli.run_*` before menu hotkeys):
+
+```text
+sort <field> [asc|desc]   re-sort the current list screen (see game/sorting.py)
+ext [id|number]           full car spec sheet on garage/market (car_extended_screen)
+hire / hire <id|number>   drivers screen: picker or direct hire (hire_driver_action)
+fire / fire <id|number>   drivers screen: picker or direct fire (fire_driver_action)
+```
 
 ## Race Flow
 
@@ -266,9 +284,10 @@ derive_rates(segments)          # aggregate wear/fuel/heat (surface/condition ba
 build_segment_profiles(segments) -> Track.segment_profiles  # intensive, position-resolved
 ```
 
-`data/tracks/summit_ridge_gp.json` (circuit) and `data/tracks/alpine_hillclimb.json`
-(`laps: 1` point-to-point) are reference tracks exercising all 12 tags and the full
-surface/condition range.
+`data/tracks/` ships five tracks: `summit_ridge_gp.json` (circuit) and
+`alpine_hillclimb.json` (`laps: 1` point-to-point) are the reference tracks
+exercising all 12 tags and the full surface/condition range; `maple_short.json`,
+`northbank_oval.json`, and `red_valley_club.json` round out the calendar.
 
 Adding data should usually mean adding JSON files under `data/`, not editing registries.
 
@@ -277,6 +296,7 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
 - New car/driver/event/part/track: add JSON under `data/`, update tests if needed.
 - New tune field: update `TuneSetup`, seed JSON, `TUNE_FIELD_RANGES`, `tune_fields_for_car()`, tests.
 - New race command: update `COMMAND_MODIFIERS`, `race_command_options()`, `_race_command()` behavior if needed, tests.
+- New sortable field/screen: update the per-screen options in `game/sorting.py`, tests.
 - Balance lap times: update constants first, then formulas in `effective_stats.py` or `simulation.py`.
 - Balance opponents: tune the `RIVAL_*` constants first, then event restrictions/data or `opponents.py`.
 - Add web UI: create new interface/API layer that calls `game.actions`; avoid importing `interfaces.cli`.
@@ -285,15 +305,17 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
 ## Test Map
 
 ```text
-test_models.py           Loaders/dataclasses/track validation.
-test_save_load.py        Save schema and roundtrip.
-test_effective_stats.py  Stats, class rating, tune effects.
-test_lap_time.py         Lap formula and full-race basics.
-test_race_tick.py        Interactive race commands.
-test_telemetry.py        Telemetry history and warnings.
-test_economy.py          Buy/sell/repair/prizes.
-test_opponents.py        Event restrictions and opponent generation.
-test_actions.py          UI-neutral action/screen layer.
-test_cli.py              Terminal menu/screen behavior.
+test_models.py             Loaders/dataclasses/track validation.
+test_save_load.py          Save schema and roundtrip.
+test_effective_stats.py    Stats, class rating, tune effects.
+test_lap_time.py           Lap formula and full-race basics.
+test_segment_resolution.py Segment profiles and per-interval lap pace.
+test_race_tick.py          Interactive race commands.
+test_telemetry.py          Telemetry history and warnings.
+test_economy.py            Buy/sell/repair/prizes.
+test_opponents.py          Event restrictions and opponent generation.
+test_car_catalog.py        Catalog class distribution and S-class competitiveness.
+test_actions.py            UI-neutral action/screen layer.
+test_cli.py                Terminal menu/screen behavior.
 ```
 
