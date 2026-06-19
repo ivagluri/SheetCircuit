@@ -9,6 +9,7 @@ from game.actions import (
     advance_race_action,
     buy_car_action,
     car_detail_screen,
+    drivers_screen,
     driver_detail_screen,
     events_screen,
     event_detail_screen,
@@ -23,6 +24,7 @@ from game.actions import (
 )
 from game.game_state import GameState, new_career
 from game.loader import load_cars
+from game.sorting import parse_sort_spec
 from game.tuning import TuningError
 
 
@@ -39,6 +41,26 @@ class ActionLayerTests(unittest.TestCase):
         self.assertEqual(events.tables[0].title, "Events")
         self.assertTrue(market.tables[0].rows)
         self.assertIn("tables", asdict(garage))
+
+    def test_car_screens_can_be_sorted_by_price_and_power(self) -> None:
+        price_sorted = market_screen(parse_sort_spec("market", "price"))
+        power_sorted = market_screen(parse_sort_spec("market", "hp"))
+
+        prices = [int(row[4].replace("$", "")) for row in price_sorted.tables[0].rows]
+        powers = [int(row[5].replace(" hp", "")) for row in power_sorted.tables[0].rows]
+
+        self.assertEqual(prices, sorted(prices))
+        self.assertEqual(powers, sorted(powers, reverse=True))
+        self.assertIn("sorted by Price asc", price_sorted.tables[0].title)
+        self.assertIn("sorted by HP desc", power_sorted.tables[0].title)
+
+    def test_driver_screen_can_be_sorted_by_pace(self) -> None:
+        state = GameState()
+
+        screen = drivers_screen(state, parse_sort_spec("drivers", "pace"))
+        paces = [row[3] for row in screen.tables[0].rows]
+
+        self.assertEqual(paces, sorted(paces, reverse=True))
 
     def test_tune_screen_surfaces_ranges_and_choice_options(self) -> None:
         state = new_career()

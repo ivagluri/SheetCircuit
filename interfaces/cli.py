@@ -37,6 +37,7 @@ from game.economy import EconomyError
 from game.game_state import GameState, new_career
 from game.loader import load_drivers, load_events, load_tracks
 from game.market import list_market_cars
+from game.sorting import SortSpec, is_sortable_screen, parse_sort_spec, sort_fields, sort_items, sort_label
 from game.simulation import SimulationError
 from game.tuning import TuningError
 from interfaces.menu import menu_bar, menu_command, status_bar
@@ -52,6 +53,9 @@ from interfaces.render_text import (
     standings_rows,
 )
 from interfaces.terminal import RICH_AVAILABLE, terminal
+
+_SCREEN_SORTS: dict[str, SortSpec] = {}
+_SORTABLE_SCREENS = ("garage", "drivers", "events", "market")
 
 
 def main() -> None:
@@ -90,6 +94,10 @@ def run_menu_choice(state: GameState, raw: str, current_screen: str = "garage") 
     command = command or raw.strip()
     if command in {"garage", "drivers", "events", "market", "help"}:
         return state, command
+    tokens = shlex.split(raw.strip())
+    if tokens and tokens[0].lower() == "sort":
+        sorted_screen = _apply_sort_choice(tokens, current_screen)
+        return state, sorted_screen or current_screen
     if command == "buy":
         _buy_picker(state)
         return state, "garage"
@@ -139,6 +147,18 @@ def run_command(state: GameState, raw: str) -> GameState:
         _show_events()
     elif command == "market":
         _show_market()
+    elif command == "sort":
+        screen = _apply_sort_choice(tokens, "garage")
+        if screen is None:
+            return state
+        if screen == "drivers":
+            _show_drivers(state)
+        elif screen == "events":
+            _show_events()
+        elif screen == "market":
+            _show_market()
+        else:
+            _show_garage(state)
     elif command == "buy" and len(tokens) == 3 and tokens[1] == "car":
         buy_car_action(state, tokens[2])
         _show_garage(state)
@@ -208,19 +228,19 @@ def _render_screen(state: GameState, screen: str, subtitle: str = "") -> None:
 
 
 def _show_garage(state: GameState) -> None:
-    _render_action_screen(garage_screen(state))
+    _render_action_screen(garage_screen(state, _screen_sort("garage")))
 
 
 def _show_drivers(state: GameState) -> None:
-    _render_action_screen(drivers_screen(state))
+    _render_action_screen(drivers_screen(state, _screen_sort("drivers")))
 
 
 def _show_events() -> None:
-    _render_action_screen(events_screen())
+    _render_action_screen(events_screen(_screen_sort("events")))
 
 
 def _show_market() -> None:
-    _render_action_screen(market_screen())
+    _render_action_screen(market_screen(_screen_sort("market")))
 
 
 def _show_detail_screen(state: GameState, screen, parent_screen: str) -> None:
@@ -234,21 +254,18 @@ def _show_detail_screen(state: GameState, screen, parent_screen: str) -> None:
 
 def _screen_selection(state: GameState, screen: str, raw: str):
     if screen == "drivers":
-        all_drivers = load_drivers()
-        hired_ids = {d.id for d in state.hired_drivers}
-        available = [d for d in all_drivers if d.id not in hired_ids]
-        combined = state.hired_drivers + available
+        combined = _sorted_hired_drivers(state) + _sorted_available_drivers(state)
         driver = _select_from_collection(combined, raw, lambda item: item.id)
         return driver_detail_screen(driver.id) if driver is not None else None
     if screen == "events":
-        events = load_events()
+        events = _sorted_events()
         event = _select_from_collection(events, raw, lambda item: item.id)
         return event_detail_screen(event.id) if event is not None else None
     if screen == "garage":
-        car = _select_from_collection(state.garage, raw, lambda item: item.identity.id)
+        car = _select_from_collection(_sorted_garage(state), raw, lambda item: item.identity.id)
         return car_detail_screen(state, car.identity.id) if car is not None else None
     if screen == "market":
-        cars = list_market_cars()
+        cars = _sorted_market()
         car = _select_from_collection(cars, raw, lambda item: item.identity.id)
         return market_car_detail_screen(car.identity.id) if car is not None else None
     return None
@@ -262,6 +279,78 @@ def _select_from_collection(items: list[object], raw: str, get_id):
         return None
     normalized = raw.lower()
     return next((item for item in items if get_id(item).lower() == normalized), None)
+
+
+def _apply_sort_choice(tokens: list[str], current_screen: str) -> str | None:
+    if len(tokens) == 1:
+        _show_sort_help(current_screen)
+        return None
+
+    requested_screen = current_screen
+    field_index = 1
+    if tokens[1].lower() in _SORTABLE_SCREENS:
+        requested_screen = tokens[1].lower()
+        field_index = 2
+
+    if not is_sortable_screen(requested_screen):
+        valid = ", ".join(_SORTABLE_SCREENS)
+        raise ValueError(f"Specify a sortable screen: {valid}")
+    if field_index >= len(tokens):
+        _show_sort_help(requested_screen)
+        return requested_screen
+    if len(tokens) - field_index > 2:
+        raise ValueError("Use: sort [screen] <field> [asc|desc]")
+
+    field = tokens[field_index].lower()
+    if field in {"clear", "default", "reset", "none"}:
+        _SCREEN_SORTS.pop(requested_screen, None)
+        return requested_screen
+
+    direction = tokens[field_index + 1] if field_index + 1 < len(tokens) else None
+    _SCREEN_SORTS[requested_screen] = parse_sort_spec(requested_screen, field, direction)
+    return requested_screen
+
+
+def _show_sort_help(current_screen: str) -> None:
+    rows = []
+    screens = [current_screen] if is_sortable_screen(current_screen) else list(_SORTABLE_SCREENS)
+    for screen in screens:
+        rows.append([screen.title(), ", ".join(sort_fields(screen))])
+    terminal.table("Sort Fields", ["Screen", "Fields"], rows)
+    terminal.print("Use sort <field> [asc|desc], sort <screen> <field> [asc|desc], or sort clear.")
+
+
+def _screen_sort(screen: str) -> SortSpec | None:
+    return _SCREEN_SORTS.get(screen)
+
+
+def _sort_table_title(title: str, screen: str) -> str:
+    spec = _screen_sort(screen)
+    if spec is None:
+        return title
+    return f"{title} (sorted by {sort_label(screen, spec)})"
+
+
+def _sorted_garage(state: GameState):
+    return sort_items("garage", state.garage, _screen_sort("garage"))
+
+
+def _sorted_market():
+    return sort_items("market", list_market_cars(), _screen_sort("market"))
+
+
+def _sorted_events():
+    return sort_items("events", load_events(), _screen_sort("events"))
+
+
+def _sorted_hired_drivers(state: GameState):
+    return sort_items("drivers", state.hired_drivers, _screen_sort("drivers"))
+
+
+def _sorted_available_drivers(state: GameState):
+    all_drivers = load_drivers()
+    hired_ids = {d.id for d in state.hired_drivers}
+    return sort_items("drivers", [d for d in all_drivers if d.id not in hired_ids], _screen_sort("drivers"))
 
 
 def _render_action_screen(screen) -> None:
@@ -295,29 +384,38 @@ def _show_help() -> None:
         "Typed Commands",
         ["Command", "Purpose"],
         [
+            ["<number> / <id>", "Open details for a visible list item"],
             ["garage", "Show owned cars"],
-            ["drivers", "Show available drivers"],
-            ["events", "Show available race events"],
+            ["drivers", "Show drivers"],
+            ["events", "Show race events"],
             ["market", "Show market cars"],
-            ["race", "Open guided race entry"],
-            ["buy", "Open guided buy flow"],
+            ["race", "Choose event, car, and driver"],
+            ["buy", "Choose a market car to buy"],
             ["buy car <car_id>", "Buy a specific market car"],
-            ["sell", "Open guided sell flow"],
+            ["sell", "Choose an owned car to sell"],
             ["sell car <car_id>", "Sell a specific garage car"],
-            ["repair", "Open guided repair flow"],
+            ["repair", "Choose an owned car to repair"],
             ["repair <car_id>", "Repair a specific garage car"],
-            ["tune", "Open guided tune flow"],
+            ["tune", "Choose an owned car to tune"],
             ["tune <car_id> <field> <value>", "Set one tune field"],
-            ["hire", "Open guided driver hire flow"],
+            ["hire", "Choose a driver to hire"],
             ["hire <driver_id>", "Hire a specific driver"],
-            ["fire", "Open guided driver release flow"],
+            ["fire", "Choose a driver to release"],
             ["fire <driver_id>", "Release a specific driver"],
             ["enter <event_id> <car_id> <driver_id>", "Start a race directly"],
+            ["sort <field> (asc|desc)", "Sort the current screen"],
+            ["sort <screen> <field> (asc|desc)", "Sort garage, drivers, events, or market"],
+            ["sort clear", "Clear sorting on the current screen"],
             ["save [path]", "Save game, default saves/save1.json"],
             ["load [path]", "Load game, default saves/save1.json"],
             ["help", "Show this help"],
             ["quit", "Exit"],
         ],
+    )
+    terminal.table(
+        "Sortable Fields",
+        ["Screen", "Fields"],
+        [[screen.title(), ", ".join(sort_fields(screen))] for screen in _SORTABLE_SCREENS],
     )
     _show_race_help()
 
@@ -335,12 +433,12 @@ def _show_race_help() -> None:
 
 
 def _buy_picker(state: GameState) -> None:
-    market = list_market_cars()
+    market = _sorted_market()
     terminal.clear()
     terminal.header("Buy Car", "Choose a market car by number or ID; q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "buy"))
     terminal.menu(menu_bar())
-    terminal.table("Market", ["#", "ID", "Car", "Class", "Price", "Power", "Cond"], market_rows(market))
+    terminal.table(_sort_table_title("Market", "market"), ["#", "ID", "Car", "Class", "Price", "Power", "Cond"], market_rows(market))
     car = _choose(market, lambda item: item.identity.id, "Buy")
     if car is None:
         return
@@ -353,12 +451,13 @@ def _sell_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty.")
         return
+    cars = _sorted_garage(state)
     terminal.clear()
     terminal.header("Sell Car", "Choose a garage car by number or ID; q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "sell"))
     terminal.menu(menu_bar())
-    terminal.table("Garage", ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state))
-    car = _choose(state.garage, lambda item: item.identity.id, "Sell")
+    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+    car = _choose(cars, lambda item: item.identity.id, "Sell")
     if car is None:
         return
     result = sell_car_action(state, car.identity.id)
@@ -370,12 +469,13 @@ def _repair_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty.")
         return
+    cars = _sorted_garage(state)
     terminal.clear()
     terminal.header("Repair", "Choose a garage car by number or ID; q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "repair"))
     terminal.menu(menu_bar())
-    terminal.table("Garage", ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state))
-    car = _choose(state.garage, lambda item: item.identity.id, "Repair")
+    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+    car = _choose(cars, lambda item: item.identity.id, "Repair")
     if car is None:
         return
     result = repair_car_action(state, car.identity.id)
@@ -387,12 +487,13 @@ def _tune_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty.")
         return
+    cars = _sorted_garage(state)
     terminal.clear()
     terminal.header("Tune", "Choose car, field, and value. q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "tune"))
     terminal.menu(menu_bar())
-    terminal.table("Garage", ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state))
-    car = _choose(state.garage, lambda item: item.identity.id, "Car")
+    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+    car = _choose(cars, lambda item: item.identity.id, "Car")
     if car is None:
         return
     terminal.clear()
@@ -467,7 +568,7 @@ def _load_picker(state: GameState) -> GameState:
 def _hire_picker(state: GameState) -> None:
     all_drivers = load_drivers()
     hired_ids = {d.id for d in state.hired_drivers}
-    available = [d for d in all_drivers if d.id not in hired_ids]
+    available = sort_items("drivers", [d for d in all_drivers if d.id not in hired_ids], _screen_sort("drivers"))
     if not available:
         terminal.print("No drivers available to hire.")
         return
@@ -475,7 +576,7 @@ def _hire_picker(state: GameState) -> None:
     terminal.header("Hire Driver", "Choose a driver by number or ID; q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "hire"))
     terminal.menu(menu_bar())
-    terminal.table("Available Drivers", ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(available))
+    terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(available))
     driver = _choose(available, lambda item: item.id, "Hire")
     if driver is None:
         return
@@ -488,12 +589,13 @@ def _fire_picker(state: GameState) -> None:
     if not state.hired_drivers:
         terminal.print("No drivers on your team.")
         return
+    drivers = _sorted_hired_drivers(state)
     terminal.clear()
     terminal.header("Release Driver", "Choose a driver by number or ID; q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "fire"))
     terminal.menu(menu_bar())
-    terminal.table("Your Team", ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(state.hired_drivers))
-    driver = _choose(state.hired_drivers, lambda item: item.id, "Release")
+    terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
+    driver = _choose(drivers, lambda item: item.id, "Release")
     if driver is None:
         return
     result = fire_driver_action(state, driver.id)
@@ -505,15 +607,15 @@ def _race_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty. Buy a car first.")
         return
-    events = load_events()
-    drivers = state.hired_drivers or load_drivers()
+    events = _sorted_events()
+    drivers = sort_items("drivers", state.hired_drivers or load_drivers(), _screen_sort("drivers"))
     tracks = {track.id: track for track in load_tracks()}
 
     terminal.clear()
     terminal.header("Race Entry", "Choose an event, car, and driver. Enter a number or ID; q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
     terminal.menu(menu_bar())
-    terminal.table("Available Events", ["#", "ID", "Event", "Track", "Class", "Fee", "Opp"], event_rows(events, tracks))
+    terminal.table(_sort_table_title("Available Events", "events"), ["#", "ID", "Event", "Track", "Class", "Fee", "Opp"], event_rows(events, tracks))
     event = _choose(events, lambda item: item.id, "Event")
     if event is None:
         return
@@ -521,15 +623,16 @@ def _race_picker(state: GameState) -> None:
     terminal.header("Race Entry", f"Event: {event.name}")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
     terminal.menu(menu_bar())
-    terminal.table("Your Cars", ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state))
-    car = _choose(state.garage, lambda item: item.identity.id, "Car")
+    cars = _sorted_garage(state)
+    terminal.table(_sort_table_title("Your Cars", "garage"), ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+    car = _choose(cars, lambda item: item.identity.id, "Car")
     if car is None:
         return
     terminal.clear()
     terminal.header("Race Entry", f"{event.name} / {car.identity.name}")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
     terminal.menu(menu_bar())
-    terminal.table("Drivers", ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
+    terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
     driver = _choose(drivers, lambda item: item.id, "Driver")
     if driver is None:
         return

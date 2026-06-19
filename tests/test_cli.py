@@ -6,6 +6,8 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from game.game_state import new_career
+from game.loader import load_cars
+import interfaces.cli as cli
 from interfaces.cli import _race_command, run_command, run_menu_choice
 from interfaces.menu import menu_bar, menu_command, status_bar
 
@@ -41,6 +43,20 @@ class CliTests(TestCase):
         self.assertIn("Pete Novak", output.getvalue())
         self.assertIn("Driver Stats", output.getvalue())
 
+    def test_sort_command_changes_market_selection_order(self) -> None:
+        state = new_career()
+        cli._SCREEN_SORTS.clear()
+        strongest = max(load_cars(), key=lambda car: car.powertrain.power_hp)
+
+        next_state, screen = run_menu_choice(state, "sort hp", "market")
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            run_menu_choice(state, "1", "market")
+
+        self.assertIs(next_state, state)
+        self.assertEqual(screen, "market")
+        self.assertIn(strongest.identity.name, output.getvalue())
+        cli._SCREEN_SORTS.clear()
+
     def test_race_command_guides_selection_and_runs_event(self) -> None:
         state = new_career()
         scripted_input = ["1", "1", "1"]
@@ -60,8 +76,13 @@ class CliTests(TestCase):
         text = output.getvalue()
         self.assertIn("Menu Hotkeys", text)
         self.assertIn("Typed Commands", text)
+        self.assertIn("Sortable Fields", text)
         self.assertIn("Race Commands", text)
+        self.assertIn("<number> / <id>", text)
         self.assertIn("enter <event_id> <car_id> <driver_id>", text)
+        self.assertIn("sort <field> (asc|desc)", text)
+        self.assertIn("hp", text)
+        self.assertIn("salary", text)
         self.assertIn("Fuel Save", text)
 
     def test_help_in_race_screen_does_not_error(self) -> None:

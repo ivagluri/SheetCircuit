@@ -14,6 +14,7 @@ from game.market import list_market_cars
 from game.models import RaceSession, RaceTickResult
 from game.race_session import apply_player_command, enter_event, finish_event
 from game.save_load import load_game, save_game
+from game.sorting import SortSpec, sort_items, sort_label
 from game.tuning import update_tune_fields
 
 
@@ -70,13 +71,14 @@ class RaceActionResult:
     prize_money: int | None = None
 
 
-def garage_screen(state: GameState) -> ScreenData:
+def garage_screen(state: GameState, sort_spec: SortSpec | None = None) -> ScreenData:
+    cars = sort_items("garage", state.garage, sort_spec)
     return ScreenData(
         name="garage",
         title="Garage",
         tables=[
             TableData(
-                "Garage",
+                _table_title("Garage", "garage", sort_spec),
                 ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"],
                 [
                     [
@@ -88,32 +90,33 @@ def garage_screen(state: GameState) -> ScreenData:
                         f"{car.condition.overall_condition:.0f}%",
                         f"{car.powertrain.power_hp} hp",
                     ]
-                    for index, car in enumerate(state.garage, start=1)
+                    for index, car in enumerate(cars, start=1)
                 ],
             )
         ],
     )
 
 
-def drivers_screen(state: GameState) -> ScreenData:
+def drivers_screen(state: GameState, sort_spec: SortSpec | None = None) -> ScreenData:
     all_drivers = load_drivers()
     hired_ids = {d.id for d in state.hired_drivers}
-    available = [d for d in all_drivers if d.id not in hired_ids]
+    hired = sort_items("drivers", state.hired_drivers, sort_spec)
+    available = sort_items("drivers", [d for d in all_drivers if d.id not in hired_ids], sort_spec)
     tables = []
-    if state.hired_drivers:
+    if hired:
         tables.append(
             TableData(
-                "Your Team",
+                _table_title("Your Team", "drivers", sort_spec),
                 ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"],
                 [
                     [index, d.id, d.name, d.pace, d.consistency, d.feedback, f"${d.salary}"]
-                    for index, d in enumerate(state.hired_drivers, start=1)
+                    for index, d in enumerate(hired, start=1)
                 ],
             )
         )
     tables.append(
         TableData(
-            "Available Drivers",
+            _table_title("Available Drivers", "drivers", sort_spec),
             ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"],
             [
                 [index, d.id, d.name, d.pace, d.consistency, d.feedback, f"${d.salary}"]
@@ -124,14 +127,15 @@ def drivers_screen(state: GameState) -> ScreenData:
     return ScreenData(name="drivers", title="Drivers", tables=tables)
 
 
-def events_screen() -> ScreenData:
+def events_screen(sort_spec: SortSpec | None = None) -> ScreenData:
     tracks = {track.id: track for track in load_tracks()}
+    events = sort_items("events", load_events(), sort_spec)
     return ScreenData(
         name="events",
         title="Events",
         tables=[
             TableData(
-                "Events",
+                _table_title("Events", "events", sort_spec),
                 ["#", "ID", "Event", "Track", "Class", "Fee", "Opp"],
                 [
                     [
@@ -143,20 +147,21 @@ def events_screen() -> ScreenData:
                         f"${event.entry_fee}",
                         event.opponent_count,
                     ]
-                    for index, event in enumerate(load_events(), start=1)
+                    for index, event in enumerate(events, start=1)
                 ],
             )
         ],
     )
 
 
-def market_screen() -> ScreenData:
+def market_screen(sort_spec: SortSpec | None = None) -> ScreenData:
+    cars = sort_items("market", list_market_cars(), sort_spec)
     return ScreenData(
         name="market",
         title="Market",
         tables=[
             TableData(
-                "Market",
+                _table_title("Market", "market", sort_spec),
                 ["#", "ID", "Car", "Class", "Price", "Power", "Cond"],
                 [
                     [
@@ -168,7 +173,7 @@ def market_screen() -> ScreenData:
                         f"{car.powertrain.power_hp} hp",
                         f"{car.condition.overall_condition:.0f}%",
                     ]
-                    for index, car in enumerate(list_market_cars(), start=1)
+                    for index, car in enumerate(cars, start=1)
                 ],
             )
         ],
@@ -293,13 +298,19 @@ def race_entry_screen(state: GameState, step: str = "events") -> ScreenData:
         return garage_screen(state)
     if step == "drivers":
         drivers = state.hired_drivers or load_drivers()
-        screen = drivers_screen()
+        screen = drivers_screen(state)
         screen.tables[0].rows = [
             [index, driver.id, driver.name, driver.pace, driver.consistency, driver.feedback, f"${driver.salary}"]
             for index, driver in enumerate(drivers, start=1)
         ]
         return screen
     return events_screen()
+
+
+def _table_title(title: str, screen: str, sort_spec: SortSpec | None) -> str:
+    if sort_spec is None:
+        return title
+    return f"{title} (sorted by {sort_label(screen, sort_spec)})"
 
 
 def tune_fields_screen(state: GameState, car_id: str) -> ScreenData:

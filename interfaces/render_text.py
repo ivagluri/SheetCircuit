@@ -3,6 +3,7 @@ from __future__ import annotations
 from game.effective_stats import class_rating
 from game.game_state import GameState
 from game.models import Car, Driver, Event, Part, RaceCarState, RaceSession, Track
+from game.sorting import SortSpec, sort_items
 
 
 def render_garage(game_state: GameState) -> str:
@@ -53,7 +54,8 @@ def render_race_status(session: RaceSession) -> str:
     )
 
 
-def garage_rows(game_state: GameState) -> list[list[object]]:
+def garage_rows(game_state: GameState, sort_spec: SortSpec | None = None) -> list[list[object]]:
+    cars = sort_items("garage", game_state.garage, sort_spec)
     return [
         [
             index,
@@ -64,11 +66,12 @@ def garage_rows(game_state: GameState) -> list[list[object]]:
             f"{car.condition.overall_condition:.0f}%",
             f"{car.powertrain.power_hp} hp",
         ]
-        for index, car in enumerate(game_state.garage, start=1)
+        for index, car in enumerate(cars, start=1)
     ]
 
 
-def driver_rows(drivers: list[Driver]) -> list[list[object]]:
+def driver_rows(drivers: list[Driver], sort_spec: SortSpec | None = None) -> list[list[object]]:
+    sorted_drivers = sort_items("drivers", drivers, sort_spec)
     return [
         [
             index,
@@ -79,11 +82,12 @@ def driver_rows(drivers: list[Driver]) -> list[list[object]]:
             driver.feedback,
             f"${driver.salary}",
         ]
-        for index, driver in enumerate(drivers, start=1)
+        for index, driver in enumerate(sorted_drivers, start=1)
     ]
 
 
-def event_rows(events: list[Event], tracks: dict[str, Track]) -> list[list[object]]:
+def event_rows(events: list[Event], tracks: dict[str, Track], sort_spec: SortSpec | None = None) -> list[list[object]]:
+    sorted_events = sort_items("events", events, sort_spec)
     return [
         [
             index,
@@ -94,11 +98,12 @@ def event_rows(events: list[Event], tracks: dict[str, Track]) -> list[list[objec
             f"${event.entry_fee}",
             event.opponent_count,
         ]
-        for index, event in enumerate(events, start=1)
+        for index, event in enumerate(sorted_events, start=1)
     ]
 
 
-def market_rows(cars: list[Car]) -> list[list[object]]:
+def market_rows(cars: list[Car], sort_spec: SortSpec | None = None) -> list[list[object]]:
+    sorted_cars = sort_items("market", cars, sort_spec)
     return [
         [
             index,
@@ -109,7 +114,7 @@ def market_rows(cars: list[Car]) -> list[list[object]]:
             f"{car.powertrain.power_hp} hp",
             f"{car.condition.overall_condition:.0f}%",
         ]
-        for index, car in enumerate(cars, start=1)
+        for index, car in enumerate(sorted_cars, start=1)
     ]
 
 
