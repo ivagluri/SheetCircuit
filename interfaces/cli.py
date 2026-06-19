@@ -20,8 +20,10 @@ from game.actions import (
     garage_screen,
     hire_driver_action,
     load_game_action,
+    car_extended_screen,
     market_screen,
     market_car_detail_screen,
+    market_car_extended_screen,
     race_command_options,
     race_entry_screen,
     race_screen,
@@ -126,6 +128,10 @@ def run_menu_choice(state: GameState, raw: str, current_screen: str = "garage") 
         return _load_picker(state), "garage"
     if command == "quit":
         raise SystemExit
+    if tokens and tokens[0].lower() in {"ext", "extended"}:
+        car_token = tokens[1] if len(tokens) > 1 else None
+        _show_extended_car(state, current_screen, car_token)
+        return state, current_screen
     return run_command(state, command), current_screen
 
 
@@ -248,7 +254,33 @@ def _show_events() -> None:
 
 def _show_market() -> None:
     _render_action_screen(market_screen(_screen_sort("market")))
-    terminal.print("Enter a number or ID to view details  |  'buy' or 'buy <id>' to purchase")
+    terminal.print("Enter a number or ID to view details  |  'buy' or 'buy <id>' to purchase  |  'ext <id>' for full specs")
+
+
+def _show_extended_car(state: GameState, screen: str, car_token: str | None) -> None:
+    if screen == "market":
+        cars = _sorted_market()
+        get_id = lambda c: c.identity.id
+        get_screen = lambda c: market_car_extended_screen(c.identity.id)
+    elif screen == "garage":
+        cars = _sorted_garage(state)
+        get_id = lambda c: c.identity.id
+        get_screen = lambda c: car_extended_screen(state, c.identity.id)
+    else:
+        terminal.print("Extended view is available on the market and garage screens.")
+        terminal.pause()
+        return
+    if car_token is not None:
+        car = _select_from_collection(cars, car_token, get_id)
+        if car is None:
+            terminal.print(f"Unknown car: {car_token}")
+            terminal.pause()
+            return
+    else:
+        car = _choose(cars, get_id, "Extended view (number or ID)")
+        if car is None:
+            return
+    _show_detail_screen(state, get_screen(car), screen)
 
 
 def _buy_on_market(state: GameState) -> None:
@@ -402,6 +434,7 @@ def _show_help() -> None:
         ["Command", "Purpose"],
         [
             ["<number> / <id>", "Open details for a visible list item"],
+            ["ext <number> / ext <id>", "Full spec view on market or garage screen"],
             ["garage", "Show owned cars"],
             ["drivers", "Show drivers"],
             ["events", "Show race events"],

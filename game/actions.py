@@ -231,6 +231,196 @@ def _car_detail_screen(car, name: str) -> ScreenData:
     )
 
 
+def car_extended_screen(state: GameState, car_id: str) -> ScreenData:
+    car = next((c for c in state.garage if c.identity.id == car_id), None)
+    if car is None:
+        raise ValueError(f"Unknown garage car: {car_id}")
+    return _car_extended_screen(car, "garage_car_extended")
+
+
+def market_car_extended_screen(car_id: str) -> ScreenData:
+    car = next((c for c in list_market_cars() if c.identity.id == car_id), None)
+    if car is None:
+        raise ValueError(f"Unknown market car: {car_id}")
+    return _car_extended_screen(car, "market_car_extended")
+
+
+def _car_extended_screen(car, name: str) -> ScreenData:
+    i = car.identity
+    pt = car.powertrain
+    ch = car.chassis
+    ti = car.tires
+    br = car.brakes
+    su = car.suspension
+    ae = car.aero
+    du = car.durability
+    fu = car.fuel
+    co = car.condition
+    tu = car.tune
+
+    front_dist = round(ch.weight_distribution_front * 100, 0)
+    rear_dist = round(100 - front_dist, 0)
+
+    return ScreenData(
+        name=name,
+        title=f"{i.name} — Extended Specs",
+        subtitle=f"{i.manufacturer} {i.model} ({i.year}) / {i.car_class}",
+        tables=[
+            TableData(
+                "Identity",
+                ["Field", "Value"],
+                [
+                    ["ID", i.id],
+                    ["Year", i.year],
+                    ["Drivetrain", i.drivetrain],
+                    ["Layout", i.layout],
+                    ["Value", f"${car.value:,}"],
+                    ["Rating", class_rating(car)],
+                    ["Tags", ", ".join(i.tags)],
+                    ["Installed Parts", ", ".join(car.installed_parts) if car.installed_parts else "none"],
+                ],
+            ),
+            TableData(
+                "Engine",
+                ["Stat", "Value"],
+                [
+                    ["Aspiration", pt.aspiration],
+                    ["Power", f"{pt.power_hp} hp"],
+                    ["Torque", f"{pt.torque_nm} Nm"],
+                    ["Powerband", pt.powerband],
+                    ["Throttle Response", pt.throttle_response],
+                    ["Reliability", pt.engine_reliability],
+                    ["Cooling", pt.cooling],
+                    ["Fuel Efficiency", pt.fuel_efficiency],
+                    ["Engine Stress", pt.engine_stress],
+                ],
+            ),
+            TableData(
+                "Chassis",
+                ["Stat", "Value"],
+                [
+                    ["Weight", f"{ch.weight_kg:,} kg"],
+                    ["Weight Distribution", f"{front_dist:.0f}F / {rear_dist:.0f}R"],
+                    ["Center of Gravity", ch.center_of_gravity],
+                    ["Rigidity", ch.chassis_rigidity],
+                    ["Stability", ch.stability],
+                    ["Rotation", ch.rotation],
+                ],
+            ),
+            TableData(
+                "Tires",
+                ["Stat", "Value"],
+                [
+                    ["Compound", ti.tire_compound],
+                    ["Width (front)", f"{ti.tire_width_front} mm"],
+                    ["Width (rear)", f"{ti.tire_width_rear} mm"],
+                    ["Base Grip", ti.base_grip],
+                    ["Wet Grip", ti.wet_grip],
+                    ["Wear Resistance", ti.tire_wear_resistance],
+                    ["Heat Resistance", ti.tire_heat_resistance],
+                    ["Warmup", ti.tire_warmup],
+                ],
+            ),
+            TableData(
+                "Brakes",
+                ["Stat", "Value"],
+                [
+                    ["Braking Power", br.braking_power],
+                    ["Stability", br.brake_stability],
+                    ["Cooling", br.brake_cooling],
+                    ["Fade Resistance", br.brake_fade_resistance],
+                ],
+            ),
+            TableData(
+                "Suspension",
+                ["Stat", "Value"],
+                [
+                    ["Handling", su.handling],
+                    ["Mechanical Grip", su.mechanical_grip],
+                    ["Compliance", su.suspension_compliance],
+                    ["Curb Handling", su.curb_handling],
+                    ["Bump Absorption", su.bump_absorption],
+                    ["Steering Precision", su.steering_precision],
+                ],
+            ),
+            TableData(
+                "Aerodynamics",
+                ["Stat", "Value"],
+                [
+                    ["Downforce", ae.downforce],
+                    ["Drag", ae.drag],
+                    ["Aero Efficiency", ae.aero_efficiency],
+                    ["High Speed Stability", ae.high_speed_stability],
+                ],
+            ),
+            TableData(
+                "Durability",
+                ["Stat", "Value"],
+                [
+                    ["Overall Reliability", du.overall_reliability],
+                    ["Engine", du.engine_reliability],
+                    ["Gearbox", du.gearbox_reliability],
+                    ["Suspension", du.suspension_durability],
+                    ["Brakes", du.brake_durability],
+                    ["Cooling Capacity", du.cooling_capacity],
+                    ["Mech Sympathy Modifier", f"{du.mechanical_sympathy_modifier:+d}"],
+                ],
+            ),
+            TableData(
+                "Fuel",
+                ["Stat", "Value"],
+                [
+                    ["Tank Capacity", f"{fu.fuel_capacity_l:.1f} L"],
+                    ["Base Burn Rate", f"{fu.base_fuel_burn:.2f} L/lap"],
+                    ["Efficiency Rating", fu.fuel_efficiency],
+                ],
+            ),
+            TableData(
+                "Condition",
+                ["Area", "Value"],
+                [
+                    ["Overall", f"{co.overall_condition:.0f}%"],
+                    ["Engine", f"{co.engine_condition:.0f}%"],
+                    ["Gearbox", f"{co.gearbox_condition:.0f}%"],
+                    ["Suspension", f"{co.suspension_condition:.0f}%"],
+                    ["Brakes", f"{co.brake_condition:.0f}%"],
+                    ["Body", f"{co.body_condition:.0f}%"],
+                    ["Tires", f"{co.tire_condition:.0f}%"],
+                    ["Mileage", f"{co.mileage:,} km"],
+                ],
+            ),
+            TableData(
+                "Tune Setup",
+                ["Setting", "Value"],
+                [
+                    ["Engine Map", tu.engine_map],
+                    ["Tire Pressure (F)", f"{tu.tire_pressure_front:.1f} psi"],
+                    ["Tire Pressure (R)", f"{tu.tire_pressure_rear:.1f} psi"],
+                    ["Final Drive", f"{tu.final_drive:.2f}"],
+                    ["Gear Bias", f"{tu.gear_bias:.2f}"],
+                    ["Brake Bias", f"{tu.brake_bias:.0f}% front"],
+                    ["Brake Pressure", f"{tu.brake_pressure:.0f}%"],
+                    ["Ride Height (F)", f"{tu.front_ride_height} mm"],
+                    ["Ride Height (R)", f"{tu.rear_ride_height} mm"],
+                    ["Suspension Stiffness (F)", tu.suspension_stiffness_front],
+                    ["Suspension Stiffness (R)", tu.suspension_stiffness_rear],
+                    ["Anti-Roll (F)", tu.antiroll_front],
+                    ["Anti-Roll (R)", tu.antiroll_rear],
+                    ["Camber (F)", f"{tu.camber_front:.1f}°"],
+                    ["Camber (R)", f"{tu.camber_rear:.1f}°"],
+                    ["Toe (F)", f"{tu.toe_front:+.2f}°"],
+                    ["Toe (R)", f"{tu.toe_rear:+.2f}°"],
+                    ["Downforce (F)", tu.front_downforce],
+                    ["Downforce (R)", tu.rear_downforce],
+                    ["Diff Power", f"{tu.differential_power}%"],
+                    ["Diff Coast", f"{tu.differential_coast}%"],
+                    ["Diff Preload", f"{tu.differential_preload} Nm"],
+                ],
+            ),
+        ],
+    )
+
+
 def driver_detail_screen(driver_id: str) -> ScreenData:
     driver = next((driver for driver in load_drivers() if driver.id == driver_id), None)
     if driver is None:
