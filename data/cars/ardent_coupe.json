@@ -1,0 +1,23 @@
+{
+  "id": "ardent_coupe",
+  "name": "2001 Ardent Coupe",
+  "year": 2001,
+  "manufacturer": "Ardent",
+  "model": "Coupe",
+  "car_class": "D",
+  "drivetrain": "FWD",
+  "layout": "front_engine",
+  "tags": ["cheap_power", "fwd", "understeer_prone"],
+  "powertrain": {"power_hp": 195, "torque_nm": 255, "powerband": 55, "throttle_response": 58, "engine_reliability": 70, "cooling": 60, "fuel_efficiency": 52, "aspiration": "turbo", "engine_stress": 32},
+  "chassis": {"weight_kg": 1250, "weight_distribution_front": 0.63, "center_of_gravity": 55, "chassis_rigidity": 55, "stability": 58, "rotation": 42},
+  "tires": {"tire_compound": "street", "tire_width_front": 205, "tire_width_rear": 205, "base_grip": 52, "wet_grip": 44, "tire_wear_resistance": 60, "tire_heat_resistance": 55, "tire_warmup": 60},
+  "brakes": {"braking_power": 48, "brake_stability": 50, "brake_cooling": 48, "brake_fade_resistance": 45},
+  "suspension": {"handling": 45, "mechanical_grip": 50, "suspension_compliance": 55, "curb_handling": 42, "bump_absorption": 52, "steering_precision": 48},
+  "aero": {"downforce": 8, "drag": 30, "aero_efficiency": 25, "high_speed_stability": 45},
+  "durability": {"overall_reliability": 70, "engine_reliability": 65, "gearbox_reliability": 72, "suspension_durability": 68, "brake_durability": 65, "cooling_capacity": 58, "mechanical_sympathy_modifier": 6},
+  "fuel": {"fuel_capacity_l": 55.0, "base_fuel_burn": 1.42, "fuel_efficiency": 52},
+  "condition": {"overall_condition": 80.0, "engine_condition": 78.0, "gearbox_condition": 82.0, "suspension_condition": 78.0, "brake_condition": 80.0, "body_condition": 75.0, "tire_condition": 85.0, "mileage": 98500},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.35, "tire_pressure_rear": 2.25, "final_drive": 3.94, "gear_bias": 0.0, "brake_bias": 0.68, "brake_pressure": 0.88, "front_ride_height": 140, "rear_ride_height": 145, "suspension_stiffness_front": 38, "suspension_stiffness_rear": 35, "antiroll_front": 5, "antiroll_rear": 3, "camber_front": -2.5, "camber_rear": -1.2, "toe_front": 0.05, "toe_rear": 0.15, "front_downforce": 0, "rear_downforce": 0, "differential_power": 15, "differential_coast": 8, "differential_preload": 6, "engine_map": "balanced"},
+  "value": 4200
+}

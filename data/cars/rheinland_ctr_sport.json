@@ -1,0 +1,23 @@
+{
+  "id": "rheinland_ctr_sport",
+  "name": "1997 Rheinland CTR Sport",
+  "year": 1997,
+  "manufacturer": "Rheinland",
+  "model": "CTR Sport",
+  "car_class": "A",
+  "drivetrain": "AWD",
+  "layout": "rear_engine",
+  "tags": ["german", "turbo", "rear_engine", "awd", "high_speed"],
+  "powertrain": {"power_hp": 520, "torque_nm": 650, "powerband": 74, "throttle_response": 66, "engine_reliability": 62, "cooling": 66, "fuel_efficiency": 28, "aspiration": "turbo", "engine_stress": 58},
+  "chassis": {"weight_kg": 1280, "weight_distribution_front": 0.40, "center_of_gravity": 76, "chassis_rigidity": 82, "stability": 78, "rotation": 76},
+  "tires": {"tire_compound": "sport", "tire_width_front": 235, "tire_width_rear": 295, "base_grip": 84, "wet_grip": 62, "tire_wear_resistance": 46, "tire_heat_resistance": 74, "tire_warmup": 70},
+  "brakes": {"braking_power": 84, "brake_stability": 76, "brake_cooling": 78, "brake_fade_resistance": 74},
+  "suspension": {"handling": 84, "mechanical_grip": 84, "suspension_compliance": 42, "curb_handling": 54, "bump_absorption": 40, "steering_precision": 84},
+  "aero": {"downforce": 42, "drag": 36, "aero_efficiency": 68, "high_speed_stability": 84},
+  "durability": {"overall_reliability": 62, "engine_reliability": 58, "gearbox_reliability": 64, "suspension_durability": 62, "brake_durability": 68, "cooling_capacity": 66, "mechanical_sympathy_modifier": 2},
+  "fuel": {"fuel_capacity_l": 72.0, "base_fuel_burn": 2.78, "fuel_efficiency": 28},
+  "condition": {"overall_condition": 82.0, "engine_condition": 80.0, "gearbox_condition": 82.0, "suspension_condition": 80.0, "brake_condition": 84.0, "body_condition": 84.0, "tire_condition": 80.0, "mileage": 52800},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.15, "tire_pressure_rear": 2.20, "final_drive": 3.44, "gear_bias": 0.12, "brake_bias": 0.55, "brake_pressure": 1.04, "front_ride_height": 108, "rear_ride_height": 114, "suspension_stiffness_front": 66, "suspension_stiffness_rear": 72, "antiroll_front": 6, "antiroll_rear": 7, "camber_front": -2.6, "camber_rear": -2.2, "toe_front": 0.00, "toe_rear": 0.20, "front_downforce": 10, "rear_downforce": 22, "differential_power": 50, "differential_coast": 28, "differential_preload": 24, "engine_map": "balanced"},
+  "value": 125000
+}

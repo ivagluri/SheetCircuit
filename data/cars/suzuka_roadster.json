@@ -1,0 +1,23 @@
+{
+  "id": "suzuka_roadster",
+  "name": "1997 Suzuka Roadster",
+  "year": 1997,
+  "manufacturer": "Suzuka",
+  "model": "Roadster",
+  "car_class": "D",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["lightweight", "high_handling", "momentum_car", "driver_car"],
+  "powertrain": {"power_hp": 128, "torque_nm": 155, "powerband": 58, "throttle_response": 78, "engine_reliability": 80, "cooling": 72, "fuel_efficiency": 62, "aspiration": "NA", "engine_stress": 18},
+  "chassis": {"weight_kg": 990, "weight_distribution_front": 0.52, "center_of_gravity": 78, "chassis_rigidity": 72, "stability": 70, "rotation": 80},
+  "tires": {"tire_compound": "street", "tire_width_front": 185, "tire_width_rear": 195, "base_grip": 72, "wet_grip": 60, "tire_wear_resistance": 62, "tire_heat_resistance": 65, "tire_warmup": 62},
+  "brakes": {"braking_power": 60, "brake_stability": 68, "brake_cooling": 60, "brake_fade_resistance": 58},
+  "suspension": {"handling": 82, "mechanical_grip": 78, "suspension_compliance": 60, "curb_handling": 68, "bump_absorption": 55, "steering_precision": 80},
+  "aero": {"downforce": 10, "drag": 22, "aero_efficiency": 38, "high_speed_stability": 50},
+  "durability": {"overall_reliability": 78, "engine_reliability": 80, "gearbox_reliability": 75, "suspension_durability": 70, "brake_durability": 68, "cooling_capacity": 68, "mechanical_sympathy_modifier": 12},
+  "fuel": {"fuel_capacity_l": 48.0, "base_fuel_burn": 0.98, "fuel_efficiency": 62},
+  "condition": {"overall_condition": 88.0, "engine_condition": 90.0, "gearbox_condition": 85.0, "suspension_condition": 88.0, "brake_condition": 85.0, "body_condition": 82.0, "tire_condition": 92.0, "mileage": 61200},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.25, "tire_pressure_rear": 2.15, "final_drive": 4.10, "gear_bias": 0.0, "brake_bias": 0.60, "brake_pressure": 0.88, "front_ride_height": 128, "rear_ride_height": 132, "suspension_stiffness_front": 48, "suspension_stiffness_rear": 44, "antiroll_front": 4, "antiroll_rear": 3, "camber_front": -2.2, "camber_rear": -1.8, "toe_front": 0.0, "toe_rear": 0.12, "front_downforce": 0, "rear_downforce": 0, "differential_power": 20, "differential_coast": 10, "differential_preload": 8, "engine_map": "balanced"},
+  "value": 3800
+}

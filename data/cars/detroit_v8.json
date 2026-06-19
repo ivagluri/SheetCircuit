@@ -1,0 +1,23 @@
+{
+  "id": "detroit_v8",
+  "name": "1985 Detroit V8",
+  "year": 1985,
+  "manufacturer": "Detroit",
+  "model": "V8",
+  "car_class": "E",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["big_power", "heavy", "poor_brakes", "trap_car", "oval_specialist"],
+  "powertrain": {"power_hp": 265, "torque_nm": 420, "powerband": 72, "throttle_response": 50, "engine_reliability": 62, "cooling": 55, "fuel_efficiency": 28, "aspiration": "NA", "engine_stress": 40},
+  "chassis": {"weight_kg": 1580, "weight_distribution_front": 0.54, "center_of_gravity": 42, "chassis_rigidity": 48, "stability": 52, "rotation": 30},
+  "tires": {"tire_compound": "street", "tire_width_front": 205, "tire_width_rear": 225, "base_grip": 38, "wet_grip": 30, "tire_wear_resistance": 55, "tire_heat_resistance": 50, "tire_warmup": 65},
+  "brakes": {"braking_power": 42, "brake_stability": 40, "brake_cooling": 38, "brake_fade_resistance": 35},
+  "suspension": {"handling": 30, "mechanical_grip": 35, "suspension_compliance": 48, "curb_handling": 28, "bump_absorption": 50, "steering_precision": 32},
+  "aero": {"downforce": 8, "drag": 42, "aero_efficiency": 18, "high_speed_stability": 48},
+  "durability": {"overall_reliability": 62, "engine_reliability": 58, "gearbox_reliability": 60, "suspension_durability": 65, "brake_durability": 55, "cooling_capacity": 52, "mechanical_sympathy_modifier": 5},
+  "fuel": {"fuel_capacity_l": 75.0, "base_fuel_burn": 2.10, "fuel_efficiency": 28},
+  "condition": {"overall_condition": 68.0, "engine_condition": 65.0, "gearbox_condition": 70.0, "suspension_condition": 62.0, "brake_condition": 65.0, "body_condition": 58.0, "tire_condition": 75.0, "mileage": 198000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.20, "tire_pressure_rear": 2.00, "final_drive": 3.08, "gear_bias": 0.0, "brake_bias": 0.55, "brake_pressure": 0.92, "front_ride_height": 155, "rear_ride_height": 155, "suspension_stiffness_front": 28, "suspension_stiffness_rear": 25, "antiroll_front": 3, "antiroll_rear": 2, "camber_front": -1.0, "camber_rear": -0.8, "toe_front": 0.05, "toe_rear": 0.20, "front_downforce": 0, "rear_downforce": 0, "differential_power": 35, "differential_coast": 20, "differential_preload": 15, "engine_map": "balanced"},
+  "value": 3500
+}

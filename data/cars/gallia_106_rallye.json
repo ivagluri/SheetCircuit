@@ -1,0 +1,23 @@
+{
+  "id": "gallia_106_rallye",
+  "name": "1997 Gallia 106 Rallye",
+  "year": 1997,
+  "manufacturer": "Gallia",
+  "model": "106 Rallye",
+  "car_class": "E",
+  "drivetrain": "FWD",
+  "layout": "front_engine",
+  "tags": ["french", "hot_hatch", "lightweight", "momentum_car", "lift_off_rotation"],
+  "powertrain": {"power_hp": 118, "torque_nm": 145, "powerband": 62, "throttle_response": 74, "engine_reliability": 72, "cooling": 62, "fuel_efficiency": 64, "aspiration": "NA", "engine_stress": 24},
+  "chassis": {"weight_kg": 910, "weight_distribution_front": 0.61, "center_of_gravity": 70, "chassis_rigidity": 58, "stability": 54, "rotation": 68},
+  "tires": {"tire_compound": "street", "tire_width_front": 185, "tire_width_rear": 175, "base_grip": 56, "wet_grip": 52, "tire_wear_resistance": 66, "tire_heat_resistance": 58, "tire_warmup": 66},
+  "brakes": {"braking_power": 52, "brake_stability": 54, "brake_cooling": 50, "brake_fade_resistance": 48},
+  "suspension": {"handling": 68, "mechanical_grip": 58, "suspension_compliance": 58, "curb_handling": 62, "bump_absorption": 54, "steering_precision": 66},
+  "aero": {"downforce": 5, "drag": 27, "aero_efficiency": 22, "high_speed_stability": 42},
+  "durability": {"overall_reliability": 72, "engine_reliability": 70, "gearbox_reliability": 68, "suspension_durability": 70, "brake_durability": 62, "cooling_capacity": 60, "mechanical_sympathy_modifier": 9},
+  "fuel": {"fuel_capacity_l": 45.0, "base_fuel_burn": 0.96, "fuel_efficiency": 64},
+  "condition": {"overall_condition": 78.0, "engine_condition": 76.0, "gearbox_condition": 78.0, "suspension_condition": 76.0, "brake_condition": 76.0, "body_condition": 72.0, "tire_condition": 82.0, "mileage": 128000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.30, "tire_pressure_rear": 2.45, "final_drive": 4.45, "gear_bias": 0.0, "brake_bias": 0.67, "brake_pressure": 0.88, "front_ride_height": 130, "rear_ride_height": 136, "suspension_stiffness_front": 42, "suspension_stiffness_rear": 38, "antiroll_front": 4, "antiroll_rear": 3, "camber_front": -2.0, "camber_rear": -1.2, "toe_front": 0.04, "toe_rear": 0.05, "front_downforce": 0, "rear_downforce": 0, "differential_power": 14, "differential_coast": 8, "differential_preload": 6, "engine_map": "balanced"},
+  "value": 2900
+}

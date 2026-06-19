@@ -1,0 +1,23 @@
+{
+  "id": "gunma_rally_rs",
+  "name": "1999 Gunma Rally RS",
+  "year": 1999,
+  "manufacturer": "Gunma",
+  "model": "Rally RS",
+  "car_class": "B",
+  "drivetrain": "AWD",
+  "layout": "front_engine",
+  "tags": ["japanese", "rally_bred", "awd", "turbo", "short_gears"],
+  "powertrain": {"power_hp": 276, "torque_nm": 373, "powerband": 74, "throttle_response": 70, "engine_reliability": 70, "cooling": 72, "fuel_efficiency": 36, "aspiration": "turbo", "engine_stress": 44},
+  "chassis": {"weight_kg": 1260, "weight_distribution_front": 0.59, "center_of_gravity": 66, "chassis_rigidity": 76, "stability": 74, "rotation": 68},
+  "tires": {"tire_compound": "sport", "tire_width_front": 225, "tire_width_rear": 225, "base_grip": 76, "wet_grip": 70, "tire_wear_resistance": 52, "tire_heat_resistance": 70, "tire_warmup": 70},
+  "brakes": {"braking_power": 76, "brake_stability": 78, "brake_cooling": 72, "brake_fade_resistance": 68},
+  "suspension": {"handling": 78, "mechanical_grip": 78, "suspension_compliance": 54, "curb_handling": 66, "bump_absorption": 56, "steering_precision": 76},
+  "aero": {"downforce": 22, "drag": 35, "aero_efficiency": 44, "high_speed_stability": 72},
+  "durability": {"overall_reliability": 70, "engine_reliability": 68, "gearbox_reliability": 66, "suspension_durability": 74, "brake_durability": 70, "cooling_capacity": 72, "mechanical_sympathy_modifier": 5},
+  "fuel": {"fuel_capacity_l": 55.0, "base_fuel_burn": 1.92, "fuel_efficiency": 36},
+  "condition": {"overall_condition": 86.0, "engine_condition": 84.0, "gearbox_condition": 82.0, "suspension_condition": 86.0, "brake_condition": 84.0, "body_condition": 82.0, "tire_condition": 86.0, "mileage": 68400},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.20, "tire_pressure_rear": 2.15, "final_drive": 4.53, "gear_bias": -0.05, "brake_bias": 0.61, "brake_pressure": 1.02, "front_ride_height": 118, "rear_ride_height": 124, "suspension_stiffness_front": 60, "suspension_stiffness_rear": 56, "antiroll_front": 6, "antiroll_rear": 5, "camber_front": -2.6, "camber_rear": -2.0, "toe_front": -0.01, "toe_rear": 0.12, "front_downforce": 4, "rear_downforce": 10, "differential_power": 48, "differential_coast": 28, "differential_preload": 24, "engine_map": "balanced"},
+  "value": 24000
+}

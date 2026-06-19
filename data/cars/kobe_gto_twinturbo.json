@@ -1,0 +1,23 @@
+{
+  "id": "kobe_gto_twinturbo",
+  "name": "1999 Kobe GTO TwinTurbo",
+  "year": 1999,
+  "manufacturer": "Kobe",
+  "model": "GTO TwinTurbo",
+  "car_class": "B",
+  "drivetrain": "AWD",
+  "layout": "front_engine",
+  "tags": ["japanese", "grand_tourer", "awd", "turbo", "heavy"],
+  "powertrain": {"power_hp": 320, "torque_nm": 427, "powerband": 70, "throttle_response": 62, "engine_reliability": 68, "cooling": 70, "fuel_efficiency": 31, "aspiration": "turbo", "engine_stress": 42},
+  "chassis": {"weight_kg": 1600, "weight_distribution_front": 0.58, "center_of_gravity": 58, "chassis_rigidity": 74, "stability": 82, "rotation": 48},
+  "tires": {"tire_compound": "sport", "tire_width_front": 245, "tire_width_rear": 245, "base_grip": 72, "wet_grip": 64, "tire_wear_resistance": 50, "tire_heat_resistance": 66, "tire_warmup": 64},
+  "brakes": {"braking_power": 74, "brake_stability": 78, "brake_cooling": 70, "brake_fade_resistance": 66},
+  "suspension": {"handling": 66, "mechanical_grip": 72, "suspension_compliance": 50, "curb_handling": 46, "bump_absorption": 52, "steering_precision": 66},
+  "aero": {"downforce": 20, "drag": 38, "aero_efficiency": 42, "high_speed_stability": 82},
+  "durability": {"overall_reliability": 68, "engine_reliability": 66, "gearbox_reliability": 64, "suspension_durability": 70, "brake_durability": 68, "cooling_capacity": 70, "mechanical_sympathy_modifier": 6},
+  "fuel": {"fuel_capacity_l": 75.0, "base_fuel_burn": 2.30, "fuel_efficiency": 31},
+  "condition": {"overall_condition": 80.0, "engine_condition": 78.0, "gearbox_condition": 76.0, "suspension_condition": 80.0, "brake_condition": 80.0, "body_condition": 82.0, "tire_condition": 82.0, "mileage": 112000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.25, "tire_pressure_rear": 2.20, "final_drive": 3.87, "gear_bias": 0.00, "brake_bias": 0.60, "brake_pressure": 1.00, "front_ride_height": 125, "rear_ride_height": 130, "suspension_stiffness_front": 54, "suspension_stiffness_rear": 50, "antiroll_front": 5, "antiroll_rear": 4, "camber_front": -2.2, "camber_rear": -1.8, "toe_front": 0.00, "toe_rear": 0.15, "front_downforce": 2, "rear_downforce": 6, "differential_power": 46, "differential_coast": 26, "differential_preload": 22, "engine_map": "balanced"},
+  "value": 21000
+}

@@ -1,0 +1,23 @@
+{
+  "id": "kasai_crx_si",
+  "name": "1991 Kasai CRX Si",
+  "year": 1991,
+  "manufacturer": "Kasai",
+  "model": "CRX Si",
+  "car_class": "D",
+  "drivetrain": "FWD",
+  "layout": "front_engine",
+  "tags": ["japanese", "lightweight", "momentum_car", "lift_off_rotation", "tuner_favorite"],
+  "powertrain": {"power_hp": 132, "torque_nm": 144, "powerband": 66, "throttle_response": 78, "engine_reliability": 78, "cooling": 66, "fuel_efficiency": 68, "aspiration": "NA", "engine_stress": 22},
+  "chassis": {"weight_kg": 880, "weight_distribution_front": 0.62, "center_of_gravity": 72, "chassis_rigidity": 56, "stability": 52, "rotation": 76},
+  "tires": {"tire_compound": "street", "tire_width_front": 185, "tire_width_rear": 185, "base_grip": 60, "wet_grip": 54, "tire_wear_resistance": 66, "tire_heat_resistance": 60, "tire_warmup": 66},
+  "brakes": {"braking_power": 54, "brake_stability": 56, "brake_cooling": 50, "brake_fade_resistance": 48},
+  "suspension": {"handling": 74, "mechanical_grip": 62, "suspension_compliance": 56, "curb_handling": 64, "bump_absorption": 52, "steering_precision": 72},
+  "aero": {"downforce": 4, "drag": 24, "aero_efficiency": 24, "high_speed_stability": 42},
+  "durability": {"overall_reliability": 76, "engine_reliability": 78, "gearbox_reliability": 72, "suspension_durability": 70, "brake_durability": 64, "cooling_capacity": 64, "mechanical_sympathy_modifier": 10},
+  "fuel": {"fuel_capacity_l": 45.0, "base_fuel_burn": 0.92, "fuel_efficiency": 68},
+  "condition": {"overall_condition": 76.0, "engine_condition": 78.0, "gearbox_condition": 76.0, "suspension_condition": 74.0, "brake_condition": 74.0, "body_condition": 68.0, "tire_condition": 82.0, "mileage": 156000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.25, "tire_pressure_rear": 2.35, "final_drive": 4.40, "gear_bias": 0.0, "brake_bias": 0.66, "brake_pressure": 0.88, "front_ride_height": 130, "rear_ride_height": 134, "suspension_stiffness_front": 42, "suspension_stiffness_rear": 40, "antiroll_front": 4, "antiroll_rear": 3, "camber_front": -2.0, "camber_rear": -1.2, "toe_front": 0.03, "toe_rear": 0.08, "front_downforce": 0, "rear_downforce": 0, "differential_power": 16, "differential_coast": 8, "differential_preload": 6, "engine_map": "balanced"},
+  "value": 3600
+}

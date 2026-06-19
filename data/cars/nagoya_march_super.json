@@ -1,0 +1,23 @@
+{
+  "id": "nagoya_march_super",
+  "name": "1989 Nagoya March Super",
+  "year": 1989,
+  "manufacturer": "Nagoya",
+  "model": "March Super",
+  "car_class": "E",
+  "drivetrain": "FWD",
+  "layout": "front_engine",
+  "tags": ["japanese", "tiny_turbo", "lightweight", "cheap_power", "short_gears"],
+  "powertrain": {"power_hp": 110, "torque_nm": 130, "powerband": 54, "throttle_response": 60, "engine_reliability": 62, "cooling": 50, "fuel_efficiency": 60, "aspiration": "turbo", "engine_stress": 34},
+  "chassis": {"weight_kg": 760, "weight_distribution_front": 0.63, "center_of_gravity": 62, "chassis_rigidity": 42, "stability": 44, "rotation": 58},
+  "tires": {"tire_compound": "street", "tire_width_front": 175, "tire_width_rear": 165, "base_grip": 46, "wet_grip": 42, "tire_wear_resistance": 66, "tire_heat_resistance": 56, "tire_warmup": 62},
+  "brakes": {"braking_power": 42, "brake_stability": 44, "brake_cooling": 38, "brake_fade_resistance": 36},
+  "suspension": {"handling": 58, "mechanical_grip": 48, "suspension_compliance": 58, "curb_handling": 50, "bump_absorption": 54, "steering_precision": 56},
+  "aero": {"downforce": 3, "drag": 24, "aero_efficiency": 18, "high_speed_stability": 34},
+  "durability": {"overall_reliability": 62, "engine_reliability": 58, "gearbox_reliability": 60, "suspension_durability": 62, "brake_durability": 58, "cooling_capacity": 50, "mechanical_sympathy_modifier": 8},
+  "fuel": {"fuel_capacity_l": 40.0, "base_fuel_burn": 0.92, "fuel_efficiency": 60},
+  "condition": {"overall_condition": 70.0, "engine_condition": 68.0, "gearbox_condition": 70.0, "suspension_condition": 68.0, "brake_condition": 70.0, "body_condition": 62.0, "tire_condition": 76.0, "mileage": 162000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.30, "tire_pressure_rear": 2.35, "final_drive": 4.65, "gear_bias": 0.0, "brake_bias": 0.68, "brake_pressure": 0.84, "front_ride_height": 138, "rear_ride_height": 142, "suspension_stiffness_front": 34, "suspension_stiffness_rear": 30, "antiroll_front": 3, "antiroll_rear": 2, "camber_front": -1.6, "camber_rear": -0.8, "toe_front": 0.05, "toe_rear": 0.10, "front_downforce": 0, "rear_downforce": 0, "differential_power": 12, "differential_coast": 6, "differential_preload": 6, "engine_map": "balanced"},
+  "value": 2400
+}

@@ -1,0 +1,23 @@
+{
+  "id": "outback_redline",
+  "name": "2016 Outback Redline",
+  "year": 2016,
+  "manufacturer": "Outback",
+  "model": "Redline",
+  "car_class": "B",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["australian", "muscle_sedan", "big_power", "stable", "heavy"],
+  "powertrain": {"power_hp": 407, "torque_nm": 570, "powerband": 70, "throttle_response": 66, "engine_reliability": 74, "cooling": 74, "fuel_efficiency": 33, "aspiration": "NA", "engine_stress": 36},
+  "chassis": {"weight_kg": 1740, "weight_distribution_front": 0.53, "center_of_gravity": 52, "chassis_rigidity": 74, "stability": 78, "rotation": 55},
+  "tires": {"tire_compound": "sport", "tire_width_front": 245, "tire_width_rear": 275, "base_grip": 72, "wet_grip": 58, "tire_wear_resistance": 54, "tire_heat_resistance": 66, "tire_warmup": 62},
+  "brakes": {"braking_power": 76, "brake_stability": 78, "brake_cooling": 72, "brake_fade_resistance": 70},
+  "suspension": {"handling": 72, "mechanical_grip": 72, "suspension_compliance": 58, "curb_handling": 54, "bump_absorption": 60, "steering_precision": 70},
+  "aero": {"downforce": 18, "drag": 35, "aero_efficiency": 42, "high_speed_stability": 74},
+  "durability": {"overall_reliability": 74, "engine_reliability": 76, "gearbox_reliability": 72, "suspension_durability": 76, "brake_durability": 74, "cooling_capacity": 76, "mechanical_sympathy_modifier": 8},
+  "fuel": {"fuel_capacity_l": 71.0, "base_fuel_burn": 2.35, "fuel_efficiency": 33},
+  "condition": {"overall_condition": 88.0, "engine_condition": 90.0, "gearbox_condition": 86.0, "suspension_condition": 88.0, "brake_condition": 86.0, "body_condition": 84.0, "tire_condition": 88.0, "mileage": 58400},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.35, "tire_pressure_rear": 2.20, "final_drive": 3.70, "gear_bias": 0.05, "brake_bias": 0.58, "brake_pressure": 1.00, "front_ride_height": 125, "rear_ride_height": 130, "suspension_stiffness_front": 56, "suspension_stiffness_rear": 52, "antiroll_front": 6, "antiroll_rear": 5, "camber_front": -2.0, "camber_rear": -1.6, "toe_front": 0.00, "toe_rear": 0.14, "front_downforce": 4, "rear_downforce": 8, "differential_power": 42, "differential_coast": 22, "differential_preload": 18, "engine_map": "balanced"},
+  "value": 32000
+}

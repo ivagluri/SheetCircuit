@@ -1,0 +1,23 @@
+{
+  "id": "norfolk_190",
+  "name": "1998 Norfolk 190",
+  "year": 1998,
+  "manufacturer": "Norfolk",
+  "model": "190",
+  "car_class": "C",
+  "drivetrain": "RWD",
+  "layout": "mid_engine",
+  "tags": ["british", "lightweight", "mid_engine", "driver_car", "high_handling"],
+  "powertrain": {"power_hp": 190, "torque_nm": 185, "powerband": 78, "throttle_response": 84, "engine_reliability": 72, "cooling": 64, "fuel_efficiency": 54, "aspiration": "NA", "engine_stress": 32},
+  "chassis": {"weight_kg": 720, "weight_distribution_front": 0.40, "center_of_gravity": 92, "chassis_rigidity": 76, "stability": 64, "rotation": 92},
+  "tires": {"tire_compound": "sport", "tire_width_front": 195, "tire_width_rear": 225, "base_grip": 80, "wet_grip": 58, "tire_wear_resistance": 54, "tire_heat_resistance": 66, "tire_warmup": 72},
+  "brakes": {"braking_power": 72, "brake_stability": 62, "brake_cooling": 66, "brake_fade_resistance": 62},
+  "suspension": {"handling": 92, "mechanical_grip": 84, "suspension_compliance": 40, "curb_handling": 58, "bump_absorption": 38, "steering_precision": 92},
+  "aero": {"downforce": 22, "drag": 26, "aero_efficiency": 54, "high_speed_stability": 60},
+  "durability": {"overall_reliability": 70, "engine_reliability": 70, "gearbox_reliability": 68, "suspension_durability": 64, "brake_durability": 66, "cooling_capacity": 62, "mechanical_sympathy_modifier": 6},
+  "fuel": {"fuel_capacity_l": 44.0, "base_fuel_burn": 1.32, "fuel_efficiency": 54},
+  "condition": {"overall_condition": 84.0, "engine_condition": 84.0, "gearbox_condition": 82.0, "suspension_condition": 82.0, "brake_condition": 84.0, "body_condition": 86.0, "tire_condition": 84.0, "mileage": 46300},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.15, "tire_pressure_rear": 2.10, "final_drive": 4.25, "gear_bias": 0.08, "brake_bias": 0.55, "brake_pressure": 0.96, "front_ride_height": 105, "rear_ride_height": 112, "suspension_stiffness_front": 64, "suspension_stiffness_rear": 68, "antiroll_front": 5, "antiroll_rear": 6, "camber_front": -2.8, "camber_rear": -2.4, "toe_front": -0.02, "toe_rear": 0.18, "front_downforce": 2, "rear_downforce": 6, "differential_power": 36, "differential_coast": 18, "differential_preload": 14, "engine_map": "balanced"},
+  "value": 28000
+}

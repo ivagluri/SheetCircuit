@@ -1,0 +1,7 @@
+[
+  {"id": "sunday_cup", "name": "Sunday Cup", "track_id": "maple_short", "car_class_limit": "E", "entry_fee": 250, "prize_money": [2000, 1200, 800, 400, 200, 100, 0, 0], "opponent_count": 7, "restrictions": {"max_power_hp": 140, "allowed_tires": ["economy", "street"]}},
+  {"id": "clubman_trial", "name": "Clubman Trial", "track_id": "red_valley_club", "car_class_limit": "D", "entry_fee": 500, "prize_money": [4000, 2500, 1500, 800, 400, 200, 0, 0], "opponent_count": 7, "restrictions": {"max_class_rating": 299, "allowed_tires": ["economy", "street", "sport"]}},
+  {"id": "oval_night", "name": "Oval Night", "track_id": "northbank_oval", "car_class_limit": "D", "entry_fee": 350, "prize_money": [3000, 1800, 1000, 500, 250, 100, 0, 0], "opponent_count": 7, "restrictions": {"max_class_rating": 299}},
+  {"id": "lightweight_challenge", "name": "Lightweight Challenge", "track_id": "maple_short", "car_class_limit": "E", "entry_fee": 300, "prize_money": [2500, 1500, 900, 450, 200, 0, 0, 0], "opponent_count": 7, "restrictions": {"max_weight_kg": 1000, "allowed_tires": ["economy", "street"]}},
+  {"id": "beater_enduro", "name": "Beater Enduro", "track_id": "red_valley_club", "car_class_limit": "E", "entry_fee": 150, "prize_money": [1800, 1000, 600, 300, 150, 0, 0, 0], "opponent_count": 7, "restrictions": {"max_overall_condition": 80.0, "allowed_tires": ["economy", "street"]}}
+]

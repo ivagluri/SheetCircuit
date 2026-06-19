@@ -1,0 +1,23 @@
+{
+  "id": "hiroshima_re7_rs",
+  "name": "1998 Hiroshima RE7 RS",
+  "year": 1998,
+  "manufacturer": "Hiroshima",
+  "model": "RE7 RS",
+  "car_class": "C",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["japanese", "rotary", "turbo", "lightweight", "high_handling"],
+  "powertrain": {"power_hp": 276, "torque_nm": 314, "powerband": 82, "throttle_response": 76, "engine_reliability": 60, "cooling": 62, "fuel_efficiency": 30, "aspiration": "turbo", "engine_stress": 48},
+  "chassis": {"weight_kg": 1280, "weight_distribution_front": 0.50, "center_of_gravity": 76, "chassis_rigidity": 72, "stability": 70, "rotation": 82},
+  "tires": {"tire_compound": "sport", "tire_width_front": 235, "tire_width_rear": 255, "base_grip": 74, "wet_grip": 54, "tire_wear_resistance": 50, "tire_heat_resistance": 66, "tire_warmup": 68},
+  "brakes": {"braking_power": 72, "brake_stability": 68, "brake_cooling": 68, "brake_fade_resistance": 64},
+  "suspension": {"handling": 84, "mechanical_grip": 76, "suspension_compliance": 48, "curb_handling": 58, "bump_absorption": 46, "steering_precision": 84},
+  "aero": {"downforce": 24, "drag": 31, "aero_efficiency": 52, "high_speed_stability": 68},
+  "durability": {"overall_reliability": 60, "engine_reliability": 54, "gearbox_reliability": 66, "suspension_durability": 66, "brake_durability": 66, "cooling_capacity": 60, "mechanical_sympathy_modifier": 3},
+  "fuel": {"fuel_capacity_l": 76.0, "base_fuel_burn": 2.08, "fuel_efficiency": 30},
+  "condition": {"overall_condition": 82.0, "engine_condition": 78.0, "gearbox_condition": 84.0, "suspension_condition": 82.0, "brake_condition": 82.0, "body_condition": 80.0, "tire_condition": 84.0, "mileage": 94300},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.20, "tire_pressure_rear": 2.15, "final_drive": 4.10, "gear_bias": 0.05, "brake_bias": 0.58, "brake_pressure": 0.98, "front_ride_height": 118, "rear_ride_height": 122, "suspension_stiffness_front": 58, "suspension_stiffness_rear": 62, "antiroll_front": 5, "antiroll_rear": 6, "camber_front": -2.5, "camber_rear": -2.0, "toe_front": -0.01, "toe_rear": 0.16, "front_downforce": 2, "rear_downforce": 8, "differential_power": 44, "differential_coast": 22, "differential_preload": 18, "engine_map": "balanced"},
+  "value": 18000
+}

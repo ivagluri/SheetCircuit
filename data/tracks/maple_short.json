@@ -1,0 +1,24 @@
+{
+  "id": "maple_short",
+  "name": "Maple Short",
+  "layout_type": "circuit",
+  "base_lap_time": 95.0,
+  "laps": 5,
+  "length_km": 2.1,
+  "pit_lane_loss_s": 22.0,
+  "overtake_difficulty": 0.65,
+  "elevation_change_m": 18,
+  "surface": "tarmac",
+  "default_condition": "dry",
+  "weather_variability": 0.15,
+  "segments": [
+    {"name": "Pit Straight", "length_pct": 0.10, "tags": ["short_straight"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Turn 1 Braking", "length_pct": 0.08, "tags": ["hard_braking_zone", "slow_corner"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Infield Complex", "length_pct": 0.22, "tags": ["technical_section", "bumpy_surface"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Back Straight", "length_pct": 0.10, "tags": ["short_straight"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Hairpin", "length_pct": 0.08, "tags": ["hard_braking_zone", "slow_corner", "curb_riding"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Technical Section", "length_pct": 0.22, "tags": ["technical_section", "slow_corner"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Final Chicane", "length_pct": 0.12, "tags": ["tight_chicane", "hard_braking_zone"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Run to Line", "length_pct": 0.08, "tags": ["short_straight"], "surface": "tarmac", "condition": "dry"}
+  ]
+}

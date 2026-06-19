@@ -1,0 +1,23 @@
+{
+  "id": "saxony_lupo_14",
+  "name": "1998 Saxony Lupo 1.4",
+  "year": 1998,
+  "manufacturer": "Saxony",
+  "model": "Lupo 1.4",
+  "car_class": "E",
+  "drivetrain": "FWD",
+  "layout": "front_engine",
+  "tags": ["german", "starter", "lightweight", "efficient", "momentum_car"],
+  "powertrain": {"power_hp": 75, "torque_nm": 128, "powerband": 44, "throttle_response": 54, "engine_reliability": 82, "cooling": 66, "fuel_efficiency": 78, "aspiration": "NA", "engine_stress": 16},
+  "chassis": {"weight_kg": 900, "weight_distribution_front": 0.62, "center_of_gravity": 58, "chassis_rigidity": 44, "stability": 44, "rotation": 48},
+  "tires": {"tire_compound": "economy", "tire_width_front": 165, "tire_width_rear": 165, "base_grip": 38, "wet_grip": 38, "tire_wear_resistance": 78, "tire_heat_resistance": 68, "tire_warmup": 52},
+  "brakes": {"braking_power": 36, "brake_stability": 44, "brake_cooling": 38, "brake_fade_resistance": 36},
+  "suspension": {"handling": 48, "mechanical_grip": 42, "suspension_compliance": 66, "curb_handling": 40, "bump_absorption": 62, "steering_precision": 48},
+  "aero": {"downforce": 2, "drag": 26, "aero_efficiency": 14, "high_speed_stability": 34},
+  "durability": {"overall_reliability": 82, "engine_reliability": 84, "gearbox_reliability": 78, "suspension_durability": 76, "brake_durability": 70, "cooling_capacity": 66, "mechanical_sympathy_modifier": 14},
+  "fuel": {"fuel_capacity_l": 34.0, "base_fuel_burn": 0.62, "fuel_efficiency": 78},
+  "condition": {"overall_condition": 84.0, "engine_condition": 86.0, "gearbox_condition": 84.0, "suspension_condition": 82.0, "brake_condition": 82.0, "body_condition": 78.0, "tire_condition": 88.0, "mileage": 93400},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.40, "tire_pressure_rear": 2.35, "final_drive": 4.20, "gear_bias": 0.0, "brake_bias": 0.68, "brake_pressure": 0.82, "front_ride_height": 145, "rear_ride_height": 148, "suspension_stiffness_front": 30, "suspension_stiffness_rear": 28, "antiroll_front": 3, "antiroll_rear": 2, "camber_front": -1.2, "camber_rear": -0.8, "toe_front": 0.05, "toe_rear": 0.10, "front_downforce": 0, "rear_downforce": 0, "differential_power": 8, "differential_coast": 5, "differential_preload": 5, "engine_map": "balanced"},
+  "value": 2100
+}

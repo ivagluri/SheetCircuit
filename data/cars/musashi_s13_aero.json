@@ -1,0 +1,23 @@
+{
+  "id": "musashi_s13_aero",
+  "name": "1991 Musashi S13 Aero",
+  "year": 1991,
+  "manufacturer": "Musashi",
+  "model": "S13 Aero",
+  "car_class": "D",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["japanese", "turbo", "rwd", "tuner_favorite", "oversteer_prone"],
+  "powertrain": {"power_hp": 205, "torque_nm": 275, "powerband": 66, "throttle_response": 64, "engine_reliability": 68, "cooling": 60, "fuel_efficiency": 42, "aspiration": "turbo", "engine_stress": 36},
+  "chassis": {"weight_kg": 1180, "weight_distribution_front": 0.54, "center_of_gravity": 62, "chassis_rigidity": 60, "stability": 58, "rotation": 72},
+  "tires": {"tire_compound": "street", "tire_width_front": 205, "tire_width_rear": 215, "base_grip": 60, "wet_grip": 46, "tire_wear_resistance": 58, "tire_heat_resistance": 58, "tire_warmup": 62},
+  "brakes": {"braking_power": 58, "brake_stability": 54, "brake_cooling": 54, "brake_fade_resistance": 50},
+  "suspension": {"handling": 68, "mechanical_grip": 62, "suspension_compliance": 50, "curb_handling": 52, "bump_absorption": 48, "steering_precision": 68},
+  "aero": {"downforce": 10, "drag": 29, "aero_efficiency": 34, "high_speed_stability": 56},
+  "durability": {"overall_reliability": 68, "engine_reliability": 64, "gearbox_reliability": 68, "suspension_durability": 64, "brake_durability": 62, "cooling_capacity": 58, "mechanical_sympathy_modifier": 6},
+  "fuel": {"fuel_capacity_l": 60.0, "base_fuel_burn": 1.40, "fuel_efficiency": 42},
+  "condition": {"overall_condition": 74.0, "engine_condition": 72.0, "gearbox_condition": 74.0, "suspension_condition": 72.0, "brake_condition": 72.0, "body_condition": 68.0, "tire_condition": 78.0, "mileage": 149000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.25, "tire_pressure_rear": 2.15, "final_drive": 4.08, "gear_bias": 0.06, "brake_bias": 0.58, "brake_pressure": 0.92, "front_ride_height": 132, "rear_ride_height": 136, "suspension_stiffness_front": 46, "suspension_stiffness_rear": 48, "antiroll_front": 4, "antiroll_rear": 4, "camber_front": -2.2, "camber_rear": -1.8, "toe_front": 0.00, "toe_rear": 0.18, "front_downforce": 0, "rear_downforce": 2, "differential_power": 36, "differential_coast": 18, "differential_preload": 14, "engine_map": "balanced"},
+  "value": 6200
+}

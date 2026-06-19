@@ -1,0 +1,21 @@
+{
+  "id": "northbank_oval",
+  "name": "Northbank Oval",
+  "layout_type": "oval",
+  "base_lap_time": 78.0,
+  "laps": 8,
+  "length_km": 2.8,
+  "pit_lane_loss_s": 18.0,
+  "overtake_difficulty": 0.25,
+  "elevation_change_m": 4,
+  "surface": "concrete",
+  "default_condition": "dry",
+  "weather_variability": 0.10,
+  "segments": [
+    {"name": "Front Straight", "length_pct": 0.28, "tags": ["long_straight", "wide_track"], "surface": "concrete", "condition": "dry"},
+    {"name": "Turn 1-2", "length_pct": 0.18, "tags": ["high_speed_corner", "wide_track"], "surface": "concrete", "condition": "dry"},
+    {"name": "Back Chute", "length_pct": 0.20, "tags": ["long_straight", "wide_track"], "surface": "concrete", "condition": "dry"},
+    {"name": "Turn 3-4", "length_pct": 0.18, "tags": ["high_speed_corner", "wide_track"], "surface": "concrete", "condition": "dry"},
+    {"name": "Short Chute", "length_pct": 0.16, "tags": ["short_straight", "wide_track"], "surface": "concrete", "condition": "dry"}
+  ]
+}

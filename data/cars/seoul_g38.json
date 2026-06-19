@@ -1,0 +1,23 @@
+{
+  "id": "seoul_g38",
+  "name": "2013 Seoul G38",
+  "year": 2013,
+  "manufacturer": "Seoul",
+  "model": "G38",
+  "car_class": "C",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["korean", "sport_coupe", "rwd", "value_performance"],
+  "powertrain": {"power_hp": 348, "torque_nm": 400, "powerband": 68, "throttle_response": 68, "engine_reliability": 72, "cooling": 68, "fuel_efficiency": 40, "aspiration": "NA", "engine_stress": 34},
+  "chassis": {"weight_kg": 1540, "weight_distribution_front": 0.55, "center_of_gravity": 58, "chassis_rigidity": 68, "stability": 68, "rotation": 60},
+  "tires": {"tire_compound": "sport", "tire_width_front": 225, "tire_width_rear": 245, "base_grip": 68, "wet_grip": 54, "tire_wear_resistance": 56, "tire_heat_resistance": 64, "tire_warmup": 64},
+  "brakes": {"braking_power": 70, "brake_stability": 66, "brake_cooling": 66, "brake_fade_resistance": 60},
+  "suspension": {"handling": 68, "mechanical_grip": 66, "suspension_compliance": 52, "curb_handling": 50, "bump_absorption": 52, "steering_precision": 66},
+  "aero": {"downforce": 16, "drag": 32, "aero_efficiency": 40, "high_speed_stability": 64},
+  "durability": {"overall_reliability": 72, "engine_reliability": 74, "gearbox_reliability": 70, "suspension_durability": 68, "brake_durability": 66, "cooling_capacity": 68, "mechanical_sympathy_modifier": 7},
+  "fuel": {"fuel_capacity_l": 65.0, "base_fuel_burn": 1.95, "fuel_efficiency": 40},
+  "condition": {"overall_condition": 86.0, "engine_condition": 88.0, "gearbox_condition": 84.0, "suspension_condition": 84.0, "brake_condition": 82.0, "body_condition": 86.0, "tire_condition": 88.0, "mileage": 73400},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.30, "tire_pressure_rear": 2.20, "final_drive": 3.91, "gear_bias": 0.0, "brake_bias": 0.60, "brake_pressure": 0.96, "front_ride_height": 132, "rear_ride_height": 136, "suspension_stiffness_front": 52, "suspension_stiffness_rear": 48, "antiroll_front": 5, "antiroll_rear": 4, "camber_front": -2.2, "camber_rear": -1.8, "toe_front": 0.00, "toe_rear": 0.12, "front_downforce": 0, "rear_downforce": 5, "differential_power": 36, "differential_coast": 18, "differential_preload": 14, "engine_map": "balanced"},
+  "value": 16000
+}

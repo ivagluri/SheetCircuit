@@ -1,0 +1,23 @@
+{
+  "id": "bavaria_325s",
+  "name": "1988 Bavaria 325S",
+  "year": 1988,
+  "manufacturer": "Bavaria",
+  "model": "325S",
+  "car_class": "D",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["balanced", "aging", "rwd_classic"],
+  "powertrain": {"power_hp": 170, "torque_nm": 222, "powerband": 65, "throttle_response": 62, "engine_reliability": 65, "cooling": 62, "fuel_efficiency": 48, "aspiration": "NA", "engine_stress": 28},
+  "chassis": {"weight_kg": 1210, "weight_distribution_front": 0.50, "center_of_gravity": 58, "chassis_rigidity": 62, "stability": 65, "rotation": 62},
+  "tires": {"tire_compound": "street", "tire_width_front": 195, "tire_width_rear": 205, "base_grip": 58, "wet_grip": 50, "tire_wear_resistance": 65, "tire_heat_resistance": 60, "tire_warmup": 58},
+  "brakes": {"braking_power": 55, "brake_stability": 62, "brake_cooling": 55, "brake_fade_resistance": 52},
+  "suspension": {"handling": 65, "mechanical_grip": 62, "suspension_compliance": 58, "curb_handling": 55, "bump_absorption": 58, "steering_precision": 65},
+  "aero": {"downforce": 8, "drag": 25, "aero_efficiency": 30, "high_speed_stability": 55},
+  "durability": {"overall_reliability": 65, "engine_reliability": 62, "gearbox_reliability": 68, "suspension_durability": 65, "brake_durability": 62, "cooling_capacity": 60, "mechanical_sympathy_modifier": 8},
+  "fuel": {"fuel_capacity_l": 62.0, "base_fuel_burn": 1.32, "fuel_efficiency": 48},
+  "condition": {"overall_condition": 72.0, "engine_condition": 68.0, "gearbox_condition": 75.0, "suspension_condition": 70.0, "brake_condition": 72.0, "body_condition": 65.0, "tire_condition": 80.0, "mileage": 142000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.30, "tire_pressure_rear": 2.10, "final_drive": 3.73, "gear_bias": 0.0, "brake_bias": 0.58, "brake_pressure": 0.90, "front_ride_height": 135, "rear_ride_height": 140, "suspension_stiffness_front": 42, "suspension_stiffness_rear": 38, "antiroll_front": 4, "antiroll_rear": 3, "camber_front": -2.0, "camber_rear": -1.5, "toe_front": 0.0, "toe_rear": 0.15, "front_downforce": 0, "rear_downforce": 0, "differential_power": 25, "differential_coast": 15, "differential_preload": 10, "engine_map": "balanced"},
+  "value": 4500
+}

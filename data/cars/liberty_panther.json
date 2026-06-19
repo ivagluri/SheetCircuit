@@ -1,0 +1,23 @@
+{
+  "id": "liberty_panther",
+  "name": "1998 Liberty Panther",
+  "year": 1998,
+  "manufacturer": "Liberty",
+  "model": "Panther",
+  "car_class": "E",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["american", "body_on_frame", "durable", "heavy", "fleet_special"],
+  "powertrain": {"power_hp": 215, "torque_nm": 386, "powerband": 58, "throttle_response": 46, "engine_reliability": 78, "cooling": 70, "fuel_efficiency": 34, "aspiration": "NA", "engine_stress": 24},
+  "chassis": {"weight_kg": 1810, "weight_distribution_front": 0.56, "center_of_gravity": 38, "chassis_rigidity": 45, "stability": 56, "rotation": 26},
+  "tires": {"tire_compound": "street", "tire_width_front": 225, "tire_width_rear": 225, "base_grip": 40, "wet_grip": 36, "tire_wear_resistance": 68, "tire_heat_resistance": 62, "tire_warmup": 60},
+  "brakes": {"braking_power": 40, "brake_stability": 46, "brake_cooling": 42, "brake_fade_resistance": 40},
+  "suspension": {"handling": 28, "mechanical_grip": 38, "suspension_compliance": 60, "curb_handling": 26, "bump_absorption": 66, "steering_precision": 34},
+  "aero": {"downforce": 4, "drag": 46, "aero_efficiency": 16, "high_speed_stability": 48},
+  "durability": {"overall_reliability": 80, "engine_reliability": 82, "gearbox_reliability": 76, "suspension_durability": 82, "brake_durability": 68, "cooling_capacity": 74, "mechanical_sympathy_modifier": 12},
+  "fuel": {"fuel_capacity_l": 72.0, "base_fuel_burn": 1.88, "fuel_efficiency": 34},
+  "condition": {"overall_condition": 74.0, "engine_condition": 78.0, "gearbox_condition": 76.0, "suspension_condition": 72.0, "brake_condition": 70.0, "body_condition": 66.0, "tire_condition": 80.0, "mileage": 176000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.30, "tire_pressure_rear": 2.20, "final_drive": 3.27, "gear_bias": 0.0, "brake_bias": 0.58, "brake_pressure": 0.86, "front_ride_height": 160, "rear_ride_height": 165, "suspension_stiffness_front": 26, "suspension_stiffness_rear": 24, "antiroll_front": 3, "antiroll_rear": 2, "camber_front": -0.8, "camber_rear": -0.5, "toe_front": 0.05, "toe_rear": 0.20, "front_downforce": 0, "rear_downforce": 0, "differential_power": 28, "differential_coast": 16, "differential_preload": 12, "engine_map": "balanced"},
+  "value": 2600
+}

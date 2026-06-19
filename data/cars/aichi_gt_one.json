@@ -1,0 +1,23 @@
+{
+  "id": "aichi_gt_one",
+  "name": "1998 Aichi GT-One",
+  "year": 1998,
+  "manufacturer": "Aichi",
+  "model": "GT-One",
+  "car_class": "S",
+  "drivetrain": "RWD",
+  "layout": "mid_engine",
+  "tags": ["japanese", "prototype", "homologation", "high_downforce", "halo_car", "s_handling_focus"],
+  "powertrain": {"power_hp": 650, "torque_nm": 720, "powerband": 88, "throttle_response": 86, "engine_reliability": 64, "cooling": 86, "fuel_efficiency": 22, "aspiration": "turbo", "engine_stress": 72},
+  "chassis": {"weight_kg": 980, "weight_distribution_front": 0.44, "center_of_gravity": 94, "chassis_rigidity": 96, "stability": 90, "rotation": 88},
+  "tires": {"tire_compound": "semi_slick", "tire_width_front": 285, "tire_width_rear": 335, "base_grip": 98, "wet_grip": 62, "tire_wear_resistance": 38, "tire_heat_resistance": 92, "tire_warmup": 84},
+  "brakes": {"braking_power": 98, "brake_stability": 88, "brake_cooling": 96, "brake_fade_resistance": 94},
+  "suspension": {"handling": 96, "mechanical_grip": 94, "suspension_compliance": 34, "curb_handling": 54, "bump_absorption": 32, "steering_precision": 96},
+  "aero": {"downforce": 96, "drag": 44, "aero_efficiency": 94, "high_speed_stability": 96},
+  "durability": {"overall_reliability": 62, "engine_reliability": 58, "gearbox_reliability": 66, "suspension_durability": 60, "brake_durability": 72, "cooling_capacity": 88, "mechanical_sympathy_modifier": -2},
+  "fuel": {"fuel_capacity_l": 90.0, "base_fuel_burn": 3.75, "fuel_efficiency": 22},
+  "condition": {"overall_condition": 90.0, "engine_condition": 88.0, "gearbox_condition": 90.0, "suspension_condition": 88.0, "brake_condition": 92.0, "body_condition": 94.0, "tire_condition": 86.0, "mileage": 8200},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.05, "tire_pressure_rear": 2.00, "final_drive": 3.35, "gear_bias": 0.18, "brake_bias": 0.58, "brake_pressure": 1.14, "front_ride_height": 88, "rear_ride_height": 92, "suspension_stiffness_front": 86, "suspension_stiffness_rear": 82, "antiroll_front": 9, "antiroll_rear": 8, "camber_front": -3.6, "camber_rear": -3.0, "toe_front": -0.03, "toe_rear": 0.18, "front_downforce": 46, "rear_downforce": 58, "differential_power": 62, "differential_coast": 34, "differential_preload": 30, "engine_map": "balanced"},
+  "value": 420000
+}

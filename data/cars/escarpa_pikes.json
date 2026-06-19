@@ -1,0 +1,23 @@
+{
+  "id": "escarpa_pikes",
+  "name": "1998 Escarpa Pikes",
+  "year": 1998,
+  "manufacturer": "Escarpa",
+  "model": "Pikes",
+  "car_class": "S",
+  "drivetrain": "AWD",
+  "layout": "mid_engine",
+  "tags": ["japanese", "hillclimb", "awd", "turbo", "s_traction_focus"],
+  "powertrain": {"power_hp": 790, "torque_nm": 920, "powerband": 72, "throttle_response": 70, "engine_reliability": 54, "cooling": 82, "fuel_efficiency": 16, "aspiration": "turbo", "engine_stress": 78},
+  "chassis": {"weight_kg": 900, "weight_distribution_front": 0.48, "center_of_gravity": 88, "chassis_rigidity": 90, "stability": 82, "rotation": 84},
+  "tires": {"tire_compound": "semi_slick", "tire_width_front": 285, "tire_width_rear": 315, "base_grip": 96, "wet_grip": 74, "tire_wear_resistance": 32, "tire_heat_resistance": 86, "tire_warmup": 86},
+  "brakes": {"braking_power": 92, "brake_stability": 84, "brake_cooling": 90, "brake_fade_resistance": 86},
+  "suspension": {"handling": 88, "mechanical_grip": 98, "suspension_compliance": 42, "curb_handling": 70, "bump_absorption": 48, "steering_precision": 88},
+  "aero": {"downforce": 76, "drag": 58, "aero_efficiency": 78, "high_speed_stability": 82},
+  "durability": {"overall_reliability": 54, "engine_reliability": 48, "gearbox_reliability": 52, "suspension_durability": 66, "brake_durability": 70, "cooling_capacity": 84, "mechanical_sympathy_modifier": -3},
+  "fuel": {"fuel_capacity_l": 70.0, "base_fuel_burn": 4.05, "fuel_efficiency": 16},
+  "condition": {"overall_condition": 88.0, "engine_condition": 84.0, "gearbox_condition": 84.0, "suspension_condition": 86.0, "brake_condition": 88.0, "body_condition": 90.0, "tire_condition": 86.0, "mileage": 6200},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.00, "tire_pressure_rear": 1.95, "final_drive": 4.72, "gear_bias": -0.12, "brake_bias": 0.60, "brake_pressure": 1.12, "front_ride_height": 118, "rear_ride_height": 126, "suspension_stiffness_front": 74, "suspension_stiffness_rear": 70, "antiroll_front": 7, "antiroll_rear": 7, "camber_front": -3.2, "camber_rear": -2.6, "toe_front": -0.02, "toe_rear": 0.12, "front_downforce": 28, "rear_downforce": 42, "differential_power": 76, "differential_coast": 40, "differential_preload": 34, "engine_map": "balanced"},
+  "value": 390000
+}

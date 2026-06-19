@@ -1,0 +1,23 @@
+{
+  "id": "torino_500r",
+  "name": "1975 Torino 500R",
+  "year": 1975,
+  "manufacturer": "Torino",
+  "model": "500R",
+  "car_class": "E",
+  "drivetrain": "RWD",
+  "layout": "rear_engine",
+  "tags": ["italian", "microcar", "rear_engine", "lightweight", "challenge"],
+  "powertrain": {"power_hp": 32, "torque_nm": 44, "powerband": 38, "throttle_response": 58, "engine_reliability": 66, "cooling": 44, "fuel_efficiency": 84, "aspiration": "NA", "engine_stress": 16},
+  "chassis": {"weight_kg": 520, "weight_distribution_front": 0.38, "center_of_gravity": 64, "chassis_rigidity": 30, "stability": 28, "rotation": 70},
+  "tires": {"tire_compound": "economy", "tire_width_front": 125, "tire_width_rear": 135, "base_grip": 30, "wet_grip": 28, "tire_wear_resistance": 86, "tire_heat_resistance": 60, "tire_warmup": 50},
+  "brakes": {"braking_power": 22, "brake_stability": 30, "brake_cooling": 24, "brake_fade_resistance": 22},
+  "suspension": {"handling": 42, "mechanical_grip": 34, "suspension_compliance": 62, "curb_handling": 32, "bump_absorption": 58, "steering_precision": 42},
+  "aero": {"downforce": 1, "drag": 20, "aero_efficiency": 10, "high_speed_stability": 22},
+  "durability": {"overall_reliability": 64, "engine_reliability": 62, "gearbox_reliability": 58, "suspension_durability": 60, "brake_durability": 52, "cooling_capacity": 42, "mechanical_sympathy_modifier": 14},
+  "fuel": {"fuel_capacity_l": 22.0, "base_fuel_burn": 0.45, "fuel_efficiency": 84},
+  "condition": {"overall_condition": 70.0, "engine_condition": 68.0, "gearbox_condition": 68.0, "suspension_condition": 70.0, "brake_condition": 66.0, "body_condition": 64.0, "tire_condition": 76.0, "mileage": 64000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.00, "tire_pressure_rear": 2.15, "final_drive": 4.88, "gear_bias": 0.0, "brake_bias": 0.52, "brake_pressure": 0.78, "front_ride_height": 145, "rear_ride_height": 150, "suspension_stiffness_front": 24, "suspension_stiffness_rear": 28, "antiroll_front": 2, "antiroll_rear": 2, "camber_front": -1.0, "camber_rear": -1.2, "toe_front": 0.04, "toe_rear": 0.18, "front_downforce": 0, "rear_downforce": 0, "differential_power": 18, "differential_coast": 10, "differential_preload": 8, "engine_map": "balanced"},
+  "value": 1600
+}

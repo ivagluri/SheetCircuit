@@ -1,0 +1,23 @@
+{
+  "id": "eurovan_cup",
+  "name": "2005 Eurovan Cup",
+  "year": 2005,
+  "manufacturer": "Eurovan",
+  "model": "Cup",
+  "car_class": "E",
+  "drivetrain": "FWD",
+  "layout": "front_engine",
+  "tags": ["joke", "challenge", "van", "reliable"],
+  "powertrain": {"power_hp": 115, "torque_nm": 185, "powerband": 48, "throttle_response": 42, "engine_reliability": 88, "cooling": 72, "fuel_efficiency": 55, "aspiration": "turbo", "engine_stress": 22},
+  "chassis": {"weight_kg": 1900, "weight_distribution_front": 0.62, "center_of_gravity": 28, "chassis_rigidity": 38, "stability": 48, "rotation": 18},
+  "tires": {"tire_compound": "economy", "tire_width_front": 195, "tire_width_rear": 195, "base_grip": 28, "wet_grip": 30, "tire_wear_resistance": 80, "tire_heat_resistance": 75, "tire_warmup": 40},
+  "brakes": {"braking_power": 25, "brake_stability": 35, "brake_cooling": 40, "brake_fade_resistance": 38},
+  "suspension": {"handling": 18, "mechanical_grip": 22, "suspension_compliance": 72, "curb_handling": 18, "bump_absorption": 70, "steering_precision": 20},
+  "aero": {"downforce": 2, "drag": 55, "aero_efficiency": 8, "high_speed_stability": 30},
+  "durability": {"overall_reliability": 88, "engine_reliability": 90, "gearbox_reliability": 85, "suspension_durability": 80, "brake_durability": 78, "cooling_capacity": 75, "mechanical_sympathy_modifier": 15},
+  "fuel": {"fuel_capacity_l": 70.0, "base_fuel_burn": 1.55, "fuel_efficiency": 55},
+  "condition": {"overall_condition": 92.0, "engine_condition": 94.0, "gearbox_condition": 90.0, "suspension_condition": 90.0, "brake_condition": 92.0, "body_condition": 88.0, "tire_condition": 95.0, "mileage": 42000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.50, "tire_pressure_rear": 2.50, "final_drive": 3.67, "gear_bias": 0.0, "brake_bias": 0.70, "brake_pressure": 0.80, "front_ride_height": 175, "rear_ride_height": 178, "suspension_stiffness_front": 22, "suspension_stiffness_rear": 20, "antiroll_front": 2, "antiroll_rear": 1, "camber_front": -0.5, "camber_rear": -0.5, "toe_front": 0.10, "toe_rear": 0.20, "front_downforce": 0, "rear_downforce": 0, "differential_power": 5, "differential_coast": 5, "differential_preload": 5, "engine_map": "balanced"},
+  "value": 1800
+}

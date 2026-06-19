@@ -1,0 +1,23 @@
+{
+  "id": "blackpool_twelve",
+  "name": "1999 Blackpool Twelve",
+  "year": 1999,
+  "manufacturer": "Blackpool",
+  "model": "Twelve",
+  "car_class": "S",
+  "drivetrain": "RWD",
+  "layout": "front_engine",
+  "tags": ["british", "hyper_gt", "big_power", "high_speed", "s_power_focus"],
+  "powertrain": {"power_hp": 840, "torque_nm": 880, "powerband": 76, "throttle_response": 72, "engine_reliability": 48, "cooling": 64, "fuel_efficiency": 18, "aspiration": "NA", "engine_stress": 82},
+  "chassis": {"weight_kg": 1080, "weight_distribution_front": 0.52, "center_of_gravity": 82, "chassis_rigidity": 86, "stability": 78, "rotation": 80},
+  "tires": {"tire_compound": "semi_slick", "tire_width_front": 285, "tire_width_rear": 345, "base_grip": 92, "wet_grip": 50, "tire_wear_resistance": 34, "tire_heat_resistance": 82, "tire_warmup": 78},
+  "brakes": {"braking_power": 94, "brake_stability": 76, "brake_cooling": 86, "brake_fade_resistance": 82},
+  "suspension": {"handling": 88, "mechanical_grip": 90, "suspension_compliance": 36, "curb_handling": 48, "bump_absorption": 34, "steering_precision": 88},
+  "aero": {"downforce": 68, "drag": 42, "aero_efficiency": 78, "high_speed_stability": 88},
+  "durability": {"overall_reliability": 48, "engine_reliability": 42, "gearbox_reliability": 50, "suspension_durability": 54, "brake_durability": 62, "cooling_capacity": 66, "mechanical_sympathy_modifier": -4},
+  "fuel": {"fuel_capacity_l": 100.0, "base_fuel_burn": 4.25, "fuel_efficiency": 18},
+  "condition": {"overall_condition": 86.0, "engine_condition": 82.0, "gearbox_condition": 84.0, "suspension_condition": 86.0, "brake_condition": 88.0, "body_condition": 90.0, "tire_condition": 84.0, "mileage": 14800},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.05, "tire_pressure_rear": 2.10, "final_drive": 3.08, "gear_bias": 0.25, "brake_bias": 0.57, "brake_pressure": 1.10, "front_ride_height": 96, "rear_ride_height": 104, "suspension_stiffness_front": 78, "suspension_stiffness_rear": 82, "antiroll_front": 8, "antiroll_rear": 8, "camber_front": -3.0, "camber_rear": -2.4, "toe_front": 0.00, "toe_rear": 0.22, "front_downforce": 20, "rear_downforce": 34, "differential_power": 70, "differential_coast": 28, "differential_preload": 26, "engine_map": "balanced"},
+  "value": 360000
+}

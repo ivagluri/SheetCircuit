@@ -1,0 +1,23 @@
+{
+  "id": "tochigi_r600",
+  "name": "2020 Tochigi R600",
+  "year": 2020,
+  "manufacturer": "Tochigi",
+  "model": "R600",
+  "car_class": "A",
+  "drivetrain": "AWD",
+  "layout": "front_engine",
+  "tags": ["japanese", "super_gt", "awd", "turbo", "high_downforce", "a_class_anchor"],
+  "powertrain": {"power_hp": 600, "torque_nm": 652, "powerband": 86, "throttle_response": 82, "engine_reliability": 78, "cooling": 88, "fuel_efficiency": 26, "aspiration": "turbo", "engine_stress": 58},
+  "chassis": {"weight_kg": 1750, "weight_distribution_front": 0.54, "center_of_gravity": 68, "chassis_rigidity": 92, "stability": 92, "rotation": 78},
+  "tires": {"tire_compound": "semi_slick", "tire_width_front": 255, "tire_width_rear": 285, "base_grip": 94, "wet_grip": 68, "tire_wear_resistance": 46, "tire_heat_resistance": 88, "tire_warmup": 78},
+  "brakes": {"braking_power": 94, "brake_stability": 92, "brake_cooling": 90, "brake_fade_resistance": 88},
+  "suspension": {"handling": 92, "mechanical_grip": 90, "suspension_compliance": 46, "curb_handling": 62, "bump_absorption": 46, "steering_precision": 90},
+  "aero": {"downforce": 82, "drag": 36, "aero_efficiency": 88, "high_speed_stability": 94},
+  "durability": {"overall_reliability": 78, "engine_reliability": 76, "gearbox_reliability": 80, "suspension_durability": 78, "brake_durability": 78, "cooling_capacity": 88, "mechanical_sympathy_modifier": 5},
+  "fuel": {"fuel_capacity_l": 74.0, "base_fuel_burn": 3.05, "fuel_efficiency": 26},
+  "condition": {"overall_condition": 94.0, "engine_condition": 94.0, "gearbox_condition": 92.0, "suspension_condition": 94.0, "brake_condition": 92.0, "body_condition": 96.0, "tire_condition": 90.0, "mileage": 12400},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.10, "tire_pressure_rear": 2.05, "final_drive": 3.55, "gear_bias": 0.10, "brake_bias": 0.60, "brake_pressure": 1.10, "front_ride_height": 100, "rear_ride_height": 104, "suspension_stiffness_front": 78, "suspension_stiffness_rear": 74, "antiroll_front": 8, "antiroll_rear": 7, "camber_front": -3.2, "camber_rear": -2.6, "toe_front": -0.02, "toe_rear": 0.16, "front_downforce": 32, "rear_downforce": 48, "differential_power": 52, "differential_coast": 30, "differential_preload": 28, "engine_map": "balanced"},
+  "value": 145000
+}

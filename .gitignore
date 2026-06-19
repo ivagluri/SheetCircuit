@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100/
+.Trashes/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# Virtual environments and local config
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Build/package output
+build/
+dist/
+*.egg-info/
+
+# Editor and tool-local state
+.idea/
+.vscode/
+.claude/
+
+# Runtime/generated project files
+saves/
+*.log
+
+# Local planning/reference notes
+gt2.txt
+*Plan*.md

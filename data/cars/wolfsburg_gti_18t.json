@@ -1,0 +1,23 @@
+{
+  "id": "wolfsburg_gti_18t",
+  "name": "1999 Wolfsburg GTI 1.8T",
+  "year": 1999,
+  "manufacturer": "Wolfsburg",
+  "model": "GTI 1.8T",
+  "car_class": "D",
+  "drivetrain": "FWD",
+  "layout": "front_engine",
+  "tags": ["german", "hot_hatch", "turbo", "stable", "understeer_prone"],
+  "powertrain": {"power_hp": 178, "torque_nm": 235, "powerband": 62, "throttle_response": 62, "engine_reliability": 74, "cooling": 64, "fuel_efficiency": 48, "aspiration": "turbo", "engine_stress": 30},
+  "chassis": {"weight_kg": 1220, "weight_distribution_front": 0.63, "center_of_gravity": 56, "chassis_rigidity": 62, "stability": 64, "rotation": 46},
+  "tires": {"tire_compound": "street", "tire_width_front": 205, "tire_width_rear": 205, "base_grip": 58, "wet_grip": 52, "tire_wear_resistance": 62, "tire_heat_resistance": 60, "tire_warmup": 62},
+  "brakes": {"braking_power": 56, "brake_stability": 60, "brake_cooling": 52, "brake_fade_resistance": 50},
+  "suspension": {"handling": 60, "mechanical_grip": 58, "suspension_compliance": 56, "curb_handling": 48, "bump_absorption": 54, "steering_precision": 60},
+  "aero": {"downforce": 8, "drag": 30, "aero_efficiency": 28, "high_speed_stability": 56},
+  "durability": {"overall_reliability": 74, "engine_reliability": 72, "gearbox_reliability": 70, "suspension_durability": 72, "brake_durability": 66, "cooling_capacity": 64, "mechanical_sympathy_modifier": 9},
+  "fuel": {"fuel_capacity_l": 55.0, "base_fuel_burn": 1.30, "fuel_efficiency": 48},
+  "condition": {"overall_condition": 82.0, "engine_condition": 82.0, "gearbox_condition": 80.0, "suspension_condition": 82.0, "brake_condition": 80.0, "body_condition": 78.0, "tire_condition": 86.0, "mileage": 106000},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.35, "tire_pressure_rear": 2.30, "final_drive": 3.94, "gear_bias": 0.0, "brake_bias": 0.68, "brake_pressure": 0.90, "front_ride_height": 134, "rear_ride_height": 138, "suspension_stiffness_front": 44, "suspension_stiffness_rear": 38, "antiroll_front": 5, "antiroll_rear": 3, "camber_front": -2.1, "camber_rear": -1.2, "toe_front": 0.04, "toe_rear": 0.12, "front_downforce": 0, "rear_downforce": 0, "differential_power": 16, "differential_coast": 8, "differential_preload": 6, "engine_map": "balanced"},
+  "value": 5800
+}

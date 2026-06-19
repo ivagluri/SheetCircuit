@@ -1,0 +1,23 @@
+{
+  "id": "maranello_forty",
+  "name": "1989 Maranello Forty",
+  "year": 1989,
+  "manufacturer": "Maranello",
+  "model": "Forty",
+  "car_class": "A",
+  "drivetrain": "RWD",
+  "layout": "mid_engine",
+  "tags": ["italian", "supercar", "turbo_lag", "lightweight", "high_speed"],
+  "powertrain": {"power_hp": 471, "torque_nm": 577, "powerband": 78, "throttle_response": 64, "engine_reliability": 58, "cooling": 68, "fuel_efficiency": 30, "aspiration": "turbo", "engine_stress": 54},
+  "chassis": {"weight_kg": 1250, "weight_distribution_front": 0.42, "center_of_gravity": 82, "chassis_rigidity": 80, "stability": 76, "rotation": 84},
+  "tires": {"tire_compound": "sport", "tire_width_front": 245, "tire_width_rear": 335, "base_grip": 82, "wet_grip": 54, "tire_wear_resistance": 48, "tire_heat_resistance": 72, "tire_warmup": 70},
+  "brakes": {"braking_power": 78, "brake_stability": 70, "brake_cooling": 72, "brake_fade_resistance": 68},
+  "suspension": {"handling": 88, "mechanical_grip": 84, "suspension_compliance": 42, "curb_handling": 58, "bump_absorption": 38, "steering_precision": 90},
+  "aero": {"downforce": 55, "drag": 38, "aero_efficiency": 70, "high_speed_stability": 84},
+  "durability": {"overall_reliability": 58, "engine_reliability": 54, "gearbox_reliability": 60, "suspension_durability": 58, "brake_durability": 62, "cooling_capacity": 66, "mechanical_sympathy_modifier": 2},
+  "fuel": {"fuel_capacity_l": 120.0, "base_fuel_burn": 2.65, "fuel_efficiency": 30},
+  "condition": {"overall_condition": 84.0, "engine_condition": 82.0, "gearbox_condition": 86.0, "suspension_condition": 80.0, "brake_condition": 84.0, "body_condition": 88.0, "tire_condition": 78.0, "mileage": 31800},
+  "installed_parts": [],
+  "tune": {"tire_pressure_front": 2.10, "tire_pressure_rear": 2.25, "final_drive": 3.62, "gear_bias": 0.15, "brake_bias": 0.56, "brake_pressure": 1.02, "front_ride_height": 105, "rear_ride_height": 110, "suspension_stiffness_front": 68, "suspension_stiffness_rear": 72, "antiroll_front": 6, "antiroll_rear": 7, "camber_front": -2.6, "camber_rear": -2.2, "toe_front": 0.00, "toe_rear": 0.18, "front_downforce": 18, "rear_downforce": 34, "differential_power": 48, "differential_coast": 26, "differential_preload": 24, "engine_map": "balanced"},
+  "value": 185000
+}
