@@ -16,7 +16,6 @@ MENU_ACTIONS = [
     MenuAction("D", "Drivers", "drivers"),
     MenuAction("M", "Market", "market"),
     MenuAction("R", "Race", "race"),
-    MenuAction("B", "Buy", "buy"),
     MenuAction("X", "Sell", "sell"),
     MenuAction("T", "Tune", "tune"),
     MenuAction("P", "Repair", "repair"),

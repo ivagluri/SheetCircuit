@@ -45,7 +45,6 @@ from interfaces.render_text import (
     driver_rows,
     event_rows,
     garage_rows,
-    market_rows,
     render_drivers,
     render_events,
     render_garage,
@@ -99,8 +98,9 @@ def run_menu_choice(state: GameState, raw: str, current_screen: str = "garage") 
         sorted_screen = _apply_sort_choice(tokens, current_screen)
         return state, sorted_screen or current_screen
     if command == "buy":
-        _buy_picker(state)
-        return state, "garage"
+        if current_screen == "market":
+            _buy_on_market(state)
+        return state, "market"
     if command == "sell":
         _sell_picker(state)
         return state, "garage"
@@ -160,8 +160,15 @@ def run_command(state: GameState, raw: str) -> GameState:
         else:
             _show_garage(state)
     elif command == "buy" and len(tokens) == 3 and tokens[1] == "car":
-        buy_car_action(state, tokens[2])
-        _show_garage(state)
+        result = buy_car_action(state, tokens[2])
+        terminal.print(result.message)
+    elif command == "buy" and len(tokens) == 2:
+        market = _sorted_market()
+        car = _select_from_collection(market, tokens[1], lambda item: item.identity.id)
+        if car is None:
+            raise ValueError(f"Unknown market car: {tokens[1]}")
+        result = buy_car_action(state, car.identity.id)
+        terminal.print(result.message)
     elif command == "sell" and len(tokens) == 3 and tokens[1] == "car":
         sell_car_action(state, tokens[2])
         _show_garage(state)
@@ -172,7 +179,7 @@ def run_command(state: GameState, raw: str) -> GameState:
         tune_car_action(state, tokens[1], tokens[2], _parse_value(tokens[3]))
         _show_garage(state)
     elif command == "buy":
-        _buy_picker(state)
+        _show_market()
     elif command == "sell":
         _sell_picker(state)
     elif command == "repair":
@@ -241,6 +248,17 @@ def _show_events() -> None:
 
 def _show_market() -> None:
     _render_action_screen(market_screen(_screen_sort("market")))
+    terminal.print("Enter a number or ID to view details  |  'buy' or 'buy <id>' to purchase")
+
+
+def _buy_on_market(state: GameState) -> None:
+    market = _sorted_market()
+    car = _choose(market, lambda item: item.identity.id, "Buy (number or ID)")
+    if car is None:
+        return
+    result = buy_car_action(state, car.identity.id)
+    terminal.print(result.message)
+    terminal.pause()
 
 
 def _show_detail_screen(state: GameState, screen, parent_screen: str) -> None:
@@ -368,9 +386,8 @@ def _show_help() -> None:
             ["G", "Garage screen"],
             ["E", "Events screen"],
             ["D", "Drivers screen"],
-            ["M", "Market screen"],
+            ["M", "Market screen (view & buy)"],
             ["R", "Guided race entry"],
-            ["B", "Guided car purchase"],
             ["X", "Guided car sale"],
             ["T", "Guided tuning"],
             ["P", "Guided repair"],
@@ -388,10 +405,11 @@ def _show_help() -> None:
             ["garage", "Show owned cars"],
             ["drivers", "Show drivers"],
             ["events", "Show race events"],
-            ["market", "Show market cars"],
+            ["market", "Show market cars (supports buying)"],
             ["race", "Choose event, car, and driver"],
-            ["buy", "Choose a market car to buy"],
-            ["buy car <car_id>", "Buy a specific market car"],
+            ["buy", "Go to market; on market screen: pick a car to buy"],
+            ["buy <car_id>", "Buy a specific market car by ID or number"],
+            ["buy car <car_id>", "Buy a specific market car by ID"],
             ["sell", "Choose an owned car to sell"],
             ["sell car <car_id>", "Sell a specific garage car"],
             ["repair", "Choose an owned car to repair"],
@@ -430,21 +448,6 @@ def _show_race_help() -> None:
             ["? / help", "Help", "Show race command help"],
         ],
     )
-
-
-def _buy_picker(state: GameState) -> None:
-    market = _sorted_market()
-    terminal.clear()
-    terminal.header("Buy Car", "Choose a market car by number or ID; q cancels.")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "buy"))
-    terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Market", "market"), ["#", "ID", "Car", "Class", "Price", "Power", "Cond"], market_rows(market))
-    car = _choose(market, lambda item: item.identity.id, "Buy")
-    if car is None:
-        return
-    result = buy_car_action(state, car.identity.id)
-    terminal.print(result.message)
-    terminal.pause()
 
 
 def _sell_picker(state: GameState) -> None:

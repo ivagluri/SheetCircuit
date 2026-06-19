@@ -111,7 +111,7 @@ Menu hotkeys live in [interfaces/menu.py](interfaces/menu.py):
 
 ```text
 G Garage, E Events, D Drivers, M Market, R Race,
-B Buy, X Sell, T Tune, P Repair, S Save, L Load, H Help, Q Quit
+X Sell, T Tune, P Repair, S Save, L Load, H Help, Q Quit
 ```
 
 On passive list screens, entering a row number or ID opens detail:
@@ -122,6 +122,11 @@ drivers -> driver_detail_screen()
 events -> event_detail_screen()
 market -> market_car_detail_screen()
 ```
+
+The market screen is the single place to browse and buy cars. From the market screen:
+- enter a number or ID → `market_car_detail_screen()` (read-only detail)
+- type `buy` → inline picker prompts for car number/ID
+- type `buy <id>` or `buy <number>` → direct purchase
 
 ## Race Flow
 
