@@ -6,9 +6,13 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 from constants import (
+    CONDITION_MODIFIERS,
+    CONDITION_NEUTRAL,
     OVERTAKE_DIFFICULTY_TAG_DELTA,
     SEGMENT_TAG_RATES,
     SEGMENT_TAG_WEIGHTS,
+    SURFACE_MODIFIERS,
+    SURFACE_NEUTRAL,
     TRACK_LENGTH_TOLERANCE,
 )
 from game.models import (
@@ -24,12 +28,16 @@ from game.models import (
     FuelStats,
     Part,
     PowertrainStats,
+    SegmentProfile,
     SuspensionStats,
     TireStats,
     Track,
     TrackSegment,
     TuneSetup,
 )
+
+WEIGHT_DIMS = ["power", "top_speed", "acceleration", "grip", "braking", "handling", "aero"]
+RATE_NAMES = ["tire_wear", "fuel_burn", "engine_heat"]
 
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 T = TypeVar("T")
@@ -123,28 +131,98 @@ def part_from_dict(data: dict[str, Any], path: Path | None = None) -> Part:
     return _dataclass_from_dict(Part, data, path or Path("<memory>"))
 
 
+def _segment_tag_weights(segment: TrackSegment) -> dict[str, float]:
+    contrib = {dim: 0.0 for dim in WEIGHT_DIMS}
+    for tag in segment.tags:
+        if tag not in SEGMENT_TAG_WEIGHTS:
+            raise DataLoadError(f"Unknown segment tag: {tag}")
+        for dim, value in SEGMENT_TAG_WEIGHTS[tag].items():
+            contrib[dim] += value
+    return contrib
+
+
+def _segment_tag_rates(segment: TrackSegment) -> dict[str, float]:
+    contrib = {rate: 0.0 for rate in RATE_NAMES}
+    for tag in segment.tags:
+        if tag not in SEGMENT_TAG_RATES:
+            raise DataLoadError(f"Unknown segment tag: {tag}")
+        for rate, value in SEGMENT_TAG_RATES[tag].items():
+            contrib[rate] += value
+    return contrib
+
+
+def _segment_modifiers(segment: TrackSegment) -> tuple[float, float, float]:
+    """Resolve (grip_mult, tire_wear_mult, wet_weight) from surface + condition.
+
+    Unknown surface/condition strings fall back to the neutral baseline so existing
+    free-form data keeps loading.
+    """
+    surface = SURFACE_MODIFIERS.get(segment.surface, SURFACE_NEUTRAL)
+    condition = CONDITION_MODIFIERS.get(segment.condition, CONDITION_NEUTRAL)
+    return (
+        surface["grip"] * condition["grip"],
+        surface["tire_wear"] * condition["tire_wear"],
+        condition["wet_weight"],
+    )
+
+
 def derive_weights(segments: list[TrackSegment]) -> dict[str, float]:
-    dims = ["power", "top_speed", "acceleration", "grip", "braking", "handling", "aero"]
-    raw = {dim: 0.0 for dim in dims}
+    raw = {dim: 0.0 for dim in WEIGHT_DIMS}
     for segment in segments:
-        for tag in segment.tags:
-            if tag not in SEGMENT_TAG_WEIGHTS:
-                raise DataLoadError(f"Unknown segment tag: {tag}")
-            for dim, contribution in SEGMENT_TAG_WEIGHTS[tag].items():
-                raw[dim] += segment.length_pct * contribution
+        for dim, value in _segment_tag_weights(segment).items():
+            raw[dim] += segment.length_pct * value
     total = sum(raw.values()) or 1.0
     return {dim: value / total for dim, value in raw.items()}
 
 
 def derive_rates(segments: list[TrackSegment]) -> dict[str, float]:
-    rates = {"tire_wear": 0.0, "fuel_burn": 0.0, "engine_heat": 0.0}
+    rates = {rate: 0.0 for rate in RATE_NAMES}
     for segment in segments:
-        for tag in segment.tags:
-            if tag not in SEGMENT_TAG_RATES:
-                raise DataLoadError(f"Unknown segment tag: {tag}")
-            for rate, contribution in SEGMENT_TAG_RATES[tag].items():
-                rates[rate] += segment.length_pct * contribution
+        contrib = _segment_tag_rates(segment)
+        _, tire_wear_mult, _ = _segment_modifiers(segment)
+        rates["tire_wear"] += segment.length_pct * contrib["tire_wear"] * tire_wear_mult
+        rates["fuel_burn"] += segment.length_pct * contrib["fuel_burn"]
+        rates["engine_heat"] += segment.length_pct * contrib["engine_heat"]
     return rates
+
+
+def build_segment_profiles(segments: list[TrackSegment]) -> list[SegmentProfile]:
+    """Per-segment, position-resolved profiles whose length-weighted sum reproduces
+    the aggregate weights/rates (see SegmentProfile). The global ``total`` divisor is
+    the same one derive_weights() normalizes by, which is what keeps the integral
+    consistent so dry tarmac tracks behave identically to the aggregate model."""
+    raw = {dim: 0.0 for dim in WEIGHT_DIMS}
+    for segment in segments:
+        for dim, value in _segment_tag_weights(segment).items():
+            raw[dim] += segment.length_pct * value
+    total = sum(raw.values()) or 1.0
+
+    profiles: list[SegmentProfile] = []
+    cursor = 0.0
+    for segment in segments:
+        contrib = _segment_tag_weights(segment)
+        rates = _segment_tag_rates(segment)
+        grip_mult, tire_wear_mult, wet_weight = _segment_modifiers(segment)
+        start = cursor
+        cursor += segment.length_pct
+        profiles.append(
+            SegmentProfile(
+                name=segment.name,
+                length_pct=segment.length_pct,
+                start_pct=start,
+                end_pct=cursor,
+                surface=segment.surface,
+                condition=segment.condition,
+                weights={dim: contrib[dim] / total for dim in WEIGHT_DIMS},
+                tire_wear_rate=rates["tire_wear"] * tire_wear_mult,
+                fuel_burn_rate=rates["fuel_burn"],
+                engine_heat_rate=rates["engine_heat"],
+                grip_mult=grip_mult,
+                tire_wear_mult=tire_wear_mult,
+                wet_weight=wet_weight,
+            )
+        )
+    return profiles
 
 
 def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
@@ -190,6 +268,7 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
         tire_wear_rate=rates["tire_wear"],
         fuel_burn_rate=rates["fuel_burn"],
         engine_heat_rate=rates["engine_heat"],
+        segment_profiles=build_segment_profiles(segments),
     )
 
 

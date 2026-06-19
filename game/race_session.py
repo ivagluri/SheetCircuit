@@ -35,7 +35,8 @@ from game.simulation import (
     _initial_state,
     _prize_for_position,
     _rank,
-    calculate_lap_time,
+    _segments_in_interval,
+    lap_time_over_interval,
 )
 from game.telemetry import failure_chance, mistake_chance, record_telemetry, warning_messages
 
@@ -116,6 +117,15 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
 
     lap_fraction = 1.0 / session.ticks_per_lap
     is_lap_end = (session.current_sub_tick + 1) >= session.ticks_per_lap
+    # The whole field shares one track position each tick; the last tick of a lap
+    # runs to the line exactly so per-lap totals stay clean.
+    seg_start = session.current_sub_tick * lap_fraction
+    seg_length = (1.0 - seg_start) if is_lap_end else lap_fraction
+    overlaps = (
+        _segments_in_interval(session.track.segment_profiles, seg_start, seg_length)
+        if session.track.segment_profiles
+        else []
+    )
     rng = random.Random(session.random_seed + session.current_lap * 100 + session.current_sub_tick)
     lap_log: list[str] = []
     player_time = _player_state(session).total_time
@@ -127,46 +137,49 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         car = _get(session.car_roster, state.car_id, "car")
         driver = _get(session.driver_roster, state.driver_id, "driver")
         effective = compute_effective_stats(car, session.parts, command=command)
-        full_lap_time = calculate_lap_time(
+        tick_time = lap_time_over_interval(
             effective, session.track, driver, state, rng,
             command=command, performance_scalar=state.performance_scalar,
+            start=seg_start, length=seg_length,
         )
-
-        tick_time = full_lap_time * lap_fraction
         if not state.is_player:
             # Per-tick jitter keeps the rival pack shuffling in close battles.
             tick_time += rng.uniform(-RIVAL_TICK_VARIANCE_S, RIVAL_TICK_VARIANCE_S)
         extra_penalty = 0.0
 
-        if is_lap_end:
-            if command == "pit":
-                extra_penalty += session.track.pit_lane_loss_s
-                state.driver_energy = min(PERCENT_MAX, state.driver_energy + DRIVER_ENERGY_RECOVER_PIT)
-                state.driver_focus = min(PERCENT_MAX, state.driver_focus + DRIVER_FOCUS_RECOVER_PIT)
-                state.driver_stress = max(0.0, state.driver_stress - DRIVER_STRESS_RELIEF_PIT)
+        # Mistakes and failures can strike on any tick, scaled to the slice of track
+        # covered, so a single-lap stage races the same as a multi-lap circuit.
+        if rng.random() < mistake_chance(state, driver, command) * seg_length:
+            penalty = MISTAKE_TIME_MEDIUM if rng.random() < 0.35 else MISTAKE_TIME_SMALL
+            extra_penalty += penalty
+            state.event_log.append(f"{state.label} made a mistake and lost {penalty:.1f}s.")
+            if command == "maximum_attack" and rng.random() < MISTAKE_DNF_PROB:
+                state.is_dnf = True
+                state.event_log.append(f"{state.label} crashed out.")
+        if not state.is_dnf and rng.random() < failure_chance(state, effective, driver, command) * seg_length:
+            state.event_log.append(f"{state.label} suffered a mechanical issue.")
+            extra_penalty += MISTAKE_TIME_SMALL
 
-            mistake_roll = rng.random()
-            if mistake_roll < mistake_chance(state, driver, command):
-                penalty = MISTAKE_TIME_MEDIUM if rng.random() < 0.35 else MISTAKE_TIME_SMALL
-                extra_penalty += penalty
-                state.event_log.append(f"{state.label} made a mistake and lost {penalty:.1f}s.")
-                if command == "maximum_attack" and rng.random() < MISTAKE_DNF_PROB:
-                    state.is_dnf = True
-                    state.event_log.append(f"{state.label} crashed out.")
-
-            if not state.is_dnf and rng.random() < failure_chance(state, effective, driver, command):
-                state.event_log.append(f"{state.label} suffered a mechanical issue.")
-                extra_penalty += MISTAKE_TIME_SMALL
+        if is_lap_end and command == "pit":
+            extra_penalty += session.track.pit_lane_loss_s
+            state.driver_energy = min(PERCENT_MAX, state.driver_energy + DRIVER_ENERGY_RECOVER_PIT)
+            state.driver_focus = min(PERCENT_MAX, state.driver_focus + DRIVER_FOCUS_RECOVER_PIT)
+            state.driver_stress = max(0.0, state.driver_stress - DRIVER_STRESS_RELIEF_PIT)
 
         state.total_time += tick_time + extra_penalty
+        state.lap_elapsed += tick_time + extra_penalty
 
         if command == "pit" and is_lap_end:
             _apply_lap_wear(state, effective, session.track, "pit")
+        elif overlaps:
+            for profile, overlap in overlaps:
+                _apply_lap_wear(state, effective, session.track, command, fraction=overlap, profile=profile)
         else:
-            _apply_lap_wear(state, effective, session.track, command, fraction=lap_fraction)
+            _apply_lap_wear(state, effective, session.track, command, fraction=seg_length)
 
         if is_lap_end:
-            state.last_lap_time = full_lap_time + extra_penalty
+            state.last_lap_time = state.lap_elapsed
+            state.lap_elapsed = 0.0
             state.lap += 1
             state.distance += session.track.length_km
             state.event_log.extend(warning_messages(state))

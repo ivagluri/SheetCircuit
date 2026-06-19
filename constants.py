@@ -248,3 +248,22 @@ OVERTAKE_DIFFICULTY_TAG_DELTA: dict[str, float] = {
     "narrow_track": +0.15,
     "wide_track": -0.15,
 }
+
+# Per-segment surface/condition effects, applied locally as a race is run.
+# `grip` multiplies a segment's whole pace contribution (less traction -> slower).
+# `tire_wear` multiplies the segment's tyre-wear rate. tarmac/concrete and `dry`
+# are the neutral 1.0 baseline so existing dry tracks are unchanged; gravel and
+# damp/wet make those segments meaningfully different. `wet_weight` blends a car's
+# dry `grip` toward its `wet_grip` and a driver's `pace` toward their `wet_skill`.
+SURFACE_NEUTRAL = {"grip": 1.00, "tire_wear": 1.00}
+SURFACE_MODIFIERS: dict[str, dict[str, float]] = {
+    "tarmac": {"grip": 1.00, "tire_wear": 1.00},
+    "concrete": {"grip": 1.00, "tire_wear": 1.00},
+    "gravel": {"grip": 0.82, "tire_wear": 1.35},
+}
+CONDITION_NEUTRAL = {"grip": 1.00, "tire_wear": 1.00, "wet_weight": 0.00}
+CONDITION_MODIFIERS: dict[str, dict[str, float]] = {
+    "dry": {"grip": 1.00, "tire_wear": 1.00, "wet_weight": 0.00},
+    "damp": {"grip": 0.90, "tire_wear": 1.05, "wet_weight": 0.50},
+    "wet": {"grip": 0.75, "tire_wear": 1.10, "wet_weight": 1.00},
+}

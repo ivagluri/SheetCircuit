@@ -40,7 +40,7 @@ from constants import (
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks
-from game.models import Car, Driver, EffectiveCarStats, Event, RaceCarState, RaceResult, Track
+from game.models import Car, Driver, EffectiveCarStats, Event, RaceCarState, RaceResult, SegmentProfile, Track
 from game.opponents import build_opponent_grid, validate_event_entry
 
 T = TypeVar("T")
@@ -59,40 +59,106 @@ def calculate_lap_time(
     command: str = "normal",
     performance_scalar: float = 1.0,
 ) -> float:
-    pace_factor = COMMAND_MODIFIERS[command][0]
-    car_performance_bonus = PERF_SCALE * _track_composite(effective, track) * pace_factor * performance_scalar
-    driver_pace_bonus = driver.pace * DRIVER_PACE_SCALE if driver is not None else 0.0
-    tire_wear_penalty = 0.0
-    tire_temp_penalty = 0.0
-    engine_temp_penalty = 0.0
-
-    if state is not None:
-        tire_wear_penalty = (PERCENT_MAX - state.tire_pct) / PERCENT_MAX * TIRE_WEAR_PENALTY_MAX
-        if state.tire_temp > TIRE_OVERHEAT_C:
-            tire_temp_penalty = _range_penalty(state.tire_temp, TIRE_OVERHEAT_C, TIRE_CRITICAL_C, TIRE_TEMP_PENALTY_MAX)
-        if state.engine_temp > ENGINE_OVERHEAT_C:
-            engine_temp_penalty = _range_penalty(
-                state.engine_temp,
-                ENGINE_OVERHEAT_C,
-                ENGINE_CRITICAL_C,
-                ENGINE_TEMP_PENALTY_MAX,
-            )
-
-    random_variance = 0.0
-    if rng is not None:
-        consistency = driver.consistency if driver is not None else PERCENT_MAX / 2
-        variance = RANDOM_VARIANCE_SCALE * (1 - consistency / PERCENT_MAX)
-        random_variance = rng.uniform(-variance, variance)
-
-    return (
-        track.base_lap_time
-        - car_performance_bonus
-        - driver_pace_bonus
-        + tire_wear_penalty
-        + tire_temp_penalty
-        + engine_temp_penalty
-        + random_variance
+    """Time for one full lap. Segment-resolved when the track has segment_profiles."""
+    return lap_time_over_interval(
+        effective, track, driver, state, rng, command, performance_scalar,
+        start=0.0, length=1.0,
     )
+
+
+def lap_time_over_interval(
+    effective: EffectiveCarStats,
+    track: Track,
+    driver: Driver | None = None,
+    state: RaceCarState | None = None,
+    rng: random.Random | None = None,
+    command: str = "normal",
+    performance_scalar: float = 1.0,
+    start: float = 0.0,
+    length: float = 1.0,
+) -> float:
+    """Time to cover the position interval ``[start, start + length)`` of one lap.
+
+    When the track carries segment_profiles each overlapped segment contributes its
+    own local pace (tag mix + surface/condition); the length-weighted integral over a
+    whole lap reproduces the aggregate formula exactly on dry tarmac, so existing
+    balance is preserved while composition now shapes pace within the lap. Falls back
+    to the aggregate model for profile-less tracks.
+    """
+    pace_factor = COMMAND_MODIFIERS[command][0]
+    if track.segment_profiles:
+        core = 0.0
+        for profile, overlap in _segments_in_interval(track.segment_profiles, start, length):
+            composite = _segment_composite(effective, profile)
+            driver_pace = _blended_pace(driver, profile.wet_weight)
+            time_rate = (
+                track.base_lap_time
+                - PERF_SCALE * composite * pace_factor * performance_scalar
+                - driver_pace * DRIVER_PACE_SCALE
+            )
+            core += time_rate * overlap
+    else:
+        composite = _track_composite(effective, track)
+        driver_pace_bonus = driver.pace * DRIVER_PACE_SCALE if driver is not None else 0.0
+        core = (
+            track.base_lap_time
+            - PERF_SCALE * composite * pace_factor * performance_scalar
+            - driver_pace_bonus
+        ) * length
+
+    return core + (_state_penalty(state) + _lap_variance(driver, rng)) * length
+
+
+def _segments_in_interval(
+    profiles: list[SegmentProfile], start: float, length: float
+) -> list[tuple[SegmentProfile, float]]:
+    end = start + length
+    overlaps: list[tuple[SegmentProfile, float]] = []
+    for profile in profiles:
+        overlap = min(profile.end_pct, end) - max(profile.start_pct, start)
+        if overlap > 1e-12:
+            overlaps.append((profile, overlap))
+    return overlaps
+
+
+def _segment_composite(effective: EffectiveCarStats, profile: SegmentProfile) -> float:
+    weights = profile.weights
+    grip = effective.grip * (1.0 - profile.wet_weight) + effective.wet_grip * profile.wet_weight
+    composite = (
+        effective.acceleration * weights["acceleration"]
+        + effective.power * weights["power"]
+        + effective.top_speed * weights["top_speed"]
+        + grip * weights["grip"]
+        + effective.braking * weights["braking"]
+        + effective.handling * weights["handling"]
+        + effective.aero_grip * weights["aero"]
+    )
+    return composite * profile.grip_mult
+
+
+def _blended_pace(driver: Driver | None, wet_weight: float) -> float:
+    if driver is None:
+        return 0.0
+    return driver.pace * (1.0 - wet_weight) + driver.wet_skill * wet_weight
+
+
+def _state_penalty(state: RaceCarState | None) -> float:
+    if state is None:
+        return 0.0
+    penalty = (PERCENT_MAX - state.tire_pct) / PERCENT_MAX * TIRE_WEAR_PENALTY_MAX
+    if state.tire_temp > TIRE_OVERHEAT_C:
+        penalty += _range_penalty(state.tire_temp, TIRE_OVERHEAT_C, TIRE_CRITICAL_C, TIRE_TEMP_PENALTY_MAX)
+    if state.engine_temp > ENGINE_OVERHEAT_C:
+        penalty += _range_penalty(state.engine_temp, ENGINE_OVERHEAT_C, ENGINE_CRITICAL_C, ENGINE_TEMP_PENALTY_MAX)
+    return penalty
+
+
+def _lap_variance(driver: Driver | None, rng: random.Random | None) -> float:
+    if rng is None:
+        return 0.0
+    consistency = driver.consistency if driver is not None else PERCENT_MAX / 2
+    variance = RANDOM_VARIANCE_SCALE * (1 - consistency / PERCENT_MAX)
+    return rng.uniform(-variance, variance)
 
 
 def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: str, seed: int = 1) -> RaceResult:
@@ -183,7 +249,15 @@ def _apply_lap_wear(
     track: Track,
     command: str = "normal",
     fraction: float = 1.0,
+    profile: SegmentProfile | None = None,
 ) -> None:
+    """Evolve tyre/fuel/engine/driver state for a slice of running.
+
+    When ``profile`` is given the slice uses that segment's local (surface/condition
+    adjusted) rates; otherwise the track aggregate is used. Local rates integrate back
+    to the aggregate over a full lap, so per-segment ticks and a single whole-lap call
+    wear the car by the same total on a uniform track.
+    """
     modifiers = COMMAND_MODIFIERS[command]
     if command == "pit" and fraction >= 1.0:
         state.tire_pct = PIT_TIRE_RESTORE_PCT
@@ -191,18 +265,21 @@ def _apply_lap_wear(
         state.fuel_pct = PIT_FUEL_RESTORE_PCT
         state.engine_temp = max(0.0, state.engine_temp - PIT_ENGINE_COOL_C)
         return
+    tire_wear_rate = profile.tire_wear_rate if profile is not None else track.tire_wear_rate
+    fuel_burn_rate = profile.fuel_burn_rate if profile is not None else track.fuel_burn_rate
+    engine_heat_rate = profile.engine_heat_rate if profile is not None else track.engine_heat_rate
     state.tire_pct = max(
         0.0,
-        state.tire_pct - TIRE_WEAR_BASE_PCT * track.tire_wear_rate * effective.tire_wear_rate * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction,
+        state.tire_pct - TIRE_WEAR_BASE_PCT * tire_wear_rate * effective.tire_wear_rate * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction,
     )
-    heat_gain = TIRE_HEAT_BASE_C * track.tire_wear_rate * effective.tire_heat_rate * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction
+    heat_gain = TIRE_HEAT_BASE_C * tire_wear_rate * effective.tire_heat_rate * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction
     tire_cooling = TIRE_COOL_BASE_C * fraction if command in COOLING_COMMANDS else 0.0
     state.tire_temp = max(0.0, state.tire_temp + heat_gain - tire_cooling)
     state.fuel_pct = max(
         0.0,
-        state.fuel_pct - FUEL_BURN_BASE_PCT * track.fuel_burn_rate * effective.fuel_burn_rate * modifiers[COMMAND_FUEL_BURN_INDEX] * fraction,
+        state.fuel_pct - FUEL_BURN_BASE_PCT * fuel_burn_rate * effective.fuel_burn_rate * modifiers[COMMAND_FUEL_BURN_INDEX] * fraction,
     )
-    engine_gain = ENGINE_HEAT_BASE_C * track.engine_heat_rate * effective.engine_heat_rate / PERCENT_MAX * modifiers[COMMAND_ENGINE_HEAT_INDEX] * fraction
+    engine_gain = ENGINE_HEAT_BASE_C * engine_heat_rate * effective.engine_heat_rate / PERCENT_MAX * modifiers[COMMAND_ENGINE_HEAT_INDEX] * fraction
     engine_cooling = ENGINE_COOL_BASE_C * fraction if command in COOLING_COMMANDS else 0.0
     state.engine_temp = max(0.0, state.engine_temp + engine_gain - engine_cooling)
     state.driver_energy = max(0.0, state.driver_energy - DRIVER_ENERGY_DRAIN_BASE * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction)

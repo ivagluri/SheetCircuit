@@ -138,15 +138,28 @@ advance_race_action()
   -> race_session.apply_player_command()
     -> race_session.simulate_tick()
       -> compute_effective_stats()
-      -> calculate_lap_time()
-      -> _apply_lap_wear()
-      -> mistake_chance()/failure_chance()
-      -> record_telemetry()
+      -> lap_time_over_interval()   # segment-resolved slice of the lap
+      -> _apply_lap_wear(profile=)  # per-segment local rates
+      -> mistake_chance()/failure_chance()  # rolled PER TICK (scaled by slice)
+      -> record_telemetry()         # at lap end (one sample per lap)
 
 finish_race_action()
   -> finish_event()
     -> prize money, mileage, wear
 ```
+
+Segment-resolved simulation: the whole field shares one track position each tick
+(`current_sub_tick / ticks_per_lap`). `lap_time_over_interval()` sums the
+`Track.segment_profiles` overlapped by that position interval, so a track's tag mix
+and per-segment surface/condition shape pace *within* the lap. Profiles are
+*intensive* (length-weighted sum reproduces the aggregate weights/rates), so dry
+tarmac integrates to the legacy `calculate_lap_time` exactly and balance is preserved;
+`calculate_lap_time(... )` is just the whole-lap (`start=0,length=1`) case and stays
+the reference used by opponents and `simulate_race`. Surface/condition come from
+`SURFACE_MODIFIERS`/`CONDITION_MODIFIERS` (grip + tyre-wear mult, plus a `wet_weight`
+that blends car grip->wet_grip and driver pace->wet_skill). Because mistakes/failures
+roll per tick, a single-lap point-to-point stage (`laps: 1`, start != finish) races
+with the same pseudo-live telemetry and commands as a multi-lap circuit.
 
 Non-interactive full race:
 
@@ -239,12 +252,18 @@ load_parts()
 load_all_data()
 ```
 
-Tracks derive weights/rates from segment tags during load:
+Tracks derive aggregate weights/rates AND per-segment profiles from segment tags
+(plus surface/condition) during load:
 
 ```text
-derive_weights(segments)
-derive_rates(segments)
+derive_weights(segments)        # normalized aggregate stat weights (sum to 1)
+derive_rates(segments)          # aggregate wear/fuel/heat (surface/condition baked into tyre wear)
+build_segment_profiles(segments) -> Track.segment_profiles  # intensive, position-resolved
 ```
+
+`data/tracks/summit_ridge_gp.json` (circuit) and `data/tracks/alpine_hillclimb.json`
+(`laps: 1` point-to-point) are reference tracks exercising all 12 tags and the full
+surface/condition range.
 
 Adding data should usually mean adding JSON files under `data/`, not editing registries.
 

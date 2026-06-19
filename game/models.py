@@ -170,6 +170,32 @@ class TrackSegment:
 
 
 @dataclass
+class SegmentProfile:
+    """Per-segment, position-resolved data used to run a race segment by segment.
+
+    Weights/rates are *intensive* (per unit of track position): the length-weighted
+    sum across a lap's profiles reproduces the track's aggregate weights/rates, so a
+    dry tarmac track integrates to exactly the same lap time and wear as the aggregate
+    model. ``grip_mult``/``tire_wear_mult``/``wet_weight`` carry the resolved
+    surface+condition effects (see SURFACE_MODIFIERS / CONDITION_MODIFIERS).
+    """
+
+    name: str
+    length_pct: float
+    start_pct: float
+    end_pct: float
+    surface: str
+    condition: str
+    weights: dict[str, float]
+    tire_wear_rate: float
+    fuel_burn_rate: float
+    engine_heat_rate: float
+    grip_mult: float
+    tire_wear_mult: float
+    wet_weight: float
+
+
+@dataclass
 class Track:
     id: str
     name: str
@@ -194,6 +220,7 @@ class Track:
     tire_wear_rate: float = 0.0
     fuel_burn_rate: float = 0.0
     engine_heat_rate: float = 0.0
+    segment_profiles: list[SegmentProfile] = field(default_factory=list)
 
 
 @dataclass
@@ -288,6 +315,7 @@ class RaceCarState:
     event_log: list[str]
     is_dnf: bool = False
     performance_scalar: float = 1.0
+    lap_elapsed: float = 0.0
 
 
 @dataclass
