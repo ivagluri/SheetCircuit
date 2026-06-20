@@ -41,14 +41,15 @@ game/
   economy.py         buy_car(), sell_car(), repair_car().
   market.py          list_market_cars().
   tuning.py          set_tune(), update_tune_fields(), tune validation.
-  effective_stats.py compute_effective_stats(), class_rating(). Secondary car/tune/
-                     durability stats fold into the 7 effective axes via centered
-                     factors (see the "orphan-stat reference points" block in constants).
-  opponents.py       Event entry validation and event-aware AI grid generation.
+  effective_stats.py compute_effective_stats(), derived_rating()/class_rating(),
+                     performance_type(). Secondary car/tune/durability stats fold
+                     into the 7 effective axes via centered factors (see the
+                     "orphan-stat reference points" block in constants).
+  opponents.py       Event entry validation and event-pace-aware AI grid generation.
   simulation.py      Lap-time formula and non-interactive full race simulation.
   race_session.py    Interactive RaceSession lifecycle and tick simulation.
   telemetry.py       Telemetry history, warnings, mistake/failure probabilities.
-  sorting.py         SortSpec parsing and per-screen list sorting (class-aware).
+  sorting.py         SortSpec parsing and per-screen list sorting (class/PR/type-aware).
 
 interfaces/
   cli.py             Terminal state machine, menu flow, guided pickers.
@@ -91,6 +92,14 @@ race_screen(session, tick=None, error="")
 race_command_options()
 
 List screens accept an optional SortSpec (see game/sorting.py).
+
+Car list screens show `Class`, `PR`, and `Type`:
+
+```text
+Class  broad event eligibility letter; event restrictions can narrow it further
+PR     synthetic derived performance rating from effective race stats
+Type   short role hint from stat shape/tags: Balanced, Power, Handling, Challenge, etc.
+```
 
 buy_car_action(state, car_id)
 sell_car_action(state, car_id)
@@ -147,6 +156,9 @@ ext [id|number]           full car spec sheet on garage/market (car_extended_scr
 hire / hire <id|number>   drivers screen: picker or direct hire (hire_driver_action)
 fire / fire <id|number>   drivers screen: picker or direct fire (fire_driver_action)
 ```
+
+Garage/market car sorts include `pr` and `type`; `rating` remains an alias for
+`pr` for older commands/tests.
 
 ## Race Flow
 
@@ -230,14 +242,21 @@ car_class_limit  max_power_hp  max_weight_kg
 max_overall_condition  allowed_tires  max_class_rating
 ```
 
-Field generation is event-set difficulty (see `RIVAL_*` constants):
+`max_class_rating` uses the synthetic derived rating/PR, not only the hand-authored
+letter class.
+
+Field generation is event-set difficulty plus dynamic pace matching (see
+`EVENT_PACE_FLOOR_PERCENTILE` and `RIVAL_MATCH_*` constants):
 
 ```text
 1. eligible = cars that pass car_class_limit + event restrictions
-2. tier_pool = strongest eligible cars within RIVAL_TIER_RATING_BAND
-   -> player must bring an adequate car; thin classes reuse models
-3. rival_skill = event.rival_skill or CLASS_RIVAL_SKILL[class]
-4. each rival is a real copied car + generated Driver; no performance scalar
+2. compute each eligible car's natural lap on the event track
+3. anchor rival selection near the player's natural event pace
+   -> higher-class events use an event-floor percentile so a very slow car
+      cannot scale the whole field all the way down
+   -> thin/edge pools reuse nearby models with unique opponent ids
+4. rival_skill = event.rival_skill or CLASS_RIVAL_SKILL[class]
+5. each rival is a real copied car + generated Driver; no performance scalar
 ```
 
 Liveliness comes from two engine-side touches in `simulate_tick`:
@@ -247,9 +266,11 @@ per-tick rival jitter   (RIVAL_TICK_VARIANCE_S)  -> pack shuffles
 reactive push           (RIVAL_REACTIVE_GAP_S)   -> rivals race you back
 ```
 
-`start_race_action` uses a random seed by default (pass an explicit
-seed for deterministic runs / tests). `simulate_race` is the quick,
-deterministic, all-normal summary and does NOT apply jitter/reactive push.
+`start_race_action` uses a random seed by default (pass an explicit seed for
+deterministic runs / tests). `simulate_race` is the quick, deterministic,
+all-normal summary and does NOT apply jitter/reactive push. Both paths seed the
+opponent builder with the player's actual garage car, so tune/condition/upgrades
+can affect the peer pool.
 
 If balancing feels wrong, inspect (tune constants first):
 
@@ -302,10 +323,11 @@ derive_rates(segments)          # aggregate wear/fuel/heat (surface/condition ba
 build_segment_profiles(segments) -> Track.segment_profiles  # intensive, position-resolved
 ```
 
-`data/tracks/` ships five tracks: `summit_ridge_gp.json` (circuit) and
-`alpine_hillclimb.json` (`laps: 1` point-to-point) are the reference tracks
+`data/tracks/` ships eight tracks. `summit_ridge_gp.json` (circuit) and
+`alpine_hillclimb.json` (`laps: 1` point-to-point) are reference tracks
 exercising all 12 tags and the full surface/condition range; `maple_short.json`,
-`northbank_oval.json`, and `red_valley_club.json` round out the calendar.
+`northbank_oval.json`, `red_valley_club.json`, `cresta_speed_run.json`,
+`glenmoor_esses.json`, and `cinder_pass.json` round out the calendar.
 
 Adding data should usually mean adding JSON files under `data/`, not editing registries.
 
@@ -316,7 +338,7 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
 - New race command: update `COMMAND_MODIFIERS` (6-column tuple), `race_command_options()`, cooling sets if it cools, tests. Engine maps are NOT commands — they live in `tune.engine_map`.
 - New sortable field/screen: update the per-screen options in `game/sorting.py`, tests.
 - Balance lap times: update constants first, then formulas in `effective_stats.py` or `simulation.py`.
-- Balance opponents: tune the `RIVAL_*` constants first, then event restrictions/data or `opponents.py`.
+- Balance opponents: tune `RIVAL_MATCH_*`, `EVENT_PACE_FLOOR_PERCENTILE`, and other `RIVAL_*` constants first, then event restrictions/data or `opponents.py`.
 - Add web UI: create new interface/API layer that calls `game.actions`; avoid importing `interfaces.cli`.
 - Add save fields: update dataclasses, loader/save roundtrip tests, schema if breaking.
 
@@ -325,7 +347,7 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
 ```text
 test_models.py             Loaders/dataclasses/track validation.
 test_save_load.py          Save schema and roundtrip.
-test_effective_stats.py    Stats, class rating, tune effects.
+test_effective_stats.py    Stats, derived PR/class rating, tune effects.
 test_lap_time.py           Lap formula and full-race basics.
 test_segment_resolution.py Segment profiles and per-interval lap pace.
 test_orphan_stats.py       Secondary car/tune/durability stat folds (direction tests).
@@ -334,7 +356,7 @@ test_race_tick.py          Interactive race commands.
 test_commands.py           Command set: live stress column, one-shot pit, engine-map decoupling.
 test_telemetry.py          Telemetry history and warnings.
 test_economy.py            Buy/sell/repair/prizes.
-test_opponents.py          Event restrictions and opponent generation.
+test_opponents.py          Event restrictions, pace floors, and opponent generation.
 test_car_catalog.py        Catalog class distribution and S-class competitiveness.
 test_actions.py            UI-neutral action/screen layer.
 test_cli.py                Terminal menu/screen behavior.
