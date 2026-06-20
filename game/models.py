@@ -308,8 +308,6 @@ class RaceCarState:
     driver_focus: float
     driver_stress: float
     pace_mode: str
-    combat_mode: str
-    engine_map: str
     last_lap_time: float | None
     total_time: float
     event_log: list[str]

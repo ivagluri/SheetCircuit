@@ -8,6 +8,7 @@ from constants import (
     COMMAND_MODIFIERS,
     COMMAND_ENGINE_HEAT_INDEX,
     COMMAND_FUEL_BURN_INDEX,
+    COMMAND_PACE_INDEX,
     COMMAND_STRESS_INDEX,
     COMMAND_TIRE_WEAR_INDEX,
     ENGINE_COOLING_COMMANDS,
@@ -89,7 +90,7 @@ def lap_time_over_interval(
     balance is preserved while composition now shapes pace within the lap. Falls back
     to the aggregate model for profile-less tracks.
     """
-    pace_factor = COMMAND_MODIFIERS[command][0]
+    pace_factor = COMMAND_MODIFIERS[command][COMMAND_PACE_INDEX]
     if track.segment_profiles:
         core = 0.0
         for profile, overlap in _segments_in_interval(track.segment_profiles, start, length):
@@ -318,8 +319,6 @@ def _initial_state(car_id: str, driver_id: str, label: str, is_player: bool) -> 
         driver_focus=PERCENT_MAX,
         driver_stress=0.0,
         pace_mode="normal",
-        combat_mode="normal",
-        engine_map="balanced",
         last_lap_time=None,
         total_time=0.0,
         event_log=[],
