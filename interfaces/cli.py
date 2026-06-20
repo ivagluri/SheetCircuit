@@ -464,6 +464,18 @@ def _show_help() -> None:
         ],
     )
     terminal.table(
+        "Car Columns",
+        ["Column", "Meaning"],
+        [
+            ["Class", "Broad event eligibility letter; restrictions may still apply"],
+            ["PR", "Synthetic performance rating derived from effective race stats"],
+            ["Type", "Short role hint such as Balanced, Power, Handling, or Challenge"],
+        ],
+    )
+    terminal.print(
+        "Rivals are matched near your car's derived event pace; higher-class events keep a faster pace floor."
+    )
+    terminal.table(
         "Sortable Fields",
         ["Screen", "Fields"],
         [[screen.title(), ", ".join(sort_fields(screen))] for screen in _SORTABLE_SCREENS],

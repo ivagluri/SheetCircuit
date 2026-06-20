@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable, TypeVar
 
 from constants import CLASS_THRESHOLDS
-from game.effective_stats import class_rating
+from game.effective_stats import class_rating, performance_type
 from game.models import Car, Driver, Event
 
 T = TypeVar("T")
@@ -119,7 +119,8 @@ def _class_rank(class_name: str) -> int:
 _CAR_SORT_OPTIONS = [
     SortOption("name", "Name", lambda car: car.identity.name, aliases=("car",)),
     SortOption("class", "Class", lambda car: _class_rank(car.identity.car_class), True, ("tier",)),
-    SortOption("rating", "PR", class_rating, True, ("pr", "score")),
+    SortOption("pr", "PR", class_rating, True, ("rating", "score")),
+    SortOption("type", "Type", performance_type, aliases=("role", "archetype")),
     SortOption("hp", "HP", lambda car: car.powertrain.power_hp, True, ("power", "horsepower")),
     SortOption("torque", "Torque", lambda car: car.powertrain.torque_nm, True, ("nm",)),
     SortOption("price", "Price", lambda car: car.value, aliases=("value", "cost")),
