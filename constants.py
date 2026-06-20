@@ -182,6 +182,22 @@ CLASS_THRESHOLDS: dict[str, int] = {
     "S": 600,
 }
 
+# --- Pace soft knee --------------------------------------------------------
+# The performance axes that feed the pace composite (acceleration, top_speed, power,
+# grip, braking, handling, aero_grip) use a no-ceiling soft knee instead of a hard
+# clamp at 100. Below the knee the transform is the identity, so ordinary cars and the
+# k660 reference are unchanged; above it, extra performance keeps helping with
+# diminishing returns and never walls out (future upgrade parts stay meaningful). The
+# dashboard and class_rating still present these axes clamped to 0-100.
+PACE_SOFT_KNEE = 100.0
+PACE_SOFT_SOFTNESS = 40.0
+
+# Drivetrain traction. AWD claws back grip, and more so on low-grip surfaces (gravel/wet),
+# which is what gives the AWD supercar its identity on a rally/hillclimb stage. RWD/FWD are
+# neutral for now.
+AWD_GRIP_BONUS = 1.02               # small everyday grip edge for AWD cars
+AWD_LOWGRIP_BONUS = 0.45            # the real AWD payoff: grip multiplier per (1 - grip_mult), low-grip only
+
 MIN_CONDITION_FACTOR = 0.40
 BRAKE_BIAS_IDEAL = 0.60
 BRAKE_BIAS_PENALTY = 0.55

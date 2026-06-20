@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 
 import constants as C
@@ -43,6 +44,20 @@ from game.models import Car, EffectiveCarStats, Part, TuneSetup
 
 def clamp(value: float, low: float = PERCENT_MIN, high: float = PERCENT_MAX) -> float:
     return max(low, min(high, value))
+
+
+def _pace(value: float) -> float:
+    """Soft-knee transform for a performance axis that feeds the pace composite.
+
+    Identity at/below the knee (ordinary cars and the reference car are unchanged), then
+    a logarithmic compression above it: more performance always helps with diminishing
+    returns and there is no ceiling, so future upgrade parts never wall out. Lower bound
+    stays at zero.
+    """
+    value = max(0.0, value)
+    if value <= C.PACE_SOFT_KNEE:
+        return value
+    return C.PACE_SOFT_KNEE + C.PACE_SOFT_SOFTNESS * math.log1p((value - C.PACE_SOFT_KNEE) / C.PACE_SOFT_SOFTNESS)
 
 
 def _centered_factor(value: float, reference: float, per_unit: float) -> float:
@@ -163,6 +178,10 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> Effect
         1 - total_toe * C.TOE_GRIP_PENALTY,
     )
     grip = grip * (1 - C.MECH_GRIP_BLEND) + mechanical_grip * C.MECH_GRIP_BLEND
+    drivetrain = modified.identity.drivetrain
+    if drivetrain == "AWD":
+        # AWD puts power down better; the surface-scaled half lives in the segment composite.
+        grip *= C.AWD_GRIP_BONUS
 
     weight_factor = min(1.15, WEIGHT_REFERENCE_KG / weight)
     ride_factor = _ride_height_factor(tune.front_ride_height, tune.rear_ride_height)
@@ -228,18 +247,22 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> Effect
         _centered_factor(cond.gearbox_condition, C.GEARBOX_CONDITION_REF, C.CONDITION_RELIABILITY_PER_UNIT),
     )
 
+    # Performance axes that feed the pace composite use the no-ceiling soft knee; the rest
+    # (rates/reliability and secondary readouts) keep the genuine 0-100 clamp.
     return EffectiveCarStats(
-        power=clamp(power / NORM_POWER_REF_HP * PERCENT_MAX),
+        power=_pace(power / NORM_POWER_REF_HP * PERCENT_MAX),
         torque=clamp(torque / NORM_TORQUE_REF_NM * PERCENT_MAX),
         weight=float(weight),
-        acceleration=clamp(acceleration),
-        top_speed=clamp(top_speed),
-        braking=clamp(braking),
+        acceleration=_pace(acceleration),
+        top_speed=_pace(top_speed),
+        braking=_pace(braking),
         brake_stability=clamp(brake_stability),
-        grip=clamp(grip),
-        wet_grip=clamp(wet_grip),
-        handling=clamp(handling),
+        grip=_pace(grip),
+        wet_grip=_pace(wet_grip),
+        handling=_pace(handling),
         mechanical_grip=clamp(mechanical_grip),
+        # aero stays clamped: it isn't a supercar differentiator and its huge pre-clamp
+        # values (downforce can reach ~2x) would otherwise over-inflate the aero-heavy car.
         aero_grip=clamp(aero_grip),
         drag=drag,
         stability=stability,
@@ -250,6 +273,7 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> Effect
         reliability=clamp(reliability),
         suspension_compliance=suspension_compliance,
         curb_handling=curb_handling,
+        drivetrain=drivetrain,
     )
 
 
@@ -262,13 +286,15 @@ def class_rating(car: Car, parts: list[Part] | None = None) -> int:
         + car.condition.suspension_condition
         + car.condition.tire_condition
     ) / 5
+    # Rating presents the performance axes on the conventional 0-100 scale, so the pace
+    # soft knee (which lets these exceed 100 internally) does not inflate class brackets.
     composite = (
-        effective.acceleration * CLASS_RATING_WEIGHTS["acceleration"]
-        + effective.top_speed * CLASS_RATING_WEIGHTS["top_speed"]
-        + effective.grip * CLASS_RATING_WEIGHTS["grip"]
-        + effective.braking * CLASS_RATING_WEIGHTS["braking"]
-        + effective.handling * CLASS_RATING_WEIGHTS["handling"]
-        + effective.aero_grip * CLASS_RATING_WEIGHTS["aero"]
+        clamp(effective.acceleration) * CLASS_RATING_WEIGHTS["acceleration"]
+        + clamp(effective.top_speed) * CLASS_RATING_WEIGHTS["top_speed"]
+        + clamp(effective.grip) * CLASS_RATING_WEIGHTS["grip"]
+        + clamp(effective.braking) * CLASS_RATING_WEIGHTS["braking"]
+        + clamp(effective.handling) * CLASS_RATING_WEIGHTS["handling"]
+        + clamp(effective.aero_grip) * CLASS_RATING_WEIGHTS["aero"]
         + effective.reliability * CLASS_RATING_WEIGHTS["reliability"]
         + condition_score * CLASS_RATING_WEIGHTS["condition"]
     )

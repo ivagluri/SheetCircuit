@@ -1,0 +1,23 @@
+{
+  "id": "cinder_pass",
+  "name": "Cinder Pass",
+  "description": "A loose gravel rallycross circuit of short sprints and slow corners, with a damp braking zone where traction is scarce. Acceleration plus AWD traction on low-grip surface is king here, suiting the all-wheel-drive Escarpa Pikes. RWD power still launches well on the sprints.",
+  "layout_type": "rallycross",
+  "base_lap_time": 111.7,
+  "laps": 6,
+  "length_km": 3.9,
+  "pit_lane_loss_s": 20.0,
+  "overtake_difficulty": 0.45,
+  "elevation_change_m": 95,
+  "surface": "gravel",
+  "default_condition": "dry",
+  "weather_variability": 0.5,
+  "segments": [
+    {"name": "Cinder Straight", "length_pct": 0.22, "tags": ["short_straight"], "surface": "gravel", "condition": "dry"},
+    {"name": "Loose Sprint", "length_pct": 0.18, "tags": ["short_straight"], "surface": "gravel", "condition": "dry"},
+    {"name": "Quarry Hairpin", "length_pct": 0.18, "tags": ["slow_corner"], "surface": "gravel", "condition": "dry"},
+    {"name": "Switchbacks", "length_pct": 0.12, "tags": ["slow_corner"], "surface": "gravel", "condition": "dry"},
+    {"name": "Damp Braking", "length_pct": 0.20, "tags": ["hard_braking_zone"], "surface": "gravel", "condition": "damp"},
+    {"name": "Rumble Curbs", "length_pct": 0.10, "tags": ["curb_riding"], "surface": "gravel", "condition": "dry"}
+  ]
+}

@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import TypeVar
 
 from constants import (
+    AWD_LOWGRIP_BONUS,
     COMMAND_MODIFIERS,
     COMMAND_ENGINE_HEAT_INDEX,
     COMMAND_FUEL_BURN_INDEX,
@@ -129,6 +130,10 @@ def _segments_in_interval(
 def _segment_composite(effective: EffectiveCarStats, profile: SegmentProfile) -> float:
     weights = profile.weights
     grip = effective.grip * (1.0 - profile.wet_weight) + effective.wet_grip * profile.wet_weight
+    if effective.drivetrain == "AWD":
+        # AWD claws back traction where grip is scarce; zero on dry tarmac (grip_mult == 1),
+        # so the dry-tarmac segment/aggregate equivalence is preserved.
+        grip *= 1.0 + AWD_LOWGRIP_BONUS * (1.0 - profile.grip_mult)
     composite = (
         effective.acceleration * weights["acceleration"]
         + effective.power * weights["power"]

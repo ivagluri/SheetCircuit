@@ -1,0 +1,22 @@
+{
+  "id": "cresta_speed_run",
+  "name": "Cresta Speed Run",
+  "description": "A coastal point-to-point speed run: nearly all full-throttle straight, run once start-to-finish (laps: 1). Power and top-end dominate the weighting, so a high-power car like the Blackpool Twelve is in its element. Favoured, not guaranteed.",
+  "layout_type": "sprint",
+  "base_lap_time": 119.7,
+  "laps": 1,
+  "length_km": 6.2,
+  "pit_lane_loss_s": 24.0,
+  "overtake_difficulty": 0.2,
+  "elevation_change_m": 8,
+  "surface": "tarmac",
+  "default_condition": "dry",
+  "weather_variability": 0.1,
+  "segments": [
+    {"name": "Launch Straight", "length_pct": 0.30, "tags": ["long_straight", "wide_track"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Coast Run", "length_pct": 0.28, "tags": ["long_straight"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Headland Sweep", "length_pct": 0.12, "tags": ["high_speed_corner", "exposed"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Vmax Straight", "length_pct": 0.20, "tags": ["long_straight"], "surface": "tarmac", "condition": "dry"},
+    {"name": "Finish Braking", "length_pct": 0.10, "tags": ["hard_braking_zone"], "surface": "tarmac", "condition": "dry"}
+  ]
+}

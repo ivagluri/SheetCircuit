@@ -274,6 +274,7 @@ class EffectiveCarStats:
     reliability: float
     suspension_compliance: float
     curb_handling: float
+    drivetrain: str = "RWD"
 
 
 @dataclass
