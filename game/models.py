@@ -10,7 +10,6 @@ class CarIdentity:
     year: int
     manufacturer: str
     model: str
-    car_class: str
     drivetrain: str
     layout: str
     tags: list[str]

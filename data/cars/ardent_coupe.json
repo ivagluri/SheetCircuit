@@ -4,7 +4,6 @@
   "year": 2001,
   "manufacturer": "Ardent",
   "model": "Coupe",
-  "car_class": "D",
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["cheap_power", "fwd", "understeer_prone"],

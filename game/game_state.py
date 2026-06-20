@@ -25,8 +25,9 @@ def _starter_car(cars: list[Car]) -> Car:
     present, then the cheapest car within it."""
     if not cars:
         raise ValueError("No cars available to start a career")
+    from game.effective_stats import derived_class
     class_order = {"E": 0, "D": 1, "C": 2, "B": 3, "A": 4, "S": 5}
-    return min(cars, key=lambda c: (class_order.get(c.identity.car_class, 99), c.value))
+    return min(cars, key=lambda c: (class_order.get(derived_class(c), 99), c.value))
 
 
 def _starter_driver(drivers: list[Driver]) -> Driver:

@@ -4,7 +4,6 @@
   "year": 1989,
   "manufacturer": "Nagoya",
   "model": "March Super",
-  "car_class": "E",
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["japanese", "tiny_turbo", "lightweight", "cheap_power", "short_gears"],

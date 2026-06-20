@@ -4,7 +4,6 @@
   "year": 1975,
   "manufacturer": "Torino",
   "model": "500R",
-  "car_class": "E",
   "drivetrain": "RWD",
   "layout": "rear_engine",
   "tags": ["italian", "microcar", "rear_engine", "lightweight", "challenge"],

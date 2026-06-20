@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from game.effective_stats import class_rating, performance_type
+from game.effective_stats import class_rating, derived_class, performance_type
 from game.game_state import GameState
 from game.models import Car, Driver, Event, Part, RaceCarState, RaceSession, Track
 from game.sorting import SortSpec, sort_items
@@ -10,7 +10,7 @@ def render_garage(game_state: GameState) -> str:
     if not game_state.garage:
         return "Garage is empty."
     return "\n".join(
-        f"{car.identity.id}: {car.identity.name} ({car.identity.car_class}) "
+        f"{car.identity.id}: {car.identity.name} ({derived_class(car)}) "
         f"PR {class_rating(car)} {performance_type(car)} condition {car.condition.overall_condition:.0f}%"
         for car in game_state.garage
     )
@@ -28,7 +28,7 @@ def render_market(game_state: GameState) -> str:
     from game.market import list_market_cars
 
     return "\n".join(
-        f"{car.identity.id}: {car.identity.name} ${car.value} class {car.identity.car_class} "
+        f"{car.identity.id}: {car.identity.name} ${car.value} class {derived_class(car)} "
         f"PR {class_rating(car)} {performance_type(car)}"
         for car in list_market_cars()
     )
@@ -62,7 +62,7 @@ def garage_rows(game_state: GameState, sort_spec: SortSpec | None = None) -> lis
             index,
             car.identity.id,
             car.identity.name,
-            car.identity.car_class,
+            derived_class(car),
             class_rating(car),
             performance_type(car),
             f"{car.condition.overall_condition:.0f}%",
@@ -111,7 +111,7 @@ def market_rows(cars: list[Car], sort_spec: SortSpec | None = None) -> list[list
             index,
             car.identity.id,
             car.identity.name,
-            car.identity.car_class,
+            derived_class(car),
             class_rating(car),
             performance_type(car),
             f"${car.value}",

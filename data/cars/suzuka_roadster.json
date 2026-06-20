@@ -4,7 +4,6 @@
   "year": 1997,
   "manufacturer": "Suzuka",
   "model": "Roadster",
-  "car_class": "D",
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["lightweight", "high_handling", "momentum_car", "driver_car"],

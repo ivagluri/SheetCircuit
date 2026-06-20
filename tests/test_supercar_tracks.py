@@ -12,7 +12,7 @@ from copy import deepcopy
 import unittest
 
 from constants import PACE_SOFT_KNEE
-from game.effective_stats import compute_effective_stats, class_rating
+from game.effective_stats import compute_effective_stats, class_rating, derived_class
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.simulation import calculate_lap_time, lap_time_over_interval
@@ -31,7 +31,7 @@ class SupercarTrackTests(unittest.TestCase):
         self.parts = load_parts()
         self.cars = {c.identity.id: c for c in load_cars()}
         self.tracks = {t.id: t for t in load_tracks()}
-        self.s_cars = [c for c in self.cars.values() if c.identity.car_class == "S"]
+        self.s_cars = [c for c in self.cars.values() if derived_class(c, self.parts) == "S"]
 
     def _lap(self, car, track):
         return calculate_lap_time(compute_effective_stats(car, self.parts), track)
@@ -75,11 +75,13 @@ class SupercarTrackTests(unittest.TestCase):
         self.assertLess(e.acceleration, PACE_SOFT_KNEE)
         self.assertLess(e.top_speed, PACE_SOFT_KNEE)
 
-    def test_class_rating_not_inflated_by_headroom(self) -> None:
-        # Internal speed axes exceed 100 but rating presents them clamped, so no supercar
-        # jumps a class from the headroom.
+    def test_supercars_land_in_s_with_distinct_ratings(self) -> None:
+        # Class is derived from capability, which includes the soft-knee speed headroom, so
+        # supercars land in S with distinct ratings rather than being suppressed to a wall.
+        ratings = {c.identity.id: class_rating(c, self.parts) for c in self.s_cars}
         for c in self.s_cars:
-            self.assertLess(class_rating(c, self.parts), 400, c.identity.id)
+            self.assertEqual(derived_class(c, self.parts), "S", c.identity.id)
+        self.assertGreater(len(set(ratings.values())), 1, ratings)
 
     def test_awd_raises_grip(self) -> None:
         awd = deepcopy(self.cars["escarpa_pikes"])

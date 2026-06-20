@@ -94,36 +94,40 @@ cars (`WEIGHT_REFERENCE_KG`), so it doesn't generalise: the Veyron facsimile com
 **PR 347** (≈ C/D bracket) while being hand-labelled **S**. A heavy, very fast hypercar
 is under-rated by a formula tuned to light nimble cars.
 
-### Approach (decide at implementation time — pick one)
-- **Option A — derive class from PR (single source of truth).** Remove stored
-  `car_class`; compute it from a PR that generalises. Requires reworking the PR formula
-  so weight/power extremes don't crater it (e.g. include a raw power/top-speed term, or
-  normalise weight against the car's own power). Eligibility (`_class_allowed`) then reads
-  the derived class. Cleanest conceptually; touches all car JSONs (drop `car_class`) and
-  every reader.
-- **Option B — keep stored class, make PR advisory + robust.** Keep `car.identity.car_class`
-  as the authority for eligibility, but fix `derived_rating` so its PR roughly agrees with
-  the stored class across the catalog (so the displayed PR isn't misleading). Lower churn.
+### Approach (decided — Option A, runtime-derived)
+**Derive class at runtime from a fixed reference suite, never stored** (the de-pin
+principle: a custom/creator car must get a real class with nothing to look up). A car's
+PR = its mean capability *composite* across three intrinsic in-code fixtures -- a drag
+run, a slalom, and a hybrid (`game/reference_suite.py`) -- scaled by `CLASS_RATING_SCALE`
+(now 10), bracketed by re-anchored `CLASS_THRESHOLDS`. Tier basis is the **mean** across
+archetypes; the per-archetype split surfaces as the car's **shape** (`performance_type`:
+Power/Handling/Balanced/Challenge), so same-tier cars are still distinguished (the torino
+reads "E · Challenge", the detroit "E · Power"). The capability composite is
+`base_lap_time`-independent, so the 3b race-pace tune does not move the tiers.
 
-Recommendation: start with **B** (make PR trustworthy) and only go to **A** if you want
-class fully data-derived. Use the Veyron and the kei (`kanto_k660`) as the two extremes to
-validate against.
+Split into two commits:
+- **3a (done)** — runtime class/shape + drop stored `car_class` everywhere. Single source
+  of truth: `effective_stats.derived_class()`; eligibility (`opponents._class_allowed`)
+  and all display/sort readers route to it. Stored `car_class` removed from `CarIdentity`,
+  `car_from_dict`, all 27 `data/cars/*.json`, and the creator schema. Event
+  `max_class_rating` restrictions rescaled to the new PR scale (`new = round(1.4·old+60)`).
+- **3b (pending)** — widen the on-track race gulf (`PERF_SCALE`); re-pin balance baseline.
 
-### Touch points
-- `game/effective_stats.py`: `derived_rating`, `performance_type`, `CLASS_RATING_WEIGHTS`.
-- `constants.py`: `CLASS_RATING_WEIGHTS`, `CLASS_THRESHOLDS`, `CLASS_RATING_SCALE`,
-  possibly new power/top-speed terms.
-- `game/opponents.py`: `_class_allowed`, `CLASS_ORDER` (if Option A).
-- Option A only: every `data/cars/*.json` (drop `car_class`), `CarIdentity`, `car_from_dict`.
-- `tests/`: `test_car_catalog.py`, `test_effective_stats.py`, baseline re-pin.
+### Follow-ups (separate tasks, noted)
+- **F1 — player explainer.** Class is no longer editable, so the garage/market needs a
+  view of *how* it was derived (the per-fixture suite scores).
+- **F2 — creator derivation.** The creator already shows the derived class live in its
+  preview (`editor/app.py`, `editor/_verify.py`); a fuller creator-side suite readout is
+  the remaining polish.
 
-### Acceptance criteria
-- A spread of real-world archetypes (kei, hot hatch, GT, hypercar) land in sensible
-  brackets; the Veyron reads top-tier, the kei bottom-tier.
-- Event eligibility still works; existing events still admit the same intended fields.
+### Acceptance criteria (met in 3a)
+- A spread of archetypes land in sensible brackets; a fabricated Veyron reads top-tier
+  (S, PR ~1030), the kei `kanto_k660` bottom-tier (E) -- both computed, no stored class
+  (`tests/test_reference_class.py`).
+- Event eligibility still works; existing events still admit the intended fields.
 
 ### Risk
-Medium-high (touches the progression/economy backbone via class gating). Isolate it.
+Medium-high (touches the progression/economy backbone via class gating). Isolated to 3a.
 
 ---
 

@@ -4,7 +4,6 @@
   "year": 1998,
   "manufacturer": "Norfolk",
   "model": "190",
-  "car_class": "C",
   "drivetrain": "RWD",
   "layout": "mid_engine",
   "tags": ["british", "lightweight", "mid_engine", "driver_car", "high_handling"],

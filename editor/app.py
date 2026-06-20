@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from game.effective_stats import class_rating, performance_type, compute_effective_stats
+from game.effective_stats import class_rating, derived_class, performance_type, compute_effective_stats
 from game.loader import (
     DATA_ROOT,
     DataLoadError,
@@ -232,7 +232,7 @@ def car_preview(draft: dict) -> list[str]:
         return [f"[red]incomplete:[/red] {exc}"]
     eff = compute_effective_stats(car)
     return [
-        f"[bold]PR {class_rating(car)}[/bold]  class [cyan]{car.identity.car_class}[/cyan]"
+        f"[bold]PR {class_rating(car)}[/bold]  class [cyan]{derived_class(car)}[/cyan]"
         f"  ({performance_type(car)})",
         f"power {eff.power:.0f}  accel {eff.acceleration:.0f}  top {eff.top_speed:.0f}"
         f"  grip {eff.grip:.0f}  brake {eff.braking:.0f}  handling {eff.handling:.0f}",
@@ -412,13 +412,32 @@ class CreatorApp:
             self.note(f"[red]Cannot save:[/red] {message}")
             self.pause()
             return
-        target = DATA_ROOT / _SUBDIR[schema.kind] / f"{_get(draft, schema.id_path)}.json"
-        if target.exists():
-            if self.ask(f"{target.name} exists — overwrite? (y/N)").lower() != "y":
-                return
-        path = save_draft(schema, draft)
-        self.note(f"[green]Saved[/green] {path}")
-        self.pause()
+        while True:
+            target = DATA_ROOT / _SUBDIR[schema.kind] / f"{_get(draft, schema.id_path)}.json"
+            if target.exists():
+                choice = self.ask(
+                    f"{target.name} exists — [y] overwrite  [d] save as new id  [N] cancel"
+                ).strip().lower()
+                if choice == "d":
+                    if not self._save_as(schema, draft):
+                        return
+                    continue  # re-check the new id for conflicts
+                if choice != "y":
+                    return
+            path = save_draft(schema, draft)
+            self.note(f"[green]Saved[/green] {path}")
+            self.pause()
+            return
+
+    def _save_as(self, schema: Schema, draft: dict) -> bool:
+        """Prompt for a fresh id so the draft is written to a new file. Returns
+        False if the user backed out without naming a duplicate."""
+        current = _get(draft, schema.id_path)
+        new_id = self.ask(f"New id (current: {current}; Enter to cancel)").strip()
+        if not new_id or new_id == str(current):
+            return False
+        _set(draft, schema.id_path, new_id)
+        return True
 
     # -- section field loop -------------------------------------------------
     def edit_section(self, schema: Schema, draft: dict, section: Section) -> None:

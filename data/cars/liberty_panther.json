@@ -4,7 +4,6 @@
   "year": 1998,
   "manufacturer": "Liberty",
   "model": "Panther",
-  "car_class": "E",
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["american", "body_on_frame", "durable", "heavy", "fleet_special"],

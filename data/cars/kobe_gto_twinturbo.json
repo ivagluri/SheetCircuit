@@ -4,7 +4,6 @@
   "year": 1999,
   "manufacturer": "Kobe",
   "model": "GTO TwinTurbo",
-  "car_class": "B",
   "drivetrain": "AWD",
   "layout": "front_engine",
   "tags": ["japanese", "grand_tourer", "awd", "turbo", "heavy"],

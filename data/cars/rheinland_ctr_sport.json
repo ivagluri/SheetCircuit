@@ -4,7 +4,6 @@
   "year": 1997,
   "manufacturer": "Rheinland",
   "model": "CTR Sport",
-  "car_class": "A",
   "drivetrain": "AWD",
   "layout": "rear_engine",
   "tags": ["german", "turbo", "rear_engine", "awd", "high_speed"],

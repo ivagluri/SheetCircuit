@@ -12,7 +12,7 @@ from __future__ import annotations
 import copy
 
 from game.loader import car_from_dict, track_from_dict
-from game.effective_stats import class_rating, performance_type
+from game.effective_stats import class_rating, derived_class, performance_type
 
 from editor.app import _set, coerce, validate
 from editor.fields import (
@@ -89,7 +89,6 @@ def build_veyron():
         ("year",): "2005",
         ("manufacturer",): "Bugatti",
         ("model",): "Veyron 16.4",
-        ("car_class",): "S",
         ("drivetrain",): "AWD",
         ("layout",): "rear_mid",
         ("tags",): "supercar, hypercar, w16, quad_turbo, awd, high_speed",
@@ -167,7 +166,7 @@ def main() -> None:
     assert ok, f"Veyron car invalid: {msg}"
     car = car_from_dict(copy.deepcopy(car_draft))
     print(f"CAR    {car.identity.name}")
-    print(f"  class={car.identity.car_class} drivetrain={car.identity.drivetrain} "
+    print(f"  class={derived_class(car)} drivetrain={car.identity.drivetrain} "
           f"PR={class_rating(car)} type={performance_type(car)}")
     print(f"  power={car.powertrain.power_hp}hp weight={car.chassis.weight_kg}kg")
     print("\nBoth facsimiles built only from editor field specs and load through the game loader.")

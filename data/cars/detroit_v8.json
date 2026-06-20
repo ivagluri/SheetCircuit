@@ -4,7 +4,6 @@
   "year": 1985,
   "manufacturer": "Detroit",
   "model": "V8",
-  "car_class": "E",
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["big_power", "heavy", "poor_brakes", "trap_car", "oval_specialist"],

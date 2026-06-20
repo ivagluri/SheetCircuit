@@ -177,25 +177,27 @@ RACE_DISTANCE_LAP_PROGRESS = 1.0
 LOW_FEEDBACK_THRESHOLD = 50
 HIGH_FEEDBACK_THRESHOLD = 75
 
-CLASS_RATING_SCALE = 4
-CLASS_RATING_WEIGHTS: dict[str, float] = {
-    "acceleration": 0.20,
-    "top_speed": 0.15,
-    "grip": 0.20,
-    "braking": 0.15,
-    "handling": 0.15,
-    "aero": 0.05,
-    "reliability": 0.05,
-    "condition": 0.05,
-}
+# Car class is derived at runtime (game/reference_suite.py): PR = mean capability
+# composite across the drag/slalom/hybrid fixtures, scaled, then bracketed. The scale
+# puts PR on a familiar ~150-1100 band; the thresholds are intrinsic capability levels
+# (validated against -- not derived from -- the catalog, which lands torino=E, the
+# detroit/k660 cluster=E, GT cars A/S).
+CLASS_RATING_SCALE = 10
 CLASS_THRESHOLDS: dict[str, int] = {
     "E": 0,
-    "D": 200,
-    "C": 300,
-    "B": 400,
-    "A": 500,
-    "S": 600,
+    "D": 340,
+    "C": 480,
+    "B": 620,
+    "A": 760,
+    "S": 960,
 }
+# Car "shape" (performance_type): where a car's pace comes from, comparing its speed axes
+# (power/accel/top_speed) against its control axes (grip/braking/handling). Beyond this
+# margin it reads Power or Handling; within it, Balanced. A car below the capability floor
+# (or tagged challenge/joke) reads Challenge. The floor is in mean-capability units (the
+# pre-scale composite), so it tracks the class brackets.
+SHAPE_SPEED_CONTROL_DELTA = 10.0
+SHAPE_CHALLENGE_FLOOR = 20.0
 
 # --- Pace soft knee --------------------------------------------------------
 # The performance axes that feed the pace composite (acceleration, top_speed, power,

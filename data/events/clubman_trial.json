@@ -16,7 +16,7 @@
   ],
   "opponent_count": 7,
   "restrictions": {
-    "max_class_rating": 299,
+    "max_class_rating": 479,
     "allowed_tires": [
       "economy",
       "street",

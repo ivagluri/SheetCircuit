@@ -4,7 +4,6 @@
   "year": 2020,
   "manufacturer": "Tochigi",
   "model": "R600",
-  "car_class": "A",
   "drivetrain": "AWD",
   "layout": "front_engine",
   "tags": ["japanese", "super_gt", "awd", "turbo", "high_downforce", "a_class_anchor"],

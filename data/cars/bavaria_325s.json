@@ -4,7 +4,6 @@
   "year": 1988,
   "manufacturer": "Bavaria",
   "model": "325S",
-  "car_class": "D",
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["balanced", "aging", "rwd_classic"],

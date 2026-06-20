@@ -4,7 +4,6 @@
   "year": 1997,
   "manufacturer": "Gallia",
   "model": "106 Rallye",
-  "car_class": "E",
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["french", "hot_hatch", "lightweight", "momentum_car", "lift_off_rotation"],

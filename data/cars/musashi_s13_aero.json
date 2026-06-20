@@ -4,7 +4,6 @@
   "year": 1991,
   "manufacturer": "Musashi",
   "model": "S13 Aero",
-  "car_class": "D",
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["japanese", "turbo", "rwd", "tuner_favorite", "oversteer_prone"],

@@ -100,7 +100,6 @@ def car_from_dict(data: dict[str, Any], path: Path | None = None) -> Car:
             "year": data["year"],
             "manufacturer": data["manufacturer"],
             "model": data["model"],
-            "car_class": data["car_class"],
             "drivetrain": data["drivetrain"],
             "layout": data["layout"],
             "tags": data["tags"],

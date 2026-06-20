@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import constants as C
 import game.effective_stats as ES
-from game.effective_stats import compute_effective_stats, derived_rating, rating_class
+from game.effective_stats import compute_effective_stats, derived_class, derived_rating, performance_type, rating_class
 from game.loader import load_cars, load_parts, load_tracks
 from game.simulation import calculate_lap_time
 
@@ -80,7 +80,7 @@ def main(argv: list[str]) -> int:
     base = deepcopy(cars[car_id])
     base_vals, base_pr, base_cls, base_lap = _line(base, parts, track)
 
-    print(f"\n{car_id} @ {track_id}   (stored class {cars[car_id].identity.car_class})")
+    print(f"\n{car_id} @ {track_id}   shape: {performance_type(base, parts)}")
     print(f"  PR {base_pr} ({base_cls})   reference lap {base_lap:.3f}s")
     for a in AXES:
         print(f"    {a:16s} {base_vals[a]:8.3f}")

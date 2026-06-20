@@ -4,7 +4,6 @@
   "year": 1989,
   "manufacturer": "Maranello",
   "model": "Forty",
-  "car_class": "A",
   "drivetrain": "RWD",
   "layout": "mid_engine",
   "tags": ["italian", "supercar", "turbo_lag", "lightweight", "high_speed"],

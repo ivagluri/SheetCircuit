@@ -4,7 +4,7 @@ from copy import deepcopy
 import unittest
 from unittest.mock import patch
 
-from game.effective_stats import compute_effective_stats, derived_rating
+from game.effective_stats import compute_effective_stats, derived_class, derived_rating
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks
 from game.opponents import EventEntryError, build_opponent_grid, opponent_entry_labels, validate_event_entry
@@ -30,7 +30,7 @@ class OpponentGenerationTests(unittest.TestCase):
         self.assertEqual(len(entries), event.opponent_count)
         for car_id, _driver_id in entries:
             car = opponent_cars[car_id]
-            self.assertEqual(car.identity.car_class, "E")
+            self.assertEqual(derived_class(car, self.parts), "E")
             self.assertLessEqual(car.powertrain.power_hp, 140)
 
     def test_player_entry_restrictions_are_enforced(self) -> None:

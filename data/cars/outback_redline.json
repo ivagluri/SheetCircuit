@@ -4,7 +4,6 @@
   "year": 2016,
   "manufacturer": "Outback",
   "model": "Redline",
-  "car_class": "B",
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["australian", "muscle_sedan", "big_power", "stable", "heavy"],

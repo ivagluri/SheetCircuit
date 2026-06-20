@@ -4,7 +4,6 @@
   "year": 1999,
   "manufacturer": "Wolfsburg",
   "model": "GTI 1.8T",
-  "car_class": "D",
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["german", "hot_hatch", "turbo", "stable", "understeer_prone"],

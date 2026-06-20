@@ -4,7 +4,6 @@
   "year": 1998,
   "manufacturer": "Saxony",
   "model": "Lupo 1.4",
-  "car_class": "E",
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["german", "starter", "lightweight", "efficient", "momentum_car"],

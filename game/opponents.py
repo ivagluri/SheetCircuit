@@ -12,7 +12,7 @@ from constants import (
     RIVAL_MATCH_POOL_FACTOR,
     RIVAL_SKILL_SIGMA,
 )
-from game.effective_stats import compute_effective_stats, derived_rating
+from game.effective_stats import compute_effective_stats, derived_class, derived_rating
 from game.models import Car, Driver, Event, Track
 
 CLASS_ORDER = {"E": 0, "D": 1, "C": 2, "B": 3, "A": 4, "S": 5}
@@ -27,7 +27,7 @@ class EventEntryError(ValueError):
 
 
 def validate_event_entry(car: Car, event: Event, parts: list | None = None) -> None:
-    if not _class_allowed(car, event.car_class_limit):
+    if not _class_allowed(car, event.car_class_limit, parts):
         raise EventEntryError(f"{car.identity.name} exceeds {event.car_class_limit} class limit")
     failed_rule = _failed_restriction(car, event, parts or [])
     if failed_rule:
@@ -148,11 +148,11 @@ def _effective_rival_skill(event: Event) -> int:
 
 
 def _is_eligible(car: Car, event: Event, parts: list) -> bool:
-    return _class_allowed(car, event.car_class_limit) and _failed_restriction(car, event, parts) == ""
+    return _class_allowed(car, event.car_class_limit, parts) and _failed_restriction(car, event, parts) == ""
 
 
-def _class_allowed(car: Car, class_limit: str) -> bool:
-    car_rank = CLASS_ORDER.get(car.identity.car_class, 99)
+def _class_allowed(car: Car, class_limit: str, parts: list | None = None) -> bool:
+    car_rank = CLASS_ORDER.get(derived_class(car, parts), 99)
     limit_rank = CLASS_ORDER.get(class_limit, 99)
     return car_rank <= limit_rank
 

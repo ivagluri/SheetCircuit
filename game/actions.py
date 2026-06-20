@@ -7,7 +7,7 @@ from typing import Any
 
 from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
-from game.effective_stats import class_rating, compute_effective_stats, performance_type
+from game.effective_stats import class_rating, compute_effective_stats, derived_class, performance_type
 from game.game_state import GameState
 from game.loader import load_drivers, load_events, load_tracks, resolve_race
 from game.market import list_market_cars
@@ -93,7 +93,7 @@ def garage_screen(state: GameState, sort_spec: SortSpec | None = None) -> Screen
                         index,
                         car.identity.id,
                         car.identity.name,
-                        car.identity.car_class,
+                        derived_class(car),
                         class_rating(car),
                         performance_type(car),
                         f"{car.condition.overall_condition:.0f}%",
@@ -177,7 +177,7 @@ def market_screen(sort_spec: SortSpec | None = None) -> ScreenData:
                         index,
                         car.identity.id,
                         car.identity.name,
-                        car.identity.car_class,
+                        derived_class(car),
                         class_rating(car),
                         performance_type(car),
                         f"${car.value}",
@@ -209,7 +209,7 @@ def _car_detail_screen(car, name: str) -> ScreenData:
     return ScreenData(
         name=name,
         title=car.identity.name,
-        subtitle=f"{car.identity.manufacturer} {car.identity.model} / {car.identity.car_class}",
+        subtitle=f"{car.identity.manufacturer} {car.identity.model} / {derived_class(car)}",
         tables=[
             TableData(
                 "Overview",
@@ -277,7 +277,7 @@ def _car_extended_screen(car, name: str) -> ScreenData:
     return ScreenData(
         name=name,
         title=f"{i.name} — Extended Specs",
-        subtitle=f"{i.manufacturer} {i.model} ({i.year}) / {i.car_class}",
+        subtitle=f"{i.manufacturer} {i.model} ({i.year}) / {derived_class(car)}",
         tables=[
             TableData(
                 "Identity",

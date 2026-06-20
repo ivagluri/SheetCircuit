@@ -4,7 +4,6 @@
   "year": 1991,
   "manufacturer": "Akagi",
   "model": "Pulsar GTI-R",
-  "car_class": "C",
   "drivetrain": "AWD",
   "layout": "front_engine",
   "tags": ["japanese", "awd", "turbo", "rally_bred", "short_wheelbase"],

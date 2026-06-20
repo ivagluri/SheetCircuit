@@ -4,7 +4,6 @@
   "year": 1994,
   "manufacturer": "Kanto",
   "model": "K660",
-  "car_class": "E",
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["starter", "lightweight", "reliable", "momentum_car"],
