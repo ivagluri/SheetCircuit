@@ -523,30 +523,38 @@ def _table_title(title: str, screen: str, sort_spec: SortSpec | None) -> str:
     return f"{title} (sorted by {sort_label(screen, sort_spec)})"
 
 
+# Every editable TuneSetup field, grouped by subsystem for the tune menu. The whole
+# set is exposed (each one now influences the simulation); grouping keeps a long list
+# scannable while a single continuous numbering drives selection.
+_TUNE_FIELD_GROUPS: list[tuple[str, list[str]]] = [
+    ("Tyres", ["tire_pressure_front", "tire_pressure_rear", "camber_front", "camber_rear", "toe_front", "toe_rear"]),
+    ("Drivetrain", ["final_drive", "gear_bias", "differential_power", "differential_coast", "differential_preload", "engine_map"]),
+    ("Brakes", ["brake_bias", "brake_pressure"]),
+    ("Suspension", ["front_ride_height", "rear_ride_height", "suspension_stiffness_front", "suspension_stiffness_rear", "antiroll_front", "antiroll_rear"]),
+    ("Aero", ["front_downforce", "rear_downforce"]),
+]
+
+
 def tune_fields_screen(state: GameState, car_id: str) -> ScreenData:
     car = next((garage_car for garage_car in state.garage if garage_car.identity.id == car_id), None)
     if car is None:
         raise ValueError(f"Unknown garage car: {car_id}")
     fields = tune_fields_for_car(state, car_id)
+    field_by_name = {field.name: field for field in fields}
+    tables: list[TableData] = []
+    index = 1
+    for category, names in _TUNE_FIELD_GROUPS:
+        rows = []
+        for name in names:
+            field = field_by_name[name]
+            rows.append([index, field.label, field.current, _allowed_text(field)])
+            index += 1
+        tables.append(TableData(category, ["#", "Field", "Current", "Allowed"], rows))
     return ScreenData(
         name="tune",
         title="Tune",
         subtitle=car.identity.name,
-        tables=[
-            TableData(
-                "Tune Fields",
-                ["#", "Field", "Current", "Allowed"],
-                [
-                    [
-                        index,
-                        field.label,
-                        field.current,
-                        _allowed_text(field),
-                    ]
-                    for index, field in enumerate(fields, start=1)
-                ],
-            )
-        ],
+        tables=tables,
         fields=fields,
     )
 
@@ -555,19 +563,7 @@ def tune_fields_for_car(state: GameState, car_id: str) -> list[FieldData]:
     car = next((garage_car for garage_car in state.garage if garage_car.identity.id == car_id), None)
     if car is None:
         raise ValueError(f"Unknown garage car: {car_id}")
-    names = [
-        "tire_pressure_front",
-        "tire_pressure_rear",
-        "final_drive",
-        "brake_bias",
-        "front_ride_height",
-        "rear_ride_height",
-        "camber_front",
-        "camber_rear",
-        "front_downforce",
-        "rear_downforce",
-        "engine_map",
-    ]
+    names = [name for _category, group in _TUNE_FIELD_GROUPS for name in group]
     return [_field_data(name, getattr(car.tune, name)) for name in names]
 
 
@@ -592,8 +588,34 @@ def _field_data(name: str, current: Any) -> FieldData:
     )
 
 
+_TUNE_FIELD_LABELS: dict[str, str] = {
+    "tire_pressure_front": "Tyre Pressure (F)",
+    "tire_pressure_rear": "Tyre Pressure (R)",
+    "camber_front": "Camber (F)",
+    "camber_rear": "Camber (R)",
+    "toe_front": "Toe (F)",
+    "toe_rear": "Toe (R)",
+    "final_drive": "Final Drive",
+    "gear_bias": "Gear Bias",
+    "differential_power": "Diff Power",
+    "differential_coast": "Diff Coast",
+    "differential_preload": "Diff Preload",
+    "engine_map": "Engine Map",
+    "brake_bias": "Brake Bias",
+    "brake_pressure": "Brake Pressure",
+    "front_ride_height": "Ride Height (F)",
+    "rear_ride_height": "Ride Height (R)",
+    "suspension_stiffness_front": "Stiffness (F)",
+    "suspension_stiffness_rear": "Stiffness (R)",
+    "antiroll_front": "Anti-Roll (F)",
+    "antiroll_rear": "Anti-Roll (R)",
+    "front_downforce": "Downforce (F)",
+    "rear_downforce": "Downforce (R)",
+}
+
+
 def _field_label(name: str) -> str:
-    return name.replace("_", " ").title()
+    return _TUNE_FIELD_LABELS.get(name, name.replace("_", " ").title())
 
 
 def _engine_map_label(value: str) -> str:

@@ -126,7 +126,7 @@ class CliTests(TestCase):
         state = new_career()
         scripted_input = [
             "1",
-            "11",
+            "12",  # engine_map (choice field) in the grouped Drivetrain section
             "",
         ]
 
@@ -140,7 +140,7 @@ class CliTests(TestCase):
         state = new_career()
         scripted_input = [
             "1",
-            "11",
+            "12",  # engine_map is the 12th field in the grouped tune list
             "3",
         ]
 

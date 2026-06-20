@@ -76,6 +76,22 @@ class ActionLayerTests(unittest.TestCase):
         self.assertIsNotNone(fields["brake_bias"].minimum)
         self.assertIsNotNone(fields["brake_bias"].maximum)
 
+    def test_tune_screen_exposes_every_editable_field_with_continuous_numbering(self) -> None:
+        from dataclasses import fields as dataclass_fields
+        from game.models import TuneSetup
+
+        state = new_career()
+        screen = tune_fields_screen(state, "kanto_k660")
+
+        # Every editable TuneSetup field is offered (was previously only 11 of 22).
+        expected = {f.name for f in dataclass_fields(TuneSetup)}
+        self.assertEqual({field.name for field in screen.fields}, expected)
+
+        # The grouped tables share one continuous 1..N numbering that indexes the
+        # flat field list the CLI selects from.
+        numbers = [row[0] for table in screen.tables for row in table.rows]
+        self.assertEqual(numbers, list(range(1, len(screen.fields) + 1)))
+
     def test_detail_screens_surface_row_information(self) -> None:
         state = new_career()
 
