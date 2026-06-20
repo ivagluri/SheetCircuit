@@ -701,15 +701,13 @@ def race_screen(session: RaceSession, tick: RaceTickResult | None = None, error:
 
 def race_command_options() -> list[OptionData]:
     return [
-        OptionData("normal", "Normal", "N", "Balanced pace"),
-        OptionData("conserve", "Conserve", "C", "Lower tire/fuel/heat cost, slower"),
-        OptionData("push", "Push", "P", "Faster, higher tire/fuel/heat cost"),
-        OptionData("attack", "Attack", "A", "Faster near rivals, more risk"),
-        OptionData("defend", "Defend", "D", "Protect position, modest cost"),
-        OptionData("safe_map", "Safe Map", "S", "Cooler, lower fuel use, slower"),
-        OptionData("hot_map", "Hot Map", "H", "More pace and heat"),
-        OptionData("fuel_save", "Fuel Save", "F", "Much lower fuel use, slower"),
-        OptionData("pit", "Pit", "I", "Lose pit time, restore tires and fuel"),
+        OptionData("normal", "Normal", "N", "Balanced race pace"),
+        OptionData("push", "Push", "P", "Lean on it: faster, more wear/heat/risk"),
+        OptionData("go_all_out", "Go All Out", "O", "Max pace, heavy wear/heat, crash risk"),
+        OptionData("save_tyres", "Save Tyres", "T", "Ease off to save and cool tyres"),
+        OptionData("save_fuel", "Save Fuel", "F", "Short-shift to save fuel and cool the engine"),
+        OptionData("cool_down", "Cool Down", "C", "Back right off, cool engine and tyres"),
+        OptionData("pit", "Pit", "I", "Pit once: lose pit time, restore tyres and fuel"),
     ]
 
 

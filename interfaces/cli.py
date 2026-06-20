@@ -696,6 +696,7 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
     session = race.session
     last_result = None
     current_command = "normal"
+    resume_command = "normal"  # what to fall back to after a one-shot pit
     pending_command: str | None = None
     race_error = ""
     show_help = False
@@ -725,6 +726,8 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
                         pending_command = matched
 
         if pending_command:
+            if pending_command == "pit" and current_command != "pit":
+                resume_command = current_command
             current_command = pending_command
             pending_command = None
 
@@ -734,6 +737,10 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
         except SimulationError as exc:
             race_error = str(exc)
             break
+
+        # Pit is one-shot: once the stop completes at lap end, resume prior pace.
+        if current_command == "pit" and last_result is not None and last_result.is_lap_end:
+            current_command = resume_command
 
         _render_race_screen(state, session, last_result, race_error)
         race_error = ""

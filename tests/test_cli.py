@@ -83,7 +83,7 @@ class CliTests(TestCase):
         self.assertIn("sort <field> (asc|desc)", text)
         self.assertIn("hp", text)
         self.assertIn("salary", text)
-        self.assertIn("Fuel Save", text)
+        self.assertIn("Save Fuel", text)
 
     def test_help_in_race_screen_does_not_error(self) -> None:
         # "help" typed during animation is handled asynchronously via select.select,
@@ -164,8 +164,9 @@ class CliTests(TestCase):
         self.assertEqual(state.garage[0].tune.engine_map, "hot")
 
     def test_race_commands_accept_display_labels(self) -> None:
-        self.assertEqual(_race_command("Hot Map"), "hot_map")
-        self.assertEqual(_race_command("Fuel Save"), "fuel_save")
+        self.assertEqual(_race_command("Save Fuel"), "save_fuel")
+        self.assertEqual(_race_command("Go All Out"), "go_all_out")
+        self.assertEqual(_race_command("Cool Down"), "cool_down")
 
 
 if __name__ == "__main__":

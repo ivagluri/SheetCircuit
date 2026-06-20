@@ -12,6 +12,8 @@ from constants import (
     DRIVER_STRESS_RELIEF_PIT,
     DRIVER_XP_PER_RACE,
     DRIVER_XP_PER_STAT_POINT,
+    DNF_DRIVER_RELIEF,
+    DNF_DRIVER_RELIEF_FLOOR,
     MISTAKE_DNF_PROB,
     MISTAKE_TIME_MEDIUM,
     MISTAKE_TIME_SMALL,
@@ -97,12 +99,6 @@ def apply_player_command(session: RaceSession, command: str) -> RaceTickResult:
         raise SimulationError(f"Unknown race command: {command}")
     player = _player_state(session)
     player.pace_mode = command
-    if command == "hot_map":
-        player.engine_map = "hot"
-    elif command == "safe_map":
-        player.engine_map = "safe"
-    elif command == "fuel_save":
-        player.engine_map = "fuel_save"
     return simulate_tick(session)
 
 
@@ -136,7 +132,7 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         command = state.pace_mode if state.is_player else _ai_command(state, player_time)
         car = _get(session.car_roster, state.car_id, "car")
         driver = _get(session.driver_roster, state.driver_id, "driver")
-        effective = compute_effective_stats(car, session.parts, command=command)
+        effective = compute_effective_stats(car, session.parts)
         tick_time = lap_time_over_interval(
             effective, session.track, driver, state, rng,
             command=command, performance_scalar=state.performance_scalar,
@@ -153,7 +149,7 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
             penalty = MISTAKE_TIME_MEDIUM if rng.random() < 0.35 else MISTAKE_TIME_SMALL
             extra_penalty += penalty
             state.event_log.append(f"{state.label} made a mistake and lost {penalty:.1f}s.")
-            if command == "maximum_attack" and rng.random() < MISTAKE_DNF_PROB:
+            if command == "go_all_out" and rng.random() < _dnf_chance(driver):
                 state.is_dnf = True
                 state.event_log.append(f"{state.label} crashed out.")
         if not state.is_dnf and rng.random() < failure_chance(state, effective, driver, command) * seg_length:
@@ -176,6 +172,11 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
                 _apply_lap_wear(state, effective, session.track, command, fraction=overlap, profile=profile, driver_fitness=driver.fitness)
         else:
             _apply_lap_wear(state, effective, session.track, command, fraction=seg_length, driver_fitness=driver.fitness)
+
+        if is_lap_end and command == "pit":
+            # Pit is a one-shot: once the stop is done, resume normal running so the
+            # car doesn't keep diving into the pits every lap.
+            state.pace_mode = "normal"
 
         if is_lap_end:
             state.last_lap_time = state.lap_elapsed
@@ -250,6 +251,17 @@ def _ai_command(state, player_time: float) -> str:
     if abs(state.total_time - player_time) <= RIVAL_REACTIVE_GAP_S:
         return "push"
     return AI_COMMAND
+
+
+def _dnf_chance(driver) -> float:
+    """Per-tick crash-out probability when going all out, eased by a composed driver.
+
+    Consistency and mechanical sympathy reduce it; the floor leaves go-all-out a real
+    gamble even for aces, and is the hook for future explicit driver skill levels.
+    """
+    skill = (driver.consistency + driver.mechanical_sympathy) / 2
+    relief = max(DNF_DRIVER_RELIEF_FLOOR, 1.0 - skill * DNF_DRIVER_RELIEF)
+    return MISTAKE_DNF_PROB * relief
 
 
 def _player_state(session: RaceSession):

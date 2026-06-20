@@ -8,8 +8,10 @@ from constants import (
     COMMAND_MODIFIERS,
     COMMAND_ENGINE_HEAT_INDEX,
     COMMAND_FUEL_BURN_INDEX,
+    COMMAND_STRESS_INDEX,
     COMMAND_TIRE_WEAR_INDEX,
-    COOLING_COMMANDS,
+    ENGINE_COOLING_COMMANDS,
+    TYRE_COOLING_COMMANDS,
     DRIVER_PACE_SCALE,
     DRIVER_ENERGY_DRAIN_BASE,
     DRIVER_FOCUS_DRAIN_BASE,
@@ -282,19 +284,19 @@ def _apply_lap_wear(
         state.tire_pct - TIRE_WEAR_BASE_PCT * tire_wear_rate * effective.tire_wear_rate * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction,
     )
     heat_gain = TIRE_HEAT_BASE_C * tire_wear_rate * effective.tire_heat_rate * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction
-    tire_cooling = TIRE_COOL_BASE_C * fraction if command in COOLING_COMMANDS else 0.0
+    tire_cooling = TIRE_COOL_BASE_C * fraction if command in TYRE_COOLING_COMMANDS else 0.0
     state.tire_temp = max(0.0, state.tire_temp + heat_gain - tire_cooling)
     state.fuel_pct = max(
         0.0,
         state.fuel_pct - FUEL_BURN_BASE_PCT * fuel_burn_rate * effective.fuel_burn_rate * modifiers[COMMAND_FUEL_BURN_INDEX] * fraction,
     )
     engine_gain = ENGINE_HEAT_BASE_C * engine_heat_rate * effective.engine_heat_rate / PERCENT_MAX * modifiers[COMMAND_ENGINE_HEAT_INDEX] * fraction
-    engine_cooling = ENGINE_COOL_BASE_C * fraction if command in COOLING_COMMANDS else 0.0
+    engine_cooling = ENGINE_COOL_BASE_C * fraction if command in ENGINE_COOLING_COMMANDS else 0.0
     state.engine_temp = max(0.0, state.engine_temp + engine_gain - engine_cooling)
     fitness_drain = _fitness_drain_factor(driver_fitness)
     state.driver_energy = max(0.0, state.driver_energy - DRIVER_ENERGY_DRAIN_BASE * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction * fitness_drain)
     state.driver_focus = max(0.0, state.driver_focus - DRIVER_FOCUS_DRAIN_BASE * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction * fitness_drain)
-    state.driver_stress = min(PERCENT_MAX, state.driver_stress + DRIVER_STRESS_BUILD_BASE * modifiers[COMMAND_ENGINE_HEAT_INDEX] * fraction)
+    state.driver_stress = min(PERCENT_MAX, state.driver_stress + DRIVER_STRESS_BUILD_BASE * modifiers[COMMAND_STRESS_INDEX] * fraction)
 
 
 def _initial_state(car_id: str, driver_id: str, label: str, is_player: bool) -> RaceCarState:

@@ -49,30 +49,30 @@ class TelemetryTests(unittest.TestCase):
         wear = session.telemetry["YOU"].tire_wear
         self.assertEqual(wear, sorted(wear, reverse=True))
 
-    def test_tire_temp_rises_under_push_and_falls_under_conserve(self) -> None:
+    def test_tire_temp_rises_under_push_and_falls_under_cool_down(self) -> None:
         push = self._session()
-        conserve = self._session()
+        cool = self._session()
         apply_player_command(push, "push")
-        apply_player_command(conserve, "conserve")
+        apply_player_command(cool, "cool_down")
 
         self.assertGreater(push.telemetry["YOU"].tire_temps[-1], 85.0)
-        self.assertLessEqual(conserve.telemetry["YOU"].tire_temps[-1], 85.0)
+        self.assertLessEqual(cool.telemetry["YOU"].tire_temps[-1], 85.0)
 
-    def test_fuel_decreases_and_engine_hot_map_heats_faster(self) -> None:
+    def test_fuel_decreases_and_engine_heats_faster_under_push(self) -> None:
         normal = self._session()
         hot = self._session()
         for _ in range(2):
             simulate_tick(normal)
-            apply_player_command(hot, "hot_map")
+            apply_player_command(hot, "push")
 
         self.assertLess(normal.telemetry["YOU"].fuel_pct[-1], normal.telemetry["YOU"].fuel_pct[0])
         self.assertGreater(hot.telemetry["YOU"].engine_temps[-1], normal.telemetry["YOU"].engine_temps[-1])
 
-    def test_driver_energy_drops_faster_under_maximum_attack(self) -> None:
+    def test_driver_energy_drops_faster_going_all_out(self) -> None:
         normal = self._session()
         attack = self._session()
         simulate_tick(normal)
-        apply_player_command(attack, "maximum_attack")
+        apply_player_command(attack, "go_all_out")
 
         self.assertLess(attack.telemetry["YOU"].driver_energy[-1], normal.telemetry["YOU"].driver_energy[-1])
 

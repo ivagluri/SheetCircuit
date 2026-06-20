@@ -207,10 +207,16 @@ class ActionLayerTests(unittest.TestCase):
 
     def test_race_screen_surfaces_labelled_command_options(self) -> None:
         options = race_command_options()
+        values = {option.value for option in options}
 
-        self.assertIn("Hot Map", [option.label for option in options])
-        self.assertIn("H", [option.key for option in options])
+        # Driver/pit-boss intents only — no engine-map commands (those live in tuning).
+        self.assertEqual(
+            values,
+            {"normal", "push", "go_all_out", "save_tyres", "save_fuel", "cool_down", "pit"},
+        )
+        self.assertIn("Go All Out", [option.label for option in options])
         self.assertTrue(all(option.description for option in options))
+        self.assertTrue(all(option.key for option in options))
 
 
 if __name__ == "__main__":

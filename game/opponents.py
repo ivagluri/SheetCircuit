@@ -67,17 +67,17 @@ def build_opponent_grid(
         eligible = [deepcopy(car) for car in cars.values() if car.identity.id != player_car_id] or [deepcopy(next(iter(cars.values())))]
 
     def natural_lap(car: Car, pace: int) -> float:
-        effective = compute_effective_stats(car, parts, command="normal")
+        effective = compute_effective_stats(car, parts)
         state = _initial_state(car.identity.id, "ref", "ref", False)
         return calculate_lap_time(effective, track, _ref_driver(pace), state, None, command="normal")
 
     def perf_bonus(car: Car) -> float:
-        effective = compute_effective_stats(car, parts, command="normal")
+        effective = compute_effective_stats(car, parts)
         return PERF_SCALE * _track_composite(effective, track)
 
     # Player anchor: their honest normal-pace lap on this track.
     player_car = cars[player_car_id]
-    player_effective = compute_effective_stats(player_car, parts, command="normal")
+    player_effective = compute_effective_stats(player_car, parts)
     player_state = _initial_state(player_car_id, player_driver.id, "ref", False)
     player_ref = calculate_lap_time(player_effective, track, player_driver, player_state, None, command="normal")
 

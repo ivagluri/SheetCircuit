@@ -83,10 +83,11 @@ def set_tune(car: Car, tune_setup: TuneSetup) -> Car:
     return tuned
 
 
-def compute_effective_stats(car: Car, parts: list[Part] | None = None, command: str = "normal") -> EffectiveCarStats:
+def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> EffectiveCarStats:
     modified = apply_part_modifiers(car, parts)
     tune = modified.tune
-    engine_map = _engine_map_from_command(command, tune.engine_map)
+    # Engine map is a setup choice (tuning menu), not a mid-race command.
+    engine_map = tune.engine_map
     if engine_map not in ENGINE_MAP_POWER:
         valid = ", ".join(sorted(ENGINE_MAP_POWER))
         raise ValueError(f"Invalid engine_map: {engine_map!r}. Valid values: {valid}")
@@ -301,11 +302,3 @@ def _ride_height_factor(front: int, rear: int) -> float:
     return max(0.85, 1 - abs(average - RIDE_HEIGHT_IDEAL_MM) * RIDE_HEIGHT_PENALTY)
 
 
-def _engine_map_from_command(command: str, default_map: str) -> str:
-    if command == "hot_map":
-        return "hot"
-    if command in {"safe_map", "conserve"}:
-        return "safe"
-    if command == "fuel_save":
-        return "fuel_save"
-    return default_map

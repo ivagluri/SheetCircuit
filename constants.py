@@ -46,16 +46,17 @@ DRIVER_ENERGY_DRAIN_BASE = 3.0
 DRIVER_FOCUS_DRAIN_BASE = 2.5
 DRIVER_STRESS_BUILD_BASE = 4.0
 
+# In-race driver/pit-boss intents. Engine/ECU maps are NOT changed mid-race — those
+# live in the tuning menu (tune.engine_map). Each tuple is
+# (pace, tire_wear, fuel_burn, engine_heat, mistake_risk, stress); pace > 1 is faster,
+# the other columns are multipliers where > 1 means more of that effect.
 COMMAND_MODIFIERS: dict[str, tuple[float, ...]] = {
-    "conserve": (0.92, 0.70, 0.78, 0.75, 0.60, 0.70),
     "normal": (1.00, 1.00, 1.00, 1.00, 1.00, 1.00),
-    "push": (1.05, 1.45, 1.22, 1.30, 1.45, 1.45),
-    "maximum_attack": (1.10, 2.10, 1.55, 1.60, 2.30, 2.00),
-    "attack": (1.04, 1.30, 1.10, 1.15, 1.30, 1.30),
-    "defend": (0.97, 1.20, 1.00, 1.05, 1.20, 1.20),
-    "safe_map": (0.95, 1.00, 0.72, 0.65, 0.80, 0.75),
-    "hot_map": (1.07, 1.05, 1.42, 1.55, 1.20, 1.30),
-    "fuel_save": (0.93, 0.82, 0.48, 0.70, 0.78, 0.80),
+    "push": (1.06, 1.45, 1.25, 1.30, 1.45, 1.40),
+    "go_all_out": (1.11, 2.10, 1.55, 1.60, 2.30, 2.00),
+    "save_tyres": (0.96, 0.55, 1.00, 0.95, 0.85, 0.85),
+    "save_fuel": (0.93, 0.90, 0.48, 0.70, 0.80, 0.85),
+    "cool_down": (0.90, 0.70, 0.80, 0.72, 0.65, 0.65),
     "pit": (0.72, 0.20, 1.00, 0.70, 0.40, 0.45),
 }
 COMMAND_PACE_INDEX = 0
@@ -92,6 +93,11 @@ BASE_FAILURE_RATE = 0.015
 MISTAKE_TIME_SMALL = 0.8
 MISTAKE_TIME_MEDIUM = 2.5
 MISTAKE_DNF_PROB = 0.04
+# Go All Out can crash a car out. A composed/sympathetic driver trims that risk; this
+# is the hook for future driver skill levels to further mitigate it. The roll is scaled
+# by 1 - (consistency + mechanical_sympathy)/2 * DNF_DRIVER_RELIEF (clamped >= floor).
+DNF_DRIVER_RELIEF = 0.006
+DNF_DRIVER_RELIEF_FLOOR = 0.25
 MISTAKE_AGGRESSION_SCALE = 0.0005
 MISTAKE_CONSISTENCY_SCALE = 0.0004
 MISTAKE_FOCUS_SCALE = 0.0003
@@ -120,7 +126,10 @@ DRIVER_ENERGY_RECOVER_PIT = 3.0
 DRIVER_FOCUS_RECOVER_PIT = 3.0
 DRIVER_STRESS_RELIEF_PIT = 10.0
 AI_COMMAND = "normal"
-COOLING_COMMANDS = ("conserve", "safe_map", "fuel_save", "pit")
+# Cooling is targeted to match the command's intent: Save Tyres cools tyres, Save Fuel
+# cools the engine, Cool Down and Pit cool both.
+TYRE_COOLING_COMMANDS = ("save_tyres", "cool_down", "pit")
+ENGINE_COOLING_COMMANDS = ("save_fuel", "cool_down", "pit")
 
 # --- Rival field generation (see game/opponents.py) ---
 # Per-class "center" lap offset vs the track's base_lap_time, in seconds. A more
