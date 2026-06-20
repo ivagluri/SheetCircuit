@@ -41,7 +41,9 @@ game/
   economy.py         buy_car(), sell_car(), repair_car().
   market.py          list_market_cars().
   tuning.py          set_tune(), update_tune_fields(), tune validation.
-  effective_stats.py compute_effective_stats(), class_rating().
+  effective_stats.py compute_effective_stats(), class_rating(). Secondary car/tune/
+                     durability stats fold into the 7 effective axes via centered
+                     factors (see the "orphan-stat reference points" block in constants).
   opponents.py       Event entry validation and event-aware AI grid generation.
   simulation.py      Lap-time formula and non-interactive full race simulation.
   race_session.py    Interactive RaceSession lifecycle and tick simulation.
@@ -190,7 +192,25 @@ Non-interactive full race:
 simulation.simulate_race(state, event_id, car_id, driver_id, seed)
 ```
 
-Race command closed set comes from `race_command_options()` and is consumed by CLI and future UI.
+### Race Commands
+
+Race commands are driver/pit-boss *intents* only — engine/ECU maps are a tuning
+setting (`tune.engine_map`), never changed mid-race (`compute_effective_stats` takes no
+`command`). The closed set is the single source of truth in `race_command_options()`
+(CLI/UI resolve labels via `_race_command`):
+
+```text
+normal, push, go_all_out, save_tyres, save_fuel, cool_down, pit
+```
+
+`COMMAND_MODIFIERS[name]` = (pace, tire_wear, fuel_burn, engine_heat, mistake, stress);
+pace > 1 is faster, the other columns are >1 = more of that effect (all six columns are
+live — stress uses `COMMAND_STRESS_INDEX`). Cooling is targeted via
+`TYRE_COOLING_COMMANDS` / `ENGINE_COOLING_COMMANDS`. `go_all_out` can crash a car out
+(`race_session._dnf_chance`, eased by driver consistency/mechanical sympathy — hook for
+future driver levels). `pit` is one-shot: `simulate_tick` resets `pace_mode` to `normal`
+after the stop and the CLI loop resumes the prior command. AI uses only `push`/`normal`
+(`_ai_command`).
 
 ## Opponents And Entry Rules
 
@@ -260,7 +280,7 @@ The UI should use:
 tune_fields_screen(state, car_id)
 ```
 
-This returns `FieldData` with labels, current value, ranges, and option lists. Do not make players memorize internal values.
+This returns `FieldData` with labels, current value, ranges, and option lists. Do not make players memorize internal values. `tune_fields_for_car()` exposes **every** editable `TuneSetup` field, grouped for display by `_TUNE_FIELD_GROUPS` (Tyres/Drivetrain/Brakes/Suspension/Aero) with one continuous numbering; every knob now influences `compute_effective_stats`.
 
 ## Data Loading
 
@@ -294,8 +314,8 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
 ## Common Change Targets
 
 - New car/driver/event/part/track: add JSON under `data/`, update tests if needed.
-- New tune field: update `TuneSetup`, seed JSON, `TUNE_FIELD_RANGES`, `tune_fields_for_car()`, tests.
-- New race command: update `COMMAND_MODIFIERS`, `race_command_options()`, `_race_command()` behavior if needed, tests.
+- New tune field: update `TuneSetup`, seed JSON, `TUNE_FIELD_RANGES`, `_TUNE_FIELD_GROUPS`/`_TUNE_FIELD_LABELS` in actions.py, and fold it into `compute_effective_stats` (centered factor, ideal in constants), tests.
+- New race command: update `COMMAND_MODIFIERS` (6-column tuple), `race_command_options()`, cooling sets if it cools, tests. Engine maps are NOT commands — they live in `tune.engine_map`.
 - New sortable field/screen: update the per-screen options in `game/sorting.py`, tests.
 - Balance lap times: update constants first, then formulas in `effective_stats.py` or `simulation.py`.
 - Balance opponents: tune the `RIVAL_*` constants first, then event restrictions/data or `opponents.py`.
@@ -310,7 +330,10 @@ test_save_load.py          Save schema and roundtrip.
 test_effective_stats.py    Stats, class rating, tune effects.
 test_lap_time.py           Lap formula and full-race basics.
 test_segment_resolution.py Segment profiles and per-interval lap pace.
+test_orphan_stats.py       Secondary car/tune/durability stat folds (direction tests).
+test_balance_baseline.py   Reference lap + race-outcome balance guard (catches drift).
 test_race_tick.py          Interactive race commands.
+test_commands.py           Command set: live stress column, one-shot pit, engine-map decoupling.
 test_telemetry.py          Telemetry history and warnings.
 test_economy.py            Buy/sell/repair/prizes.
 test_opponents.py          Event restrictions and opponent generation.
