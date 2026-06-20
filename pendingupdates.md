@@ -1,0 +1,210 @@
+# SheetCircuit — Pending Updates
+
+Roadmap for the remaining "track-agnostic / de-pin from sample data" work, plus the
+deferred time/duration race buildout. Phase 1 (events own race length + physical-units
+attrition + creator event editor + starter-by-criteria) is **done** on branch
+`refactor/track-agnostic-sim` (commit `f4e745e`). This document is self-contained so it
+can be ported to an issue tracker or another repo.
+
+Conventions used below:
+- References are by **symbol/function name**, not line number, so they survive edits.
+- Every phase is its own commit and must leave `python3 -m unittest discover -s tests`
+  green, deliberately re-pinning `tests/test_balance_baseline.py` in the same commit if
+  the change legitimately shifts the reference race (its docstring already says to).
+- "Don't pin to the sample catalog" is the throughline: references should be intrinsic
+  design choices or real-world magnitudes, never `min/max/mean` of whatever cars happen
+  to be loaded (a car's performance must not depend on what other cars exist).
+
+---
+
+## Phase 2 — Re-anchor the orphan-stat references (de-pin from catalog means)
+
+### Problem
+`constants.py` (the "Orphan-stat reference points" block) states outright that its
+reference points are *"the catalog means at the time of wiring."* These centre every
+secondary-stat fold at the mean of the original 27 cars, so as the catalog grows or a
+custom car (e.g. the Bugatti Veyron facsimile) is built, "neutral" drifts away from
+reality and composition stops meaning what it should.
+
+Affected constants (all in `constants.py`), consumed by `game/effective_stats.py`
+via `_centered_factor(value, REF, per_unit)` and the `*_IDEAL` penalties:
+- Rating centre: `RATING_REF` (65).
+- Engine character: `TORQUE_RATIO_REF` (1.23), `POWERBAND_REF`, `THROTTLE_RESPONSE_REF`.
+- Chassis: `RIGIDITY_REF`, `CENTER_OF_GRAVITY_REF`, `ROTATION_REF`, `WEIGHT_DIST_IDEAL`,
+  `WEIGHT_REFERENCE_KG` (1100).
+- Tyres: `TIRE_WIDTH_FRONT_REF` (214), `TIRE_WIDTH_REAR_REF` (231), `TIRE_WARMUP_REF`.
+- Brakes: `BRAKE_COOLING_REF`, `BRAKE_FADE_REF`.
+- Suspension: `BUMP_ABSORPTION_REF`, `STEERING_PRECISION_REF`, `COMPLIANCE_REF`,
+  `CURB_HANDLING_REF`.
+- Aero/fuel/durability: `AERO_EFFICIENCY_REF`, `FUEL_EFFICIENCY_REF`,
+  `FUEL_CAPACITY_REF_L` (now unused after Phase 1 — delete), `DURABILITY_REF`,
+  `GEARBOX_CONDITION_REF`, `BODY_CONDITION_REF`.
+- Tune "ideals" (catalog-mean default setups): `SUSP_STIFFNESS_IDEAL` (49),
+  `ANTIROLL_IDEAL` (4.5), `DIFF_POWER_IDEAL` (34), `DIFF_COAST_IDEAL` (18),
+  `DIFF_PRELOAD_IDEAL` (15).
+
+### Approach (decided)
+Re-base these to **intrinsic / absolute design anchors**, not the live catalog. Do NOT
+compute them from `load_cars()` at runtime — that makes a car's effective stats depend
+on what else is loaded, which is wrong for a sim and non-deterministic for tests.
+
+1. For each `*_REF`, pick a principled fixed value: a midpoint of the stat's *design
+   range* (e.g. 0-100 ratings → 50, or a documented "typical" value), not the seed mean.
+   Document the intent in the comment ("a neutral mid-spec X", not "catalog mean").
+2. For tune `*_IDEAL`, anchor to the *neutral setup* meaning (the setup that neither
+   helps nor hurts), independent of what the seed cars happen to ship.
+3. Delete `FUEL_CAPACITY_REF_L` and its now-dead comment (Phase 1 removed its use).
+4. Keep the orphan clamp band (`ORPHAN_FACTOR_FLOOR/CEIL`) so no single axis can swing
+   too far — this contains any rebalance.
+
+### Touch points
+- `constants.py` (the reference block).
+- `game/effective_stats.py` (consumers — values only, logic unchanged).
+- `tests/test_balance_baseline.py` — re-pin `PLAYER_TOTAL_BASELINE` + the reference-lap
+  band if the new anchors shift the kanto@maple reference.
+- `tests/test_orphan_stats.py` — these assert *relative* effects (wider tyre → more
+  grip, etc.); they should still hold, but verify each.
+
+### Acceptance criteria
+- A custom out-of-distribution car (build the Veyron via the creator) lands in a sane
+  place on every axis (no axis pinned to the orphan clamp purely from being non-typical).
+- `test_orphan_stats` relative directions all still pass.
+- Reference race re-pinned and green; the catalog's intra-class competitiveness guard
+  (`tests/test_supercar_tracks.py`) still holds.
+
+### Risk
+Medium balance shift across the whole catalog. Do it alone (no other behavioural change
+in the same commit) so any regression is attributable.
+
+---
+
+## Phase 3 — PR / class generalisation (one source of truth)
+
+### Problem
+Two conflicting notions of "class" exist:
+- `car.identity.car_class` — a **stored** string (E…S), used by `opponents._class_allowed`
+  for event eligibility and by event `car_class_limit`.
+- `derived_rating()` / `class_rating()` in `game/effective_stats.py` — a **computed** PR
+  from `CLASS_RATING_WEIGHTS` × clamped effective axes × `CLASS_RATING_SCALE` (4),
+  bracketed by `CLASS_THRESHOLDS`.
+
+They can disagree. The formula is grip/handling-weighted and centred on ~1100 kg starter
+cars (`WEIGHT_REFERENCE_KG`), so it doesn't generalise: the Veyron facsimile computes
+**PR 347** (≈ C/D bracket) while being hand-labelled **S**. A heavy, very fast hypercar
+is under-rated by a formula tuned to light nimble cars.
+
+### Approach (decide at implementation time — pick one)
+- **Option A — derive class from PR (single source of truth).** Remove stored
+  `car_class`; compute it from a PR that generalises. Requires reworking the PR formula
+  so weight/power extremes don't crater it (e.g. include a raw power/top-speed term, or
+  normalise weight against the car's own power). Eligibility (`_class_allowed`) then reads
+  the derived class. Cleanest conceptually; touches all car JSONs (drop `car_class`) and
+  every reader.
+- **Option B — keep stored class, make PR advisory + robust.** Keep `car.identity.car_class`
+  as the authority for eligibility, but fix `derived_rating` so its PR roughly agrees with
+  the stored class across the catalog (so the displayed PR isn't misleading). Lower churn.
+
+Recommendation: start with **B** (make PR trustworthy) and only go to **A** if you want
+class fully data-derived. Use the Veyron and the kei (`kanto_k660`) as the two extremes to
+validate against.
+
+### Touch points
+- `game/effective_stats.py`: `derived_rating`, `performance_type`, `CLASS_RATING_WEIGHTS`.
+- `constants.py`: `CLASS_RATING_WEIGHTS`, `CLASS_THRESHOLDS`, `CLASS_RATING_SCALE`,
+  possibly new power/top-speed terms.
+- `game/opponents.py`: `_class_allowed`, `CLASS_ORDER` (if Option A).
+- Option A only: every `data/cars/*.json` (drop `car_class`), `CarIdentity`, `car_from_dict`.
+- `tests/`: `test_car_catalog.py`, `test_effective_stats.py`, baseline re-pin.
+
+### Acceptance criteria
+- A spread of real-world archetypes (kei, hot hatch, GT, hypercar) land in sensible
+  brackets; the Veyron reads top-tier, the kei bottom-tier.
+- Event eligibility still works; existing events still admit the same intended fields.
+
+### Risk
+Medium-high (touches the progression/economy backbone via class gating). Isolate it.
+
+---
+
+## Phase 4 — Time / duration races (wire in the deferred buildout)
+
+Phase 1 made the model **duration-ready**; this phase makes it **raceable**. Already in
+place:
+- `Event.duration_s` parses and validates; `loader.resolve_race` returns
+  `RaceFormat(mode="duration", laps=None, duration_s=…)`.
+- `simulation._rank` sorts by `(-lap, total_time)` — correct for cars on different lap
+  counts.
+- `simulate_race`'s loop is predicate-shaped (`while completed_laps < total_laps`).
+- Engine heat and driver fatigue accrue over real `seconds` (threaded through
+  `_apply_lap_wear`), so a longer race fatigues correctly with no further change.
+- Both `simulate_race` and `race_session.start_race` currently **raise**
+  `SimulationError("Duration-based races are not yet supported")` when `laps is None` —
+  these are the two guards to lift.
+
+### Work to do
+1. **Completion predicate.** Replace the fixed-lap guard with: run laps until the leader's
+   `total_time >= duration_s`, then every car finishes its current (lead) lap — standard
+   enduro rule. Factor a `_race_finished(states, race_format)` helper used by both the
+   batch loop (`simulate_race`) and the interactive loop (`race_session.simulate_tick`).
+2. **Ragged lap counts.** With a time cap, faster cars complete more laps. `_rank` already
+   handles this; audit everything that assumes a uniform lap count:
+   - `gap_to_leader` must become **lap-aware** (a car a lap down is behind even with lower
+     elapsed time). Compute gap as (laps_behind × leader_avg_lap) + time_delta, or show
+     "+N laps".
+   - `RaceResult.total_laps` / `RaceSession.total_laps` become the **leader's** lap count
+     (or per-car); the UI ("Lap X/Y") needs a duration-aware variant.
+   - Telemetry (`record_telemetry`, `TelemetryHistory`) is per-lap; ensure per-car lap
+     arrays of differing length don't break standings/plots.
+3. **Interactive path.** `race_session` derives `ticks_per_lap` from `base_lap_time`; that
+   still works per lap, but `is_finished` (currently `current_lap >= total_laps`) must use
+   the time predicate, and the per-car ragged-lap bookkeeping must hold across ticks.
+4. **Pit/strategy.** With real duration + physical fuel/tyres (Phase 1), enduros should
+   *need* stops — validate that a thirsty car (e.g. `escarpa_pikes`, ~74 km range) is
+   forced to pit over a multi-hour event. Tune `pit_lane_loss_s` and refuel/tyre-change
+   semantics in `_apply_lap_wear`'s `pit` branch if a stop should restore a real amount.
+5. **UI/creator.** The creator event editor already exposes `duration_s` (race_mode
+   `duration_s`) and labels it "not yet raceable" — flip that copy on completion. Add a
+   duration-aware race screen (`game/actions.py` `race_screen`, `event_detail_screen`).
+
+### Acceptance criteria
+- A `duration_s` event runs to completion; standings rank by laps-completed then time;
+  a lapped car shows "+N laps".
+- A short sprint and a long enduro on the *same track* both work and feel different
+  (enduro forces fuel/tyre strategy).
+- New `tests/test_duration_race.py`: time predicate stops correctly; ragged ranking;
+  lap-aware gap; thirsty car is forced to pit.
+
+### Risk
+High — it changes the race core (loop + ranking + UI). Land it after Phases 2–3 so the
+balance baseline is stable underneath it.
+
+---
+
+## Small deferred cleanups (fold into a convenient commit)
+
+1. **`fuel_efficiency` duplication.** It lives on **both** `PowertrainStats.fuel_efficiency`
+   and `FuelStats.fuel_efficiency` and is averaged in `effective_stats.compute_effective_stats`
+   (`fuel_efficiency = (pt.fuel_efficiency + fu.fuel_efficiency) / 2`). Pick one home
+   (recommend `fuel.fuel_efficiency`), drop the other from `models.py`, `loader.py`,
+   the effective-stats average, the creator schema (`editor/fields.py`), and all 27
+   `data/cars/*.json`. Cosmetic; no balance change if the single value equals the old
+   average input.
+
+2. **Attrition calibration by feel.** Phase 1 calibrated the physical constants to land at
+   realistic stint/range, but the **fuel-economy spread is too wide** (the kei
+   `kanto_k660` reads ~4.6 L/100km — hypermiling territory). The *shape* is right (thirsty
+   cars need enduro stops); the absolute numbers are tunable:
+   - `FUEL_L_PER_KM_UNIT` (0.13) — global economy scale.
+   - `TYRE_WEAR_PCT_PER_KM` (1.25) — global tyre-life scale.
+   - `ENGINE_HEAT_PER_S`, `ENGINE_COOL_PER_S`, `TIRE_HEAT_PER_KM`, `TIRE_COOL_PER_S`,
+     `DRIVER_*_PER_S` — time/work rates.
+   Consider making economy **affine** (`economy = floor + eff.fuel_burn_rate × unit`) to
+   compress the kei↔hypercar range into a realistic ~15–65 L/100km band instead of the
+   current ~5–95. Verify against `tests/test_attrition_physical.py`
+   (`test_realistic_stint_and_range_order_of_magnitude`).
+
+---
+
+## Suggested order
+Phase 2 → Phase 3 → small cleanups → Phase 4. Each its own commit, baseline re-pinned in
+the same commit, full suite green before moving on (so any fault stays bisectable).
