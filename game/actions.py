@@ -7,7 +7,7 @@ from typing import Any
 
 from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
-from game.effective_stats import class_rating
+from game.effective_stats import class_rating, compute_effective_stats
 from game.game_state import GameState
 from game.loader import load_drivers, load_events, load_tracks
 from game.market import list_market_cars
@@ -260,6 +260,7 @@ def _car_extended_screen(car, name: str) -> ScreenData:
 
     front_dist = round(ch.weight_distribution_front * 100, 0)
     rear_dist = round(100 - front_dist, 0)
+    eff = compute_effective_stats(car)
 
     return ScreenData(
         name=name,
@@ -278,6 +279,25 @@ def _car_extended_screen(car, name: str) -> ScreenData:
                     ["Rating", class_rating(car)],
                     ["Tags", ", ".join(i.tags)],
                     ["Installed Parts", ", ".join(car.installed_parts) if car.installed_parts else "none"],
+                ],
+            ),
+            # Net result of every spec below (parts, tune and condition folded in) — the
+            # numbers that actually drive a race. The raw stat tables that follow feed these.
+            TableData(
+                "Effective (Race) Stats",
+                ["Axis", "Value"],
+                [
+                    ["Acceleration", f"{eff.acceleration:.0f}"],
+                    ["Top Speed", f"{eff.top_speed:.0f}"],
+                    ["Grip", f"{eff.grip:.0f}"],
+                    ["Braking", f"{eff.braking:.0f}"],
+                    ["Handling", f"{eff.handling:.0f}"],
+                    ["Aero Grip", f"{eff.aero_grip:.0f}"],
+                    ["Stability", f"{eff.stability:.0f}"],
+                    ["Reliability", f"{eff.reliability:.0f}"],
+                    ["Tyre Wear Rate", f"{eff.tire_wear_rate:.2f}"],
+                    ["Fuel Burn Rate", f"{eff.fuel_burn_rate:.2f}"],
+                    ["Engine Heat Rate", f"{eff.engine_heat_rate:.1f}"],
                 ],
             ),
             TableData(

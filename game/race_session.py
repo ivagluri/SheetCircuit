@@ -170,12 +170,12 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         state.lap_elapsed += tick_time + extra_penalty
 
         if command == "pit" and is_lap_end:
-            _apply_lap_wear(state, effective, session.track, "pit")
+            _apply_lap_wear(state, effective, session.track, "pit", driver_fitness=driver.fitness)
         elif overlaps:
             for profile, overlap in overlaps:
-                _apply_lap_wear(state, effective, session.track, command, fraction=overlap, profile=profile)
+                _apply_lap_wear(state, effective, session.track, command, fraction=overlap, profile=profile, driver_fitness=driver.fitness)
         else:
-            _apply_lap_wear(state, effective, session.track, command, fraction=seg_length)
+            _apply_lap_wear(state, effective, session.track, command, fraction=seg_length, driver_fitness=driver.fitness)
 
         if is_lap_end:
             state.last_lap_time = state.lap_elapsed

@@ -14,6 +14,8 @@ from constants import (
     DRIVER_ENERGY_DRAIN_BASE,
     DRIVER_FOCUS_DRAIN_BASE,
     DRIVER_STRESS_BUILD_BASE,
+    FITNESS_DRAIN_PER_UNIT,
+    FITNESS_REF,
     ENGINE_CRITICAL_C,
     ENGINE_COOL_BASE_C,
     ENGINE_HEAT_BASE_C,
@@ -198,7 +200,7 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
             state.total_time += lap_time
             state.lap += 1
             state.distance += track.length_km
-            _apply_lap_wear(state, effective, track)
+            _apply_lap_wear(state, effective, track, driver_fitness=driver.fitness)
             lap_times[state.label].append(lap_time)
 
         _rank(race_cars)
@@ -243,6 +245,11 @@ def _range_penalty(value: float, start: float, end: float, maximum: float) -> fl
     return max(0.0, min(1.0, (value - start) / (end - start))) * maximum
 
 
+def _fitness_drain_factor(driver_fitness: float) -> float:
+    """A fitter driver loses energy and focus more slowly (1.0 at the reference fitness)."""
+    return max(0.5, 1.0 - (driver_fitness - FITNESS_REF) * FITNESS_DRAIN_PER_UNIT)
+
+
 def _apply_lap_wear(
     state: RaceCarState,
     effective: EffectiveCarStats,
@@ -250,13 +257,15 @@ def _apply_lap_wear(
     command: str = "normal",
     fraction: float = 1.0,
     profile: SegmentProfile | None = None,
+    driver_fitness: float = FITNESS_REF,
 ) -> None:
     """Evolve tyre/fuel/engine/driver state for a slice of running.
 
     When ``profile`` is given the slice uses that segment's local (surface/condition
     adjusted) rates; otherwise the track aggregate is used. Local rates integrate back
     to the aggregate over a full lap, so per-segment ticks and a single whole-lap call
-    wear the car by the same total on a uniform track.
+    wear the car by the same total on a uniform track. ``driver_fitness`` scales the
+    energy/focus drain (defaults to the neutral reference for state-only callers).
     """
     modifiers = COMMAND_MODIFIERS[command]
     if command == "pit" and fraction >= 1.0:
@@ -282,8 +291,9 @@ def _apply_lap_wear(
     engine_gain = ENGINE_HEAT_BASE_C * engine_heat_rate * effective.engine_heat_rate / PERCENT_MAX * modifiers[COMMAND_ENGINE_HEAT_INDEX] * fraction
     engine_cooling = ENGINE_COOL_BASE_C * fraction if command in COOLING_COMMANDS else 0.0
     state.engine_temp = max(0.0, state.engine_temp + engine_gain - engine_cooling)
-    state.driver_energy = max(0.0, state.driver_energy - DRIVER_ENERGY_DRAIN_BASE * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction)
-    state.driver_focus = max(0.0, state.driver_focus - DRIVER_FOCUS_DRAIN_BASE * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction)
+    fitness_drain = _fitness_drain_factor(driver_fitness)
+    state.driver_energy = max(0.0, state.driver_energy - DRIVER_ENERGY_DRAIN_BASE * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction * fitness_drain)
+    state.driver_focus = max(0.0, state.driver_focus - DRIVER_FOCUS_DRAIN_BASE * modifiers[COMMAND_TIRE_WEAR_INDEX] * fraction * fitness_drain)
     state.driver_stress = min(PERCENT_MAX, state.driver_stress + DRIVER_STRESS_BUILD_BASE * modifiers[COMMAND_ENGINE_HEAT_INDEX] * fraction)
 
 

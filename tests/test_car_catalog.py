@@ -37,13 +37,19 @@ class CarCatalogTests(unittest.TestCase):
     def test_s_class_focus_cars_are_competitive(self) -> None:
         s_cars = [car for car in self.cars if car.identity.car_class == "S"]
 
+        # Secondary stats (chassis/suspension/tyre/brake detail) now influence pace,
+        # so a focus car is a touch further off on the track that punishes its weakness
+        # (maple, the most handling-biased layout). The cars stay competitive — the
+        # spread is ~2.8% of a 73s lap — so the guard is widened from the pre-wiring 2.0s
+        # rather than removed. If this creeps further, the orphan-stat magnitudes in
+        # constants.py are too hot.
         for track in self.tracks:
             laps = [
                 calculate_lap_time(compute_effective_stats(car, self.parts), track)
                 for car in s_cars
             ]
             with self.subTest(track=track.id):
-                self.assertLess(max(laps) - min(laps), 2.0)
+                self.assertLess(max(laps) - min(laps), 2.2)
 
     def test_s_class_focuses_are_reflected_in_raw_stats(self) -> None:
         s_cars = {car.identity.id: car for car in self.cars if car.identity.car_class == "S"}

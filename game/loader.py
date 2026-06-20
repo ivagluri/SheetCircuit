@@ -8,6 +8,11 @@ from typing import Any, Callable, TypeVar
 from constants import (
     CONDITION_MODIFIERS,
     CONDITION_NEUTRAL,
+    ELEVATION_FACTOR_CEIL,
+    ELEVATION_FACTOR_FLOOR,
+    ELEVATION_FUEL_PER_M,
+    ELEVATION_HEAT_PER_M,
+    ELEVATION_REF_M,
     OVERTAKE_DIFFICULTY_TAG_DELTA,
     SEGMENT_TAG_RATES,
     SEGMENT_TAG_WEIGHTS,
@@ -225,6 +230,12 @@ def build_segment_profiles(segments: list[TrackSegment]) -> list[SegmentProfile]
     return profiles
 
 
+def _elevation_factor(elevation_m: float, per_m: float) -> float:
+    """Bounded multiplier for elevation-driven fuel/heat load (1.0 at the reference)."""
+    factor = 1.0 + (elevation_m - ELEVATION_REF_M) * per_m
+    return max(ELEVATION_FACTOR_FLOOR, min(ELEVATION_FACTOR_CEIL, factor))
+
+
 def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
     source = path or Path("<memory>")
     try:
@@ -243,6 +254,19 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
         for tag in segment.tags:
             overtake += OVERTAKE_DIFFICULTY_TAG_DELTA.get(tag, 0.0) * segment.length_pct
     overtake = max(0.0, min(1.0, overtake))
+
+    # Sustained elevation change taxes fuel and engine heat. Applied uniformly to the
+    # aggregate rates and to every segment profile so the segment-resolved race wears
+    # the car identically to the aggregate model (the documented integration invariant).
+    elevation = data["elevation_change_m"]
+    elev_heat = _elevation_factor(elevation, ELEVATION_HEAT_PER_M)
+    elev_fuel = _elevation_factor(elevation, ELEVATION_FUEL_PER_M)
+    rates["engine_heat"] *= elev_heat
+    rates["fuel_burn"] *= elev_fuel
+    profiles = build_segment_profiles(segments)
+    for profile in profiles:
+        profile.engine_heat_rate *= elev_heat
+        profile.fuel_burn_rate *= elev_fuel
 
     return Track(
         id=data["id"],
@@ -268,7 +292,7 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
         tire_wear_rate=rates["tire_wear"],
         fuel_burn_rate=rates["fuel_burn"],
         engine_heat_rate=rates["engine_heat"],
-        segment_profiles=build_segment_profiles(segments),
+        segment_profiles=profiles,
     )
 
 

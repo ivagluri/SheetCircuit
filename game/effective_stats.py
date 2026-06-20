@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+import constants as C
 from constants import (
     BRAKE_BIAS_IDEAL,
     BRAKE_BIAS_PENALTY,
@@ -24,6 +25,8 @@ from constants import (
     NORM_POWER_REF_HP,
     NORM_SPEED_REF_KMH,
     NORM_TORQUE_REF_NM,
+    ORPHAN_FACTOR_CEIL,
+    ORPHAN_FACTOR_FLOOR,
     PERCENT_MAX,
     PERCENT_MIN,
     PRESSURE_IDEAL_BAR,
@@ -40,6 +43,22 @@ from game.models import Car, EffectiveCarStats, Part, TuneSetup
 
 def clamp(value: float, low: float = PERCENT_MIN, high: float = PERCENT_MAX) -> float:
     return max(low, min(high, value))
+
+
+def _centered_factor(value: float, reference: float, per_unit: float) -> float:
+    """A multiplier that is 1.0 at ``reference`` and scales ``per_unit`` per point of
+    deviation. Used to fold a stat into an effective axis without shifting the catalog
+    baseline (a reference-valued car is unaffected)."""
+    return 1.0 + (value - reference) * per_unit
+
+
+def _combine_factor(*factors: float) -> float:
+    """Multiply per-stat factors and clamp the product to the orphan swing band, so a
+    single axis stacking several folded stats still moves only a few percent."""
+    product = 1.0
+    for factor in factors:
+        product *= factor
+    return max(ORPHAN_FACTOR_FLOOR, min(ORPHAN_FACTOR_CEIL, product))
 
 
 def apply_part_modifiers(car: Car, parts: list[Part] | None = None) -> Car:
@@ -78,40 +97,135 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None, command: 
     tire_factor = _condition_factor((modified.condition.tire_condition + modified.condition.overall_condition) / 2)
     suspension_factor = _condition_factor(modified.condition.suspension_condition)
 
-    power = modified.powertrain.power_hp * engine_factor * ENGINE_MAP_POWER[engine_map]
-    torque = modified.powertrain.torque_nm * engine_factor * ENGINE_MAP_POWER[engine_map]
-    weight = max(modified.chassis.weight_kg, 1)
-    drag = modified.aero.drag + (tune.front_downforce + tune.rear_downforce) * DOWNFORCE_DRAG_PENALTY
+    pt = modified.powertrain
+    ch = modified.chassis
+    ti = modified.tires
+    br = modified.brakes
+    su = modified.suspension
+    ae = modified.aero
+    du = modified.durability
+    fu = modified.fuel
+    cond = modified.condition
 
+    power = pt.power_hp * engine_factor * ENGINE_MAP_POWER[engine_map]
+    torque = pt.torque_nm * engine_factor * ENGINE_MAP_POWER[engine_map]
+    weight = max(ch.weight_kg, 1)
+
+    # Aero efficiency trims effective drag; a damaged body adds a little drag.
+    drag = ae.drag + (tune.front_downforce + tune.rear_downforce) * DOWNFORCE_DRAG_PENALTY
+    drag *= _centered_factor(ae.aero_efficiency, C.AERO_EFFICIENCY_REF, -C.AERO_EFFICIENCY_DRAG_PER_UNIT)
+    drag *= _centered_factor(cond.body_condition, C.BODY_CONDITION_REF, -C.BODY_CONDITION_DRAG_PER_UNIT)
+    drag = max(0.0, drag)
+
+    # Engine character (torque delivery, powerband, throttle) shapes acceleration.
+    torque_ratio = pt.torque_nm / max(pt.power_hp, 1)
+    accel_character = _combine_factor(
+        _centered_factor(torque_ratio, C.TORQUE_RATIO_REF, C.TORQUE_RATIO_ACCEL_FACTOR),
+        _centered_factor(pt.powerband, C.POWERBAND_REF, C.POWERBAND_ACCEL_PER_UNIT),
+        _centered_factor(pt.throttle_response, C.THROTTLE_RESPONSE_REF, C.THROTTLE_ACCEL_PER_UNIT),
+    )
     final_drive_delta = (tune.final_drive - FINAL_DRIVE_IDEAL) / FINAL_DRIVE_IDEAL
     acceleration = (power / weight / NORM_ACCEL_REF_HW) * PERCENT_MAX
     acceleration *= 1 + final_drive_delta * FINAL_DRIVE_ACCEL_FACTOR
+    acceleration *= accel_character
     top_speed_kmh = TOP_SPEED_COEFF * (power / (drag / PERCENT_MAX + 0.5)) ** 0.333
     top_speed = top_speed_kmh / NORM_SPEED_REF_KMH * PERCENT_MAX
     top_speed *= 1 - final_drive_delta * FINAL_DRIVE_SPEED_FACTOR
 
     brake_bias_factor = 1 - abs(tune.brake_bias - BRAKE_BIAS_IDEAL) * BRAKE_BIAS_PENALTY
-    braking = modified.brakes.braking_power * brake_factor * brake_bias_factor * tune.brake_pressure
-    brake_stability = modified.brakes.brake_stability * brake_factor * brake_bias_factor
+    braking = br.braking_power * brake_factor * brake_bias_factor * tune.brake_pressure
+    brake_stability = br.brake_stability * brake_factor * brake_bias_factor
+    # Cooling and fade resistance keep brakes effective; brake_stability now contributes.
+    braking *= _combine_factor(
+        _centered_factor(br.brake_cooling, C.BRAKE_COOLING_REF, C.BRAKE_COOLING_PER_UNIT),
+        _centered_factor(br.brake_fade_resistance, C.BRAKE_FADE_REF, C.BRAKE_FADE_PER_UNIT),
+    )
+    braking = braking * (1 - C.BRAKE_STABILITY_BLEND) + brake_stability * C.BRAKE_STABILITY_BLEND
+
+    # Setup quantities used across the grip/handling axes (Phase-2 tune knobs).
+    avg_stiffness = (tune.suspension_stiffness_front + tune.suspension_stiffness_rear) / 2
+    avg_antiroll = (tune.antiroll_front + tune.antiroll_rear) / 2
+    total_toe = abs(tune.toe_front) + abs(tune.toe_rear)
 
     camber_factor = _camber_factor(tune.camber_front, tune.camber_rear)
     pressure_factor = _pressure_factor(tune.tire_pressure_front, tune.tire_pressure_rear)
-    grip = modified.tires.base_grip * tire_factor * camber_factor * pressure_factor
-    wet_grip = modified.tires.wet_grip * tire_factor * pressure_factor
+    grip = ti.base_grip * tire_factor * camber_factor * pressure_factor
+    wet_grip = ti.wet_grip * tire_factor * pressure_factor
+    mechanical_grip = su.mechanical_grip * suspension_factor * tire_factor
+    # One clamped orphan factor per axis: contact patch (tyre width) plus setup
+    # (stiffness/preload/toe) shape grip; mechanical grip from the suspension blends in.
+    grip *= _combine_factor(
+        _centered_factor(ti.tire_width_front, C.TIRE_WIDTH_FRONT_REF, C.TIRE_WIDTH_GRIP_PER_MM),
+        _centered_factor(ti.tire_width_rear, C.TIRE_WIDTH_REAR_REF, C.TIRE_WIDTH_GRIP_PER_MM),
+        1 - abs(avg_stiffness - C.SUSP_STIFFNESS_IDEAL) * C.SUSP_STIFFNESS_GRIP_PENALTY_PER_UNIT,
+        1 - abs(tune.differential_preload - C.DIFF_PRELOAD_IDEAL) * C.DIFF_PRELOAD_GRIP_PENALTY_PER_UNIT,
+        1 - total_toe * C.TOE_GRIP_PENALTY,
+    )
+    grip = grip * (1 - C.MECH_GRIP_BLEND) + mechanical_grip * C.MECH_GRIP_BLEND
 
     weight_factor = min(1.15, WEIGHT_REFERENCE_KG / weight)
     ride_factor = _ride_height_factor(tune.front_ride_height, tune.rear_ride_height)
-    handling = modified.suspension.handling * suspension_factor * overall_factor * weight_factor * ride_factor
-    mechanical_grip = modified.suspension.mechanical_grip * suspension_factor * tire_factor
-    aero_grip = (modified.aero.downforce + tune.front_downforce + tune.rear_downforce) / NORM_AERO_MAX * PERCENT_MAX
+    suspension_compliance = clamp(su.suspension_compliance * suspension_factor)
+    curb_handling = clamp(su.curb_handling * suspension_factor)
+    handling = su.handling * suspension_factor * overall_factor * weight_factor * ride_factor
+    # Chassis (rigidity, CoG, rotation, weight balance), suspension feel (bump absorption,
+    # steering precision, compliance, curb behaviour) and setup (stiffness, anti-roll,
+    # coast diff, front toe) all shape handling, bounded by a single orphan clamp.
+    handling *= _combine_factor(
+        _centered_factor(ch.chassis_rigidity, C.RIGIDITY_REF, C.RIGIDITY_HANDLING_PER_UNIT),
+        _centered_factor(ch.center_of_gravity, C.CENTER_OF_GRAVITY_REF, C.COG_HANDLING_PER_UNIT),
+        _centered_factor(ch.rotation, C.ROTATION_REF, C.ROTATION_HANDLING_PER_UNIT),
+        1 - abs(ch.weight_distribution_front - C.WEIGHT_DIST_IDEAL) * C.WEIGHT_DIST_HANDLING_PENALTY,
+        _centered_factor(su.bump_absorption, C.BUMP_ABSORPTION_REF, C.BUMP_HANDLING_PER_UNIT),
+        _centered_factor(su.steering_precision, C.STEERING_PRECISION_REF, C.STEERING_HANDLING_PER_UNIT),
+        _centered_factor(suspension_compliance, C.COMPLIANCE_REF, C.COMPLIANCE_HANDLING_PER_UNIT),
+        _centered_factor(curb_handling, C.CURB_HANDLING_REF, C.CURB_HANDLING_PER_UNIT),
+        _centered_factor(avg_stiffness, C.SUSP_STIFFNESS_IDEAL, C.SUSP_STIFFNESS_HANDLING_PER_UNIT),
+        _centered_factor(avg_antiroll, C.ANTIROLL_IDEAL, C.ANTIROLL_HANDLING_PER_UNIT),
+        _centered_factor(tune.differential_coast, C.DIFF_COAST_IDEAL, C.DIFF_COAST_HANDLING_PER_UNIT),
+        1 + abs(tune.toe_front) * C.TOE_RESPONSE_FACTOR,
+    )
+    aero_grip = (ae.downforce + tune.front_downforce + tune.rear_downforce) / NORM_AERO_MAX * PERCENT_MAX
 
-    cooling_factor = max(0.35, 1 - modified.powertrain.cooling * COOLING_HEAT_REDUCTION)
-    engine_heat_rate = modified.powertrain.engine_stress * ENGINE_MAP_HEAT[engine_map] * cooling_factor
+    # Gear bias and power-diff shape accel/top-speed (neutral at default setup).
+    acceleration *= 1 + tune.gear_bias * C.GEAR_BIAS_ACCEL_FACTOR
+    top_speed *= 1 - tune.gear_bias * C.GEAR_BIAS_SPEED_FACTOR
+    acceleration *= _centered_factor(tune.differential_power, C.DIFF_POWER_IDEAL, C.DIFF_POWER_ACCEL_PER_UNIT)
+
+    stability = clamp(ch.stability * overall_factor + ae.high_speed_stability * 0.20)
+    # High-speed stability gives a small confidence margin at the top end.
+    top_speed = top_speed * (1 - C.STABILITY_TOPSPEED_BLEND) + stability * C.STABILITY_TOPSPEED_BLEND
+
+    cooling_factor = max(0.35, 1 - pt.cooling * COOLING_HEAT_REDUCTION)
+    engine_heat_rate = pt.engine_stress * ENGINE_MAP_HEAT[engine_map] * cooling_factor
     fuel_burn_rate = modified.fuel.base_fuel_burn * ENGINE_MAP_FUEL[engine_map] * max(0.50, power / NORM_POWER_REF_HP)
-    tire_wear_rate = max(0.20, (PERCENT_MAX - modified.tires.tire_wear_resistance) / PERCENT_MAX)
-    tire_heat_rate = max(0.20, (PERCENT_MAX - modified.tires.tire_heat_resistance) / PERCENT_MAX)
-    reliability = modified.durability.overall_reliability * overall_factor
-    reliability *= max(0.30, 1 - modified.powertrain.engine_stress * STRESS_RELIABILITY_PENALTY)
+    # Efficiency (engine + fuel system) trims burn; a bigger tank drains a smaller % per
+    # lap, so capacity becomes a real strategic lever (bounded to avoid extremes).
+    fuel_efficiency = (pt.fuel_efficiency + fu.fuel_efficiency) / 2
+    fuel_burn_rate *= _centered_factor(fuel_efficiency, C.FUEL_EFFICIENCY_REF, -C.FUEL_EFFICIENCY_BURN_PER_UNIT)
+    fuel_burn_rate *= max(0.75, min(1.35, C.FUEL_CAPACITY_REF_L / max(fu.fuel_capacity_l, 1)))
+    tire_wear_rate = max(0.20, (PERCENT_MAX - ti.tire_wear_resistance) / PERCENT_MAX)
+    tire_heat_rate = max(0.20, (PERCENT_MAX - ti.tire_heat_resistance) / PERCENT_MAX)
+    # Wider tyres run a touch hotter and wear faster; quicker-warming tyres heat sooner.
+    width_load = _combine_factor(
+        _centered_factor(ti.tire_width_front, C.TIRE_WIDTH_FRONT_REF, C.TIRE_WIDTH_WEAR_PER_MM),
+        _centered_factor(ti.tire_width_rear, C.TIRE_WIDTH_REAR_REF, C.TIRE_WIDTH_WEAR_PER_MM),
+    )
+    tire_wear_rate *= width_load
+    tire_heat_rate *= width_load * _centered_factor(ti.tire_warmup, C.TIRE_WARMUP_REF, C.TIRE_WARMUP_HEAT_PER_UNIT)
+    reliability = du.overall_reliability * overall_factor
+    reliability *= max(0.30, 1 - pt.engine_stress * STRESS_RELIABILITY_PENALTY)
+    # Secondary durability (engine/gearbox/suspension/brake/cooling), the car's
+    # mechanical-sympathy modifier, and gearbox condition now shape failure risk.
+    secondary_durability = (
+        du.engine_reliability + pt.engine_reliability + du.gearbox_reliability
+        + du.suspension_durability + du.brake_durability + du.cooling_capacity
+    ) / 6
+    reliability *= _combine_factor(
+        _centered_factor(secondary_durability, C.DURABILITY_REF, C.DURABILITY_RELIABILITY_PER_UNIT),
+        1 + du.mechanical_sympathy_modifier * C.MECH_SYMPATHY_MOD_PER_UNIT,
+        _centered_factor(cond.gearbox_condition, C.GEARBOX_CONDITION_REF, C.CONDITION_RELIABILITY_PER_UNIT),
+    )
 
     return EffectiveCarStats(
         power=clamp(power / NORM_POWER_REF_HP * PERCENT_MAX),
@@ -126,15 +240,15 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None, command: 
         handling=clamp(handling),
         mechanical_grip=clamp(mechanical_grip),
         aero_grip=clamp(aero_grip),
-        drag=max(0.0, drag),
-        stability=clamp(modified.chassis.stability * overall_factor + modified.aero.high_speed_stability * 0.20),
+        drag=drag,
+        stability=stability,
         tire_wear_rate=tire_wear_rate,
         tire_heat_rate=tire_heat_rate,
         fuel_burn_rate=fuel_burn_rate,
         engine_heat_rate=engine_heat_rate,
         reliability=clamp(reliability),
-        suspension_compliance=clamp(modified.suspension.suspension_compliance * suspension_factor),
-        curb_handling=clamp(modified.suspension.curb_handling * suspension_factor),
+        suspension_compliance=suspension_compliance,
+        curb_handling=curb_handling,
     )
 
 
