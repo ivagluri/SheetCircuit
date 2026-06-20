@@ -1,11 +1,13 @@
 # SheetCircuit — Pending Updates
 
 Roadmap for the remaining "track-agnostic / de-pin from sample data" work, plus the
-deferred time/duration race buildout. Phase 1 (events own race length + physical-units
-attrition + creator event editor + starter-by-criteria) is **done** on branch
-`refactor/track-agnostic-sim` (commit `f4e745e`). Phase 2 (re-anchor the orphan-stat
-references to intrinsic design anchors) is **implemented, pending review/commit**. This
-document is self-contained so it can be ported to an issue tracker or another repo.
+deferred time/duration race buildout. **Done** on branch `refactor/track-agnostic-sim`:
+Phase 1 (events own race length + physical-units attrition + creator event editor +
+starter-by-criteria, `f4e745e`); Phase 2 (re-anchor orphan-stat references to intrinsic
+design anchors, `e796a2b`); Phase 3 (car class derived at runtime from a drag/slalom/hybrid
+reference suite + the on-track gulf widened, `5b23a58`/`6118935`, with the F1/F2 class
+explainers `084eba0`). Phase 4 (below) is reassessed and ready to build. This document is
+self-contained so it can be ported to an issue tracker or another repo.
 
 Conventions used below:
 - References are by **symbol/function name**, not line number, so they survive edits.
@@ -159,63 +161,80 @@ distance so seasons stay comparable) is a later layer on the same plumbing: A + 
 normalisation factor on extrapolatable rewards only. **Never** ship C (selectable length
 with raw, un-normalised rewards).
 
-**Anchor `base_lap_time` to realism (decided).** The current per-track lap times (and the
-84–90 s reference band) were chosen for watchability, not realism. Derive/validate
-`base_lap_time` from `length_km` × a plausible class average speed (a real-world
-magnitude), and move watchability entirely to presentation speed. Then the reference-lap
-test asserts realism (a class's average speed on the track), not a comfort window. Expect
-to adjust some `data/tracks/*` values and re-pin `test_balance_baseline.py` in the same
-commit. Continues the de-pin throughline.
+### Reassessment after Phases 2–3 (two findings reshape this phase)
+1. **One lockstep engine.** The game races via `race_session` (interactive, the whole field
+   shares a track position each tick); "instant resolve" (`actions.simulate_to_end_action`)
+   just loops that engine's ticks, so watch-live and instant are already
+   presentation-invariant. `simulate_race` (batch) is for tests. Because the engine is
+   lockstep, a **Regime-A duration race produces no ragged lap counts** — the field runs the
+   same number of laps and the race ends on time. So the original "ragged ranking / lap-aware
+   gap / +N laps / ragged telemetry" work is **out of scope for v1** (it needs async — see
+   the follow-up below). Decision: **lockstep now, async later.**
+2. **`base_lap_time` is unrealistic and 3b made it worse.** It was watchability-set
+   (~85–120 s on every track regardless of length), so the 64 hp k660 "averages" 205 km/h
+   on cresta and 154 on glenmoor. 3b (`PERF_SCALE` 0.25→0.36) dropped lap times further; we
+   loosened the lap-time bands with a "Phase 4 retightens" note. Making lap time real is the
+   core of this phase.
 
-Phase 1 made the model **duration-ready**; this phase makes it **raceable**. Already in
-place:
-- `Event.duration_s` parses and validates; `loader.resolve_race` returns
-  `RaceFormat(mode="duration", laps=None, duration_s=…)`.
-- `simulation._rank` sorts by `(-lap, total_time)` — correct for cars on different lap
-  counts.
-- `simulate_race`'s loop is predicate-shaped (`while completed_laps < total_laps`).
-- Engine heat and driver fatigue accrue over real `seconds` (threaded through
-  `_apply_lap_wear`), so a longer race fatigues correctly with no further change.
-- Both `simulate_race` and `race_session.start_race` currently **raise**
-  `SimulationError("Duration-based races are not yet supported")` when `laps is None` —
-  these are the two guards to lift.
+Already wired from Phase 1: `Event.duration_s` parses; `loader.resolve_race` returns
+`RaceFormat(mode="duration", …)`; `_rank` sorts `(-lap, total_time)`; wear accrues over real
+`seconds`; `event_detail_screen` already prints a duration description. Two
+`SimulationError("Duration-based races are not yet supported")` guards (`simulation.py`,
+`race_session.py`) are the live blockers.
 
-### Work to do
-1. **Completion predicate.** Replace the fixed-lap guard with: run laps until the leader's
-   `total_time >= duration_s`, then every car finishes its current (lead) lap — standard
-   enduro rule. Factor a `_race_finished(states, race_format)` helper used by both the
-   batch loop (`simulate_race`) and the interactive loop (`race_session.simulate_tick`).
-2. **Ragged lap counts.** With a time cap, faster cars complete more laps. `_rank` already
-   handles this; audit everything that assumes a uniform lap count:
-   - `gap_to_leader` must become **lap-aware** (a car a lap down is behind even with lower
-     elapsed time). Compute gap as (laps_behind × leader_avg_lap) + time_delta, or show
-     "+N laps".
-   - `RaceResult.total_laps` / `RaceSession.total_laps` become the **leader's** lap count
-     (or per-car); the UI ("Lap X/Y") needs a duration-aware variant.
-   - Telemetry (`record_telemetry`, `TelemetryHistory`) is per-lap; ensure per-car lap
-     arrays of differing length don't break standings/plots.
-3. **Interactive path.** `race_session` derives `ticks_per_lap` from `base_lap_time`; that
-   still works per lap, but `is_finished` (currently `current_lap >= total_laps`) must use
-   the time predicate, and the per-car ragged-lap bookkeeping must hold across ticks.
-4. **Pit/strategy.** With real duration + physical fuel/tyres (Phase 1), enduros should
-   *need* stops — validate that a thirsty car (e.g. `escarpa_pikes`, ~74 km range) is
-   forced to pit over a multi-hour event. Tune `pit_lane_loss_s` and refuel/tyre-change
-   semantics in `_apply_lap_wear`'s `pit` branch if a stop should restore a real amount.
-5. **UI/creator.** The creator event editor already exposes `duration_s` (race_mode
-   `duration_s`) and labels it "not yet raceable" — flip that copy on completion. Add a
-   duration-aware race screen (`game/actions.py` `race_screen`, `event_detail_screen`).
+### Work to do (four sub-commits)
+**4.1 — Derive `base_lap_time` fully dynamically from track geometry (decided).** Never
+stored; computed from the track's own segments at load (mirrors how a real lap estimate
+comes from the corner/straight sequence): (a) a track **speed factor** from its segment
+tag mix (an intrinsic tag→reference-speed table, consistent with `SEGMENT_TAG_WEIGHTS` —
+straights fast, chicanes slow), integrated `Σ length_pct × tag_speed`; (b) realistic
+reference lap `ref_lap = length_km / (BASE_REFERENCE_SPEED × speed_factor) × 3600`; (c)
+`base_lap_time = ref_lap + PERF_SCALE × REFERENCE_COMPOSITE`, so a notional average car
+(fixed intrinsic `REFERENCE_COMPOSITE`, not a live catalog stat) laps at `ref_lap` and a
+below-average kei correctly laps slower. Additive constant ⇒ rescales absolute lap times
+without changing who wins; auto-updates for custom/creator tracks. Coordinate with
+`PERF_SCALE` (a larger base on long tracks compresses the % gulf — re-check the 3b
+drag-fixture gulf, nudge if needed) and retighten the 3b-loosened bands. Touch:
+`game/loader.py` (`track_from_dict`), `constants.py` (tag-speed table, `BASE_REFERENCE_SPEED`,
+`REFERENCE_COMPOSITE`), `data/tracks/*.json` (drop stored `base_lap_time`), `editor/`
+(derived base in preview), re-pin `test_balance_baseline.py` / `test_supercar_tracks.py`,
+new `tests/test_lap_time_realism.py`.
+
+**4.2 — Run duration races (lockstep time-cap, Regime A).** Lift both guards; add one
+`_race_finished(states, race_format)` predicate (laps → lap count; duration → leader
+`total_time >= duration_s`, then finish the lead lap) used by the batch loop and the
+interactive `is_finished`. Field stays synchronized ⇒ `_rank` and the time-delta
+`gap_to_leader` are unchanged. `RaceResult.total_laps` / `RaceSession.total_laps` become the
+completed lap count. Validate a thirsty car (`escarpa_pikes`) is forced to pit over a long
+event (Phase 1 attrition already drives this). Touch: `game/simulation.py`,
+`game/race_session.py`, new `tests/test_duration_race.py`.
+
+**4.3 — Presentation speed (watchability).** Decoupled from the sim (zero outcome effect).
+Instant-resolve and "end" exist; add a "skip to next lap" / fast-forward control to the race
+loop so a multi-hour event isn't ticked by hand. Touch: `interfaces/cli.py` (race loop +
+`_show_race_help`), `game/actions.py` (advance-to-lap-end helper).
+
+**4.4 — Duration-aware UI + creator copy.** Race screen shows elapsed/target time instead of
+"Lap X/Y" for a duration race; drop "duration not yet raceable" in `editor/fields.py`. Touch:
+`game/actions.py` `race_screen`.
 
 ### Acceptance criteria
-- A `duration_s` event runs to completion; standings rank by laps-completed then time;
-  a lapped car shows "+N laps".
-- A short sprint and a long enduro on the *same track* both work and feel different
-  (enduro forces fuel/tyre strategy).
-- New `tests/test_duration_race.py`: time predicate stops correctly; ragged ranking;
-  lap-aware gap; thirsty car is forced to pit.
+- Every car laps at a plausible speed for the track's length (no 200 km/h keis); k660@maple
+  stays sane; baseline re-pinned.
+- A `duration_s` event runs to completion in both watch-live and instant-resolve with the
+  same result; a short sprint and a long enduro on one track feel different (enduro forces a
+  fuel/tyre stop).
+- A long event is watchable via fast-forward; the race screen reads in time, not "Lap X/Y".
 
 ### Risk
-High — it changes the race core (loop + ranking + UI). Land it after Phases 2–3 so the
-balance baseline is stable underneath it.
+High — 4.1 touches every lap time (race-pace backbone), 4.2 the finish condition. Isolate
+4.1 (balance) from 4.2 (mechanic); each its own commit, baseline re-pinned.
+
+### Deferred follow-up — async / ragged enduro
+Each car holds its own track position ⇒ true lapped cars, "+N laps", lap-aware
+`gap_to_leader`, ragged per-car telemetry. A separate phase on top of 4.x once the time
+model + realistic `base_lap_time` are stable; the lockstep duration above already gives long
+races, real strategy, and realistic time.
 
 ---
 
