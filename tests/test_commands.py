@@ -31,14 +31,17 @@ class CommandTests(unittest.TestCase):
 
     def test_stress_uses_its_own_column_not_engine_heat(self) -> None:
         # save_tyres and save_fuel share the same stress multiplier (0.85) but very
-        # different engine-heat multipliers. With the bug, stress tracked engine heat,
-        # so they would differ; now stress reads its own column and they match.
+        # different engine-heat multipliers. With the bug, stress tracked engine heat.
+        # Stress now reads its own column and accrues over time, so per-second stress
+        # build is identical even though save_fuel's slower pace spends a touch longer
+        # on track (and thus builds marginally more total stress).
         a = self._session()
         b = self._session()
         apply_player_command(a, "save_tyres")
         apply_player_command(b, "save_fuel")
+        pa, pb = self._player(a), self._player(b)
         self.assertAlmostEqual(
-            self._player(a).driver_stress, self._player(b).driver_stress, places=9
+            pa.driver_stress / pa.last_lap_time, pb.driver_stress / pb.last_lap_time, places=9
         )
 
     def test_go_all_out_builds_more_stress_than_cool_down(self) -> None:

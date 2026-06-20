@@ -129,9 +129,38 @@ def driver_from_dict(data: dict[str, Any], path: Path | None = None) -> Driver:
 
 
 def event_from_dict(data: dict[str, Any], path: Path | None = None) -> Event:
+    source = path or Path("<memory>")
     event_data = dict(data)
     event_data.setdefault("rival_skill", None)
-    return _dataclass_from_dict(Event, event_data, path or Path("<memory>"))
+    for field_name in ("laps", "distance_km", "duration_s"):
+        event_data.setdefault(field_name, None)
+    specified = [name for name in ("laps", "distance_km", "duration_s") if event_data[name] is not None]
+    if len(specified) != 1:
+        raise DataLoadError(
+            f"Event {event_data.get('id', '?')} in {source} must set exactly one race-length "
+            f"field (laps, distance_km, or duration_s); found {specified or 'none'}"
+        )
+    return _dataclass_from_dict(Event, event_data, source)
+
+
+def resolve_race(event: Event, track: Track) -> "RaceFormat":
+    """Resolve an event's race length against a track into a concrete RaceFormat.
+
+    Lap- and distance-based events yield a fixed lap target (distance is divided by the
+    track's lap length). Duration-based events are returned open-ended; the race loop's
+    time predicate will consume them once duration is wired in.
+    """
+    from game.models import RaceFormat
+
+    if event.laps is not None:
+        return RaceFormat(mode="laps", laps=max(1, int(event.laps)))
+    if event.distance_km is not None:
+        laps = max(1, round(event.distance_km / max(track.length_km, 1e-6)))
+        return RaceFormat(mode="distance", laps=laps, distance_km=event.distance_km)
+    if event.duration_s is not None:
+        return RaceFormat(mode="duration", laps=None, duration_s=event.duration_s)
+    # event_from_dict guarantees one is set; this guards programmatic Events.
+    raise DataLoadError(f"Event {event.id} has no race-length specified")
 
 
 def part_from_dict(data: dict[str, Any], path: Path | None = None) -> Part:
@@ -260,6 +289,8 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
     # Sustained elevation change taxes fuel and engine heat. Applied uniformly to the
     # aggregate rates and to every segment profile so the segment-resolved race wears
     # the car identically to the aggregate model (the documented integration invariant).
+    # Distance no longer scales these here -- attrition is resolved per-kilometre at race
+    # time (see _apply_lap_wear), so a track's rates stay intensive tag multipliers.
     elevation = data["elevation_change_m"]
     elev_heat = _elevation_factor(elevation, ELEVATION_HEAT_PER_M)
     elev_fuel = _elevation_factor(elevation, ELEVATION_FUEL_PER_M)
@@ -275,7 +306,6 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
         name=data["name"],
         layout_type=data["layout_type"],
         base_lap_time=data["base_lap_time"],
-        laps=data["laps"],
         length_km=data["length_km"],
         pit_lane_loss_s=data["pit_lane_loss_s"],
         segments=segments,

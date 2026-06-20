@@ -76,6 +76,18 @@ def build_opponent_grid(
     return car_roster, driver_roster, entries
 
 
+def opponent_entry_labels(entries: list[tuple[str, str]], car_roster: dict[str, Car]) -> list[str]:
+    """Human-readable opponent labels, numbered only when a model is reused."""
+    names = [car_roster[car_id].identity.name for car_id, _driver_id in entries]
+    totals = {name: names.count(name) for name in set(names)}
+    seen: dict[str, int] = {}
+    labels: list[str] = []
+    for name in names:
+        seen[name] = seen.get(name, 0) + 1
+        labels.append(f"{name} #{seen[name]}" if totals[name] > 1 else name)
+    return labels
+
+
 def _event_peer_pool(
     player_car: Car,
     eligible: list[Car],

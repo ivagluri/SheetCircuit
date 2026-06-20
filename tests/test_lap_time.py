@@ -6,7 +6,7 @@ import unittest
 from constants import ENGINE_OVERHEAT_C
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
-from game.loader import load_cars, load_drivers, load_parts, load_tracks
+from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.save_load import load_game, save_game
 from game.simulation import _initial_state, calculate_lap_time, simulate_race
 from game.telemetry import generate_driver_feedback
@@ -72,8 +72,10 @@ class LapTimeTests(unittest.TestCase):
         state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])
         result = simulate_race(state, "sunday_cup", "kanto_k660", "driver_novak", seed=7)
 
-        self.assertEqual(result.total_laps, self.tracks["maple_short"].laps)
-        self.assertTrue(all(len(times) == self.tracks["maple_short"].laps for times in result.lap_times.values()))
+        event = next(e for e in load_events() if e.id == "sunday_cup")
+        expected_laps = resolve_race(event, self.tracks["maple_short"]).laps
+        self.assertEqual(result.total_laps, expected_laps)
+        self.assertTrue(all(len(times) == expected_laps for times in result.lap_times.values()))
         self.assertEqual(result.standings[0].position, 1)
         self.assertEqual(result.standings, sorted(result.standings, key=lambda car: car.total_time))
 

@@ -3,22 +3,89 @@
   "name": "Red Valley Club",
   "layout_type": "circuit",
   "base_lap_time": 115.0,
-  "laps": 6,
   "length_km": 3.2,
   "pit_lane_loss_s": 26.0,
-  "overtake_difficulty": 0.50,
+  "overtake_difficulty": 0.5,
   "elevation_change_m": 38,
   "surface": "tarmac",
   "default_condition": "dry",
   "weather_variability": 0.25,
   "segments": [
-    {"name": "Start Straight", "length_pct": 0.14, "tags": ["short_straight"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Fast Sweeper", "length_pct": 0.12, "tags": ["high_speed_corner"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Braking Zone 1", "length_pct": 0.08, "tags": ["hard_braking_zone", "slow_corner"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Mid Sector", "length_pct": 0.18, "tags": ["technical_section", "slow_corner"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Back Straight", "length_pct": 0.16, "tags": ["long_straight"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Hairpin", "length_pct": 0.08, "tags": ["hard_braking_zone", "slow_corner"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Final Sector", "length_pct": 0.14, "tags": ["technical_section", "high_speed_corner"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Pit Straight", "length_pct": 0.10, "tags": ["short_straight"], "surface": "tarmac", "condition": "dry"}
+    {
+      "name": "Start Straight",
+      "length_pct": 0.14,
+      "tags": [
+        "short_straight"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Fast Sweeper",
+      "length_pct": 0.12,
+      "tags": [
+        "high_speed_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Braking Zone 1",
+      "length_pct": 0.08,
+      "tags": [
+        "hard_braking_zone",
+        "slow_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Mid Sector",
+      "length_pct": 0.18,
+      "tags": [
+        "technical_section",
+        "slow_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Back Straight",
+      "length_pct": 0.16,
+      "tags": [
+        "long_straight"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Hairpin",
+      "length_pct": 0.08,
+      "tags": [
+        "hard_braking_zone",
+        "slow_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Final Sector",
+      "length_pct": 0.14,
+      "tags": [
+        "technical_section",
+        "high_speed_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Pit Straight",
+      "length_pct": 0.1,
+      "tags": [
+        "short_straight"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    }
   ]
 }

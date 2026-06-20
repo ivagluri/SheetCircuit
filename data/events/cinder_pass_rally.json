@@ -1,0 +1,21 @@
+{
+  "id": "cinder_pass_rally",
+  "name": "Cinder Pass Rally",
+  "track_id": "cinder_pass",
+  "car_class_limit": "S",
+  "entry_fee": 1500,
+  "prize_money": [
+    14000,
+    8000,
+    5000,
+    3000,
+    1500,
+    800,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {},
+  "rival_skill": 80,
+  "laps": 6
+}

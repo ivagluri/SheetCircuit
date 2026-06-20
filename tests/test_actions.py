@@ -65,7 +65,7 @@ class ActionLayerTests(unittest.TestCase):
     def test_tune_screen_surfaces_ranges_and_choice_options(self) -> None:
         state = new_career()
 
-        screen = tune_fields_screen(state, "kanto_k660")
+        screen = tune_fields_screen(state, state.garage[0].identity.id)
         fields = {field.name: field for field in screen.fields}
 
         self.assertEqual(screen.tables[0].headers, ["#", "Field", "Current", "Allowed"])
@@ -81,7 +81,7 @@ class ActionLayerTests(unittest.TestCase):
         from game.models import TuneSetup
 
         state = new_career()
-        screen = tune_fields_screen(state, "kanto_k660")
+        screen = tune_fields_screen(state, state.garage[0].identity.id)
 
         # Every editable TuneSetup field is offered (was previously only 11 of 22).
         expected = {f.name for f in dataclass_fields(TuneSetup)}
@@ -97,12 +97,12 @@ class ActionLayerTests(unittest.TestCase):
 
         driver = driver_detail_screen("driver_novak")
         event = event_detail_screen("sunday_cup")
-        garage_car = car_detail_screen(state, "kanto_k660")
+        garage_car = car_detail_screen(state, state.garage[0].identity.id)
         market_car = market_car_detail_screen("kanto_k660")
 
         self.assertEqual(driver.title, "Pete Novak")
         self.assertEqual(event.title, "Sunday Cup")
-        self.assertEqual(garage_car.title, "1994 Kanto K660")
+        self.assertEqual(garage_car.title, state.garage[0].identity.name)
         self.assertEqual(market_car.title, "1994 Kanto K660")
         self.assertIn("Driver Stats", [table.title for table in driver.tables])
 
@@ -133,7 +133,7 @@ class ActionLayerTests(unittest.TestCase):
         original = state.garage[0].tune.engine_map
 
         with self.assertRaises(TuningError):
-            tune_car_action(state, "kanto_k660", "engine_map", "")
+            tune_car_action(state, state.garage[0].identity.id, "engine_map", "")
 
         self.assertEqual(state.garage[0].tune.engine_map, original)
 
@@ -149,7 +149,7 @@ class ActionLayerTests(unittest.TestCase):
             with self.subTest(field=field):
                 original = getattr(car.tune, field)
                 with self.assertRaises(TuningError):
-                    tune_car_action(state, "kanto_k660", field, invalid_value)
+                    tune_car_action(state, car.identity.id, field, invalid_value)
                 self.assertEqual(getattr(car.tune, field), original)
 
     def test_tune_numeric_fields_reject_wrong_type_and_out_of_range(self) -> None:
@@ -160,21 +160,21 @@ class ActionLayerTests(unittest.TestCase):
             with self.subTest(field=field, bad_value="not-number"):
                 original = getattr(car.tune, field)
                 with self.assertRaises(TuningError):
-                    tune_car_action(state, "kanto_k660", field, "not-number")
+                    tune_car_action(state, car.identity.id, field, "not-number")
                 self.assertEqual(getattr(car.tune, field), original)
 
             with self.subTest(field=field, bad_value="below-range"):
                 original = getattr(car.tune, field)
                 below_range = int(low - 1) if isinstance(original, int) else low - 1
                 with self.assertRaises(TuningError):
-                    tune_car_action(state, "kanto_k660", field, below_range)
+                    tune_car_action(state, car.identity.id, field, below_range)
                 self.assertEqual(getattr(car.tune, field), original)
 
             with self.subTest(field=field, bad_value="above-range"):
                 original = getattr(car.tune, field)
                 above_range = int(high + 1) if isinstance(original, int) else high + 1
                 with self.assertRaises(TuningError):
-                    tune_car_action(state, "kanto_k660", field, above_range)
+                    tune_car_action(state, car.identity.id, field, above_range)
                 self.assertEqual(getattr(car.tune, field), original)
 
     def test_multi_field_tune_update_is_atomic(self) -> None:
@@ -186,7 +186,7 @@ class ActionLayerTests(unittest.TestCase):
         original_engine_map = car.tune.engine_map
 
         with self.assertRaises(TuningError):
-            update_tune_fields(state, "kanto_k660", brake_bias=0.62, engine_map="bad")
+            update_tune_fields(state, car.identity.id, brake_bias=0.62, engine_map="bad")
 
         self.assertEqual(car.tune.brake_bias, original_brake_bias)
         self.assertEqual(car.tune.engine_map, original_engine_map)

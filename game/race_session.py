@@ -26,9 +26,9 @@ from constants import (
 )
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
-from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks
+from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.models import RaceSession, RaceTickResult, TelemetryHistory
-from game.opponents import build_opponent_grid, validate_event_entry
+from game.opponents import build_opponent_grid, opponent_entry_labels, validate_event_entry
 from game.simulation import (
     SimulationError,
     _apply_lap_wear,
@@ -67,16 +67,20 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
     )
     cars.update(opponent_cars)
     drivers.update(opponent_drivers)
-    for index, (opponent_car_id, opponent_driver_id) in enumerate(opponent_entries, start=1):
-        opponent_state = _initial_state(opponent_car_id, opponent_driver_id, f"Rival {index}", False)
+    opponent_labels = opponent_entry_labels(opponent_entries, opponent_cars)
+    for label, (opponent_car_id, opponent_driver_id) in zip(opponent_labels, opponent_entries):
+        opponent_state = _initial_state(opponent_car_id, opponent_driver_id, label, False)
         states.append(opponent_state)
 
+    race_format = resolve_race(event, track)
+    if race_format.laps is None:
+        raise SimulationError("Duration-based races are not yet supported")
     ticks_per_lap = max(4, min(16, round(track.base_lap_time / RACE_TICKS_PER_LAP_DIVISOR)))
     return RaceSession(
         event_id=event.id,
         track_id=track.id,
         current_lap=0,
-        total_laps=track.laps,
+        total_laps=race_format.laps,
         cars=states,
         player_car_id=car_id,
         is_finished=False,
@@ -165,12 +169,15 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         state.lap_elapsed += tick_time + extra_penalty
 
         if command == "pit" and is_lap_end:
-            _apply_lap_wear(state, effective, session.track, "pit", driver_fitness=driver.fitness)
+            _apply_lap_wear(state, effective, session.track, "pit", driver_fitness=driver.fitness, seconds=tick_time)
         elif overlaps:
+            # Apportion the tick's real seconds across the profiles it spans, so the
+            # time-based channels (engine heat, driver fatigue) accrue correctly.
             for profile, overlap in overlaps:
-                _apply_lap_wear(state, effective, session.track, command, fraction=overlap, profile=profile, driver_fitness=driver.fitness)
+                slice_seconds = tick_time * (overlap / seg_length) if seg_length > 0 else tick_time
+                _apply_lap_wear(state, effective, session.track, command, fraction=overlap, profile=profile, driver_fitness=driver.fitness, seconds=slice_seconds)
         else:
-            _apply_lap_wear(state, effective, session.track, command, fraction=seg_length, driver_fitness=driver.fitness)
+            _apply_lap_wear(state, effective, session.track, command, fraction=seg_length, driver_fitness=driver.fitness, seconds=tick_time)
 
         if is_lap_end and command == "pit":
             # Pit is a one-shot: once the stop is done, resume normal running so the

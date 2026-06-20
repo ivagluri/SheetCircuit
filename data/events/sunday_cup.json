@@ -1,0 +1,27 @@
+{
+  "id": "sunday_cup",
+  "name": "Sunday Cup",
+  "track_id": "maple_short",
+  "car_class_limit": "E",
+  "entry_fee": 250,
+  "prize_money": [
+    2000,
+    1200,
+    800,
+    400,
+    200,
+    100,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {
+    "max_power_hp": 140,
+    "allowed_tires": [
+      "economy",
+      "street"
+    ]
+  },
+  "rival_skill": 30,
+  "laps": 5
+}

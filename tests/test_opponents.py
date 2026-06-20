@@ -7,7 +7,7 @@ from unittest.mock import patch
 from game.effective_stats import compute_effective_stats, derived_rating
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks
-from game.opponents import EventEntryError, build_opponent_grid, validate_event_entry
+from game.opponents import EventEntryError, build_opponent_grid, opponent_entry_labels, validate_event_entry
 from game.race_session import enter_event
 from game.simulation import calculate_lap_time, simulate_race
 
@@ -46,6 +46,27 @@ class OpponentGenerationTests(unittest.TestCase):
 
         self.assertEqual(len(opponent_ids), len(set(opponent_ids)))
         self.assertTrue(all(car_id.startswith("opponent_") for car_id in opponent_ids))
+
+    def test_opponent_labels_show_car_names_with_duplicate_numbers(self) -> None:
+        event = self.events["sunday_cup"]
+        track = self.tracks[event.track_id]
+        opponent_cars, _drivers, entries = build_opponent_grid(
+            event, "kanto_k660", self.drivers["driver_novak"], self.cars, self.parts, track, seed=1
+        )
+
+        labels = opponent_entry_labels(entries, opponent_cars)
+
+        self.assertIn("1998 Saxony Lupo 1.4 #1", labels)
+        self.assertIn("1998 Saxony Lupo 1.4 #2", labels)
+        self.assertNotIn("Rival 1", labels)
+
+    def test_race_session_uses_car_name_labels(self) -> None:
+        state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])
+        session = enter_event(state, "sunday_cup", "kanto_k660", "driver_novak", seed=1)
+        opponent_labels = [car.label for car in session.cars if not car.is_player]
+
+        self.assertIn("1998 Saxony Lupo 1.4 #1", opponent_labels)
+        self.assertTrue(all(not label.startswith("Rival ") for label in opponent_labels))
 
     def test_kanto_starter_is_competitive_in_sunday_cup(self) -> None:
         state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])

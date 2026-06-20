@@ -1,0 +1,26 @@
+{
+  "id": "beater_enduro",
+  "name": "Beater Enduro",
+  "track_id": "red_valley_club",
+  "car_class_limit": "E",
+  "entry_fee": 150,
+  "prize_money": [
+    1800,
+    1000,
+    600,
+    300,
+    150,
+    0,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {
+    "max_overall_condition": 80.0,
+    "allowed_tires": [
+      "economy",
+      "street"
+    ]
+  },
+  "laps": 6
+}

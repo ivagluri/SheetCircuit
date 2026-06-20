@@ -4,7 +4,6 @@
   "description": "Reference point-to-point stage: start and finish differ and the run is completed once (laps: 1). Demonstrates that the same segment schema describes non-looping tracks, which the simulation runs with identical pseudo-live telemetry, action commands, and per-tick mistakes/failures as a multi-lap circuit. Also exercises all 12 segment tags and a mix of surfaces/conditions. The 'description' field is ignored by the loader.",
   "layout_type": "point_to_point",
   "base_lap_time": 198.0,
-  "laps": 1,
   "length_km": 5.8,
   "pit_lane_loss_s": 6.0,
   "overtake_difficulty": 0.85,
@@ -13,14 +12,94 @@
   "default_condition": "damp",
   "weather_variability": 0.65,
   "segments": [
-    {"name": "Valley Launch", "length_pct": 0.10, "tags": ["short_straight", "wide_track"], "surface": "concrete", "condition": "dry"},
-    {"name": "Lower Switchbacks", "length_pct": 0.18, "tags": ["technical_section", "slow_corner"], "surface": "tarmac", "condition": "dry"},
-    {"name": "River Bridge", "length_pct": 0.08, "tags": ["short_straight"], "surface": "tarmac", "condition": "damp"},
-    {"name": "Forest Tunnel", "length_pct": 0.14, "tags": ["narrow_track", "bumpy_surface"], "surface": "tarmac", "condition": "damp"},
-    {"name": "Waterfall Hairpin", "length_pct": 0.10, "tags": ["hard_braking_zone", "slow_corner", "curb_riding"], "surface": "tarmac", "condition": "wet"},
-    {"name": "Cliffside Sweep", "length_pct": 0.12, "tags": ["high_speed_corner", "exposed"], "surface": "tarmac", "condition": "wet"},
-    {"name": "Gravel Notch", "length_pct": 0.08, "tags": ["tight_chicane", "hard_braking_zone"], "surface": "gravel", "condition": "damp"},
-    {"name": "Ridge Straight", "length_pct": 0.12, "tags": ["long_straight", "exposed"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Summit Chicane", "length_pct": 0.08, "tags": ["tight_chicane"], "surface": "concrete", "condition": "dry"}
+    {
+      "name": "Valley Launch",
+      "length_pct": 0.1,
+      "tags": [
+        "short_straight",
+        "wide_track"
+      ],
+      "surface": "concrete",
+      "condition": "dry"
+    },
+    {
+      "name": "Lower Switchbacks",
+      "length_pct": 0.18,
+      "tags": [
+        "technical_section",
+        "slow_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "River Bridge",
+      "length_pct": 0.08,
+      "tags": [
+        "short_straight"
+      ],
+      "surface": "tarmac",
+      "condition": "damp"
+    },
+    {
+      "name": "Forest Tunnel",
+      "length_pct": 0.14,
+      "tags": [
+        "narrow_track",
+        "bumpy_surface"
+      ],
+      "surface": "tarmac",
+      "condition": "damp"
+    },
+    {
+      "name": "Waterfall Hairpin",
+      "length_pct": 0.1,
+      "tags": [
+        "hard_braking_zone",
+        "slow_corner",
+        "curb_riding"
+      ],
+      "surface": "tarmac",
+      "condition": "wet"
+    },
+    {
+      "name": "Cliffside Sweep",
+      "length_pct": 0.12,
+      "tags": [
+        "high_speed_corner",
+        "exposed"
+      ],
+      "surface": "tarmac",
+      "condition": "wet"
+    },
+    {
+      "name": "Gravel Notch",
+      "length_pct": 0.08,
+      "tags": [
+        "tight_chicane",
+        "hard_braking_zone"
+      ],
+      "surface": "gravel",
+      "condition": "damp"
+    },
+    {
+      "name": "Ridge Straight",
+      "length_pct": 0.12,
+      "tags": [
+        "long_straight",
+        "exposed"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Summit Chicane",
+      "length_pct": 0.08,
+      "tags": [
+        "tight_chicane"
+      ],
+      "surface": "concrete",
+      "condition": "dry"
+    }
   ]
 }

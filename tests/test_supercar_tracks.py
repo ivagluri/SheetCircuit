@@ -14,7 +14,7 @@ import unittest
 from constants import PACE_SOFT_KNEE
 from game.effective_stats import compute_effective_stats, class_rating
 from game.game_state import GameState
-from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks
+from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.simulation import calculate_lap_time, lap_time_over_interval
 from game.race_session import enter_event
 
@@ -47,7 +47,9 @@ class SupercarTrackTests(unittest.TestCase):
                 self.assertLess(max(laps.values()) - min(laps.values()), 2.2)
 
     def test_straight_track_is_no_laps_point_to_point(self) -> None:
-        self.assertEqual(self.tracks["cresta_speed_run"].laps, 1)
+        # Race length now lives on the event: the cresta event runs a single pass.
+        event = next(e for e in load_events() if e.track_id == "cresta_speed_run")
+        self.assertEqual(resolve_race(event, self.tracks["cresta_speed_run"]).laps, 1)
 
     def test_favoured_car_laps_near_placeholder_benchmark(self) -> None:
         # 90s is a soft placeholder; just guard against a grossly mis-set base_lap_time.

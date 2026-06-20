@@ -59,13 +59,15 @@ class CliTests(TestCase):
 
     def test_race_command_guides_selection_and_runs_event(self) -> None:
         state = new_career()
+        starting_mileage = state.garage[0].condition.mileage
         scripted_input = ["1", "1", "1"]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
             run_command(state, "race")
 
         self.assertIn("Race finished", output.getvalue())
-        self.assertGreater(state.garage[0].condition.mileage, 85400)
+        # Racing adds the event's distance to the car's mileage.
+        self.assertGreater(state.garage[0].condition.mileage, starting_mileage)
 
     def test_help_lists_menu_typed_and_race_commands(self) -> None:
         state = new_career()

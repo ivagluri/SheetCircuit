@@ -29,22 +29,33 @@ TIRE_TEMP_PENALTY_MAX = 4.0
 ENGINE_TEMP_PENALTY_MAX = 3.0
 FUEL_WEIGHT_PENALTY_PER_L = 0.02
 
-TIRE_WEAR_BASE_PCT = 4.5
-TIRE_HEAT_BASE_C = 9.0
-TIRE_COOL_BASE_C = 6.0
+# --- Physical attrition ----------------------------------------------------
+# Consumables are tracked in real units instead of an abstract per-lap %:
+#  * Fuel is litres burned over distance, drawn against the car's tank (capacity_l),
+#    so range = tank / economy and pit strategy falls out of physics.
+#  * Tyres lose a distance-based share of a finite life (km), so a stint is a real
+#    number of kilometres.
+#  * Engine heat and driver fatigue accrue over *time* (seconds of running), which is
+#    what they physically depend on -- and what readies them for duration/enduro races.
+# The track tag rates (fuel/tyre/heat) stay as real per-segment multipliers on top.
+# The unit constants below are calibrated against the reference car/track to land at
+# realistic range/stint, then the catalog is spot-checked for sane pit/tyre counts.
+FUEL_L_PER_KM_UNIT = 0.13          # effective.fuel_burn_rate -> litres/km economy
+TYRE_WEAR_PCT_PER_KM = 1.25        # × eff.tire_wear_rate × track tyre mult -> %/km
+TIRE_HEAT_PER_KM = 2.5             # tyre temp rises with work (distance × load)
+TIRE_COOL_PER_S = 0.06            # tyre temp bleeds off with airflow (time)
 TIRE_OPTIMAL_C = 85.0
 TIRE_OVERHEAT_C = 108.0
 TIRE_CRITICAL_C = 130.0
 
-FUEL_BURN_BASE_PCT = 9.0
-ENGINE_HEAT_BASE_C = 5.5
-ENGINE_COOL_BASE_C = 3.5
+ENGINE_HEAT_PER_S = 0.06           # engine temp climbs with time at load
+ENGINE_COOL_PER_S = 0.04
 ENGINE_OVERHEAT_C = 105.0
 ENGINE_CRITICAL_C = 120.0
 
-DRIVER_ENERGY_DRAIN_BASE = 3.0
-DRIVER_FOCUS_DRAIN_BASE = 2.5
-DRIVER_STRESS_BUILD_BASE = 4.0
+DRIVER_ENERGY_DRAIN_PER_S = 0.032
+DRIVER_FOCUS_DRAIN_PER_S = 0.026
+DRIVER_STRESS_BUILD_PER_S = 0.042
 
 # In-race driver/pit-boss intents. Engine/ECU maps are NOT changed mid-race — those
 # live in the tuning menu (tune.engine_map). Each tuple is

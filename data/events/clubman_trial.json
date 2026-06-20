@@ -1,0 +1,27 @@
+{
+  "id": "clubman_trial",
+  "name": "Clubman Trial",
+  "track_id": "red_valley_club",
+  "car_class_limit": "D",
+  "entry_fee": 500,
+  "prize_money": [
+    4000,
+    2500,
+    1500,
+    800,
+    400,
+    200,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {
+    "max_class_rating": 299,
+    "allowed_tires": [
+      "economy",
+      "street",
+      "sport"
+    ]
+  },
+  "laps": 6
+}

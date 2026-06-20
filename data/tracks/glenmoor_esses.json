@@ -4,7 +4,6 @@
   "description": "A tight, technical road course of linked esses, chicanes and a hard hairpin, with one short straight to breathe. Handling and braking carry the weighting, so a nimble car like the Aichi GT-One is favoured. The short straight keeps the field honest.",
   "layout_type": "road_course",
   "base_lap_time": 114.4,
-  "laps": 8,
   "length_km": 4.4,
   "pit_lane_loss_s": 22.0,
   "overtake_difficulty": 0.7,
@@ -13,11 +12,59 @@
   "default_condition": "dry",
   "weather_variability": 0.2,
   "segments": [
-    {"name": "Pit Straight", "length_pct": 0.20, "tags": ["long_straight"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Upper Esses", "length_pct": 0.18, "tags": ["technical_section"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Lower Esses", "length_pct": 0.17, "tags": ["technical_section"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Stadium Chicane", "length_pct": 0.20, "tags": ["tight_chicane"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Glen Hairpin", "length_pct": 0.15, "tags": ["hard_braking_zone"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Curb Complex", "length_pct": 0.10, "tags": ["curb_riding"], "surface": "tarmac", "condition": "dry"}
+    {
+      "name": "Pit Straight",
+      "length_pct": 0.2,
+      "tags": [
+        "long_straight"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Upper Esses",
+      "length_pct": 0.18,
+      "tags": [
+        "technical_section"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Lower Esses",
+      "length_pct": 0.17,
+      "tags": [
+        "technical_section"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Stadium Chicane",
+      "length_pct": 0.2,
+      "tags": [
+        "tight_chicane"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Glen Hairpin",
+      "length_pct": 0.15,
+      "tags": [
+        "hard_braking_zone"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Curb Complex",
+      "length_pct": 0.1,
+      "tags": [
+        "curb_riding"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    }
   ]
 }

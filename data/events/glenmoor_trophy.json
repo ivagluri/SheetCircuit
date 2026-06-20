@@ -1,0 +1,21 @@
+{
+  "id": "glenmoor_trophy",
+  "name": "Glenmoor Trophy",
+  "track_id": "glenmoor_esses",
+  "car_class_limit": "S",
+  "entry_fee": 1500,
+  "prize_money": [
+    14000,
+    8000,
+    5000,
+    3000,
+    1500,
+    800,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {},
+  "rival_skill": 80,
+  "laps": 8
+}

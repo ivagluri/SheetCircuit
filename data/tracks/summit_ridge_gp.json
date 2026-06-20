@@ -4,7 +4,6 @@
   "description": "Reference track demonstrating every track edit point. Exercises all 12 segment tags, multi-tag segments, all three surfaces (tarmac/concrete/gravel) and all three conditions (dry/damp/wet) at the per-segment level, plus every top-level field. The 'description' field is ignored by the loader and is here for documentation only.",
   "layout_type": "road_course",
   "base_lap_time": 132.0,
-  "laps": 7,
   "length_km": 4.6,
   "pit_lane_loss_s": 24.0,
   "overtake_difficulty": 0.55,
@@ -13,18 +12,134 @@
   "default_condition": "dry",
   "weather_variability": 0.45,
   "segments": [
-    {"name": "Pit Straight", "length_pct": 0.12, "tags": ["long_straight", "wide_track"], "surface": "concrete", "condition": "dry"},
-    {"name": "Turn 1 Braking", "length_pct": 0.06, "tags": ["hard_braking_zone", "slow_corner"], "surface": "tarmac", "condition": "dry"},
-    {"name": "The Esses", "length_pct": 0.10, "tags": ["technical_section", "curb_riding"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Ridge Crest", "length_pct": 0.08, "tags": ["high_speed_corner", "exposed"], "surface": "tarmac", "condition": "damp"},
-    {"name": "Forest Descent", "length_pct": 0.09, "tags": ["bumpy_surface", "narrow_track"], "surface": "tarmac", "condition": "wet"},
-    {"name": "Back Straight", "length_pct": 0.11, "tags": ["long_straight"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Stadium Chicane", "length_pct": 0.07, "tags": ["tight_chicane", "hard_braking_zone"], "surface": "concrete", "condition": "dry"},
-    {"name": "Gravel Sweep", "length_pct": 0.07, "tags": ["high_speed_corner", "exposed"], "surface": "gravel", "condition": "damp"},
-    {"name": "Short Chute", "length_pct": 0.06, "tags": ["short_straight", "wide_track"], "surface": "tarmac", "condition": "dry"},
-    {"name": "The Hairpin", "length_pct": 0.06, "tags": ["hard_braking_zone", "slow_corner", "curb_riding"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Technical Complex", "length_pct": 0.10, "tags": ["technical_section", "narrow_track", "bumpy_surface"], "surface": "tarmac", "condition": "damp"},
-    {"name": "Final Chicane", "length_pct": 0.05, "tags": ["tight_chicane"], "surface": "tarmac", "condition": "dry"},
-    {"name": "Run to Line", "length_pct": 0.03, "tags": ["short_straight"], "surface": "concrete", "condition": "dry"}
+    {
+      "name": "Pit Straight",
+      "length_pct": 0.12,
+      "tags": [
+        "long_straight",
+        "wide_track"
+      ],
+      "surface": "concrete",
+      "condition": "dry"
+    },
+    {
+      "name": "Turn 1 Braking",
+      "length_pct": 0.06,
+      "tags": [
+        "hard_braking_zone",
+        "slow_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "The Esses",
+      "length_pct": 0.1,
+      "tags": [
+        "technical_section",
+        "curb_riding"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Ridge Crest",
+      "length_pct": 0.08,
+      "tags": [
+        "high_speed_corner",
+        "exposed"
+      ],
+      "surface": "tarmac",
+      "condition": "damp"
+    },
+    {
+      "name": "Forest Descent",
+      "length_pct": 0.09,
+      "tags": [
+        "bumpy_surface",
+        "narrow_track"
+      ],
+      "surface": "tarmac",
+      "condition": "wet"
+    },
+    {
+      "name": "Back Straight",
+      "length_pct": 0.11,
+      "tags": [
+        "long_straight"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Stadium Chicane",
+      "length_pct": 0.07,
+      "tags": [
+        "tight_chicane",
+        "hard_braking_zone"
+      ],
+      "surface": "concrete",
+      "condition": "dry"
+    },
+    {
+      "name": "Gravel Sweep",
+      "length_pct": 0.07,
+      "tags": [
+        "high_speed_corner",
+        "exposed"
+      ],
+      "surface": "gravel",
+      "condition": "damp"
+    },
+    {
+      "name": "Short Chute",
+      "length_pct": 0.06,
+      "tags": [
+        "short_straight",
+        "wide_track"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "The Hairpin",
+      "length_pct": 0.06,
+      "tags": [
+        "hard_braking_zone",
+        "slow_corner",
+        "curb_riding"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Technical Complex",
+      "length_pct": 0.1,
+      "tags": [
+        "technical_section",
+        "narrow_track",
+        "bumpy_surface"
+      ],
+      "surface": "tarmac",
+      "condition": "damp"
+    },
+    {
+      "name": "Final Chicane",
+      "length_pct": 0.05,
+      "tags": [
+        "tight_chicane"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Run to Line",
+      "length_pct": 0.03,
+      "tags": [
+        "short_straight"
+      ],
+      "surface": "concrete",
+      "condition": "dry"
+    }
   ]
 }

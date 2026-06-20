@@ -19,7 +19,25 @@ def new_game() -> GameState:
     return GameState()
 
 
+def _starter_car(cars: list[Car]) -> Car:
+    """Cheapest entry-class car, chosen by criteria rather than a hardcoded id, so the
+    career still starts even if the seed catalog changes. Prefers the lowest class
+    present, then the cheapest car within it."""
+    if not cars:
+        raise ValueError("No cars available to start a career")
+    class_order = {"E": 0, "D": 1, "C": 2, "B": 3, "A": 4, "S": 5}
+    return min(cars, key=lambda c: (class_order.get(c.identity.car_class, 99), c.value))
+
+
+def _starter_driver(drivers: list[Driver]) -> Driver:
+    """A rookie to start with: the cheapest-salary driver available."""
+    if not drivers:
+        raise ValueError("No drivers available to start a career")
+    return min(drivers, key=lambda d: d.salary)
+
+
 def new_career() -> GameState:
-    cars = {car.identity.id: car for car in load_cars()}
-    drivers = {driver.id: driver for driver in load_drivers()}
-    return GameState(garage=[cars["kanto_k660"]], hired_drivers=[drivers["driver_novak"]])
+    return GameState(
+        garage=[_starter_car(load_cars())],
+        hired_drivers=[_starter_driver(load_drivers())],
+    )

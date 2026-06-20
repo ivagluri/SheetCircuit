@@ -5,17 +5,25 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
+from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
 from game.effective_stats import class_rating, compute_effective_stats, performance_type
 from game.game_state import GameState
-from game.loader import load_drivers, load_events, load_tracks
+from game.loader import load_drivers, load_events, load_tracks, resolve_race
 from game.market import list_market_cars
 from game.models import RaceSession, RaceTickResult
 from game.race_session import apply_player_command, enter_event, finish_event
 from game.save_load import load_game, save_game
 from game.sorting import SortSpec, sort_items, sort_label
 from game.tuning import update_tune_fields
+
+
+def _fuel_range_km(eff) -> float:
+    """Nominal full-tank range (km) on a neutral track: tank / economy."""
+    economy_l_per_km = eff.fuel_burn_rate * FUEL_L_PER_KM_UNIT
+    if economy_l_per_km <= 0:
+        return 0.0
+    return eff.fuel_capacity_l / economy_l_per_km
 
 
 @dataclass
@@ -301,7 +309,8 @@ def _car_extended_screen(car, name: str) -> ScreenData:
                     ["Stability", f"{eff.stability:.0f}"],
                     ["Reliability", f"{eff.reliability:.0f}"],
                     ["Tyre Wear Rate", f"{eff.tire_wear_rate:.2f}"],
-                    ["Fuel Burn Rate", f"{eff.fuel_burn_rate:.2f}"],
+                    ["Fuel Economy", f"{eff.fuel_burn_rate * FUEL_L_PER_KM_UNIT * 100:.1f} L/100km"],
+                    ["Fuel Range", f"~{_fuel_range_km(eff):.0f} km"],
                     ["Engine Heat Rate", f"{eff.engine_heat_rate:.1f}"],
                 ],
             ),
@@ -481,6 +490,11 @@ def event_detail_screen(event_id: str) -> ScreenData:
         raise ValueError(f"Unknown event: {event_id}")
     tracks = {track.id: track for track in load_tracks()}
     track = tracks[event.track_id]
+    race_format = resolve_race(event, track)
+    if race_format.laps is not None:
+        race_desc = f"{race_format.laps} laps ({race_format.laps * track.length_km:.1f} km)"
+    else:
+        race_desc = f"{race_format.duration_s / 3600:.1f} h (time)"
     return ScreenData(
         name="event_detail",
         title=event.name,
@@ -493,8 +507,8 @@ def event_detail_screen(event_id: str) -> ScreenData:
                     ["ID", event.id],
                     ["Class Limit", event.car_class_limit],
                     ["Entry Fee", f"${event.entry_fee}"],
-                    ["Laps", track.laps],
-                    ["Length", f"{track.length_km} km"],
+                    ["Race", race_desc],
+                    ["Lap Length", f"{track.length_km} km"],
                     ["Opponents", event.opponent_count],
                     ["Prizes", ", ".join(f"${prize}" for prize in event.prize_money)],
                 ],

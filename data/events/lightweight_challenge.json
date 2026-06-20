@@ -1,0 +1,26 @@
+{
+  "id": "lightweight_challenge",
+  "name": "Lightweight Challenge",
+  "track_id": "maple_short",
+  "car_class_limit": "E",
+  "entry_fee": 300,
+  "prize_money": [
+    2500,
+    1500,
+    900,
+    450,
+    200,
+    0,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {
+    "max_weight_kg": 1000,
+    "allowed_tires": [
+      "economy",
+      "street"
+    ]
+  },
+  "laps": 5
+}

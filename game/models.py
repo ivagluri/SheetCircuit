@@ -201,7 +201,6 @@ class Track:
     name: str
     layout_type: str
     base_lap_time: float
-    laps: int
     length_km: float
     pit_lane_loss_s: float
     segments: list[TrackSegment]
@@ -250,6 +249,28 @@ class Event:
     opponent_count: int
     restrictions: dict
     rival_skill: int | None = None
+    # Race length lives on the event, not the track: one track hosts a 5-lap sprint and a
+    # 24h enduro. Exactly one of these is set (validated in the loader). distance_km is
+    # resolved against the track's length_km; duration_s is time-based (structurally
+    # supported but not yet wired into the race loop).
+    laps: int | None = None
+    distance_km: float | None = None
+    duration_s: float | None = None
+
+
+@dataclass
+class RaceFormat:
+    """How long a race runs, resolved from an event against its track.
+
+    ``laps`` is the fixed lap target for lap- and distance-based races (the loop runs
+    exactly that many). ``mode`` records how it was specified; for ``duration`` the race
+    is open-ended (``laps`` is None) and the loop stops on the time predicate.
+    """
+
+    mode: str  # "laps" | "distance" | "duration"
+    laps: int | None
+    distance_km: float | None = None
+    duration_s: float | None = None
 
 
 @dataclass
@@ -276,6 +297,9 @@ class EffectiveCarStats:
     suspension_compliance: float
     curb_handling: float
     drivetrain: str = "RWD"
+    # Physical attrition inputs: fuel economy is fuel_burn_rate × FUEL_L_PER_KM_UNIT
+    # (litres/km), drawn against this tank; tyre life derives from tire_wear_rate.
+    fuel_capacity_l: float = 0.0
 
 
 @dataclass

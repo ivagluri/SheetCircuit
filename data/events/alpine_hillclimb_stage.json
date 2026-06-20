@@ -1,0 +1,22 @@
+{
+  "id": "alpine_hillclimb_stage",
+  "name": "Alpine Hillclimb",
+  "track_id": "alpine_hillclimb",
+  "car_class_limit": "D",
+  "entry_fee": 400,
+  "prize_money": [
+    3500,
+    2100,
+    1200,
+    600,
+    300,
+    150,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {
+    "max_class_rating": 349
+  },
+  "laps": 1
+}

@@ -137,12 +137,19 @@ class OrphanStatPhase3Tests(unittest.TestCase):
         kind.durability.mechanical_sympathy_modifier = base.durability.mechanical_sympathy_modifier + 12
         self.assertGreater(self._eff(kind).reliability, self._eff(base).reliability)
 
-    def test_bigger_tank_and_efficiency_lower_fuel_burn(self) -> None:
+    def test_efficiency_lowers_burn_rate_tank_extends_range(self) -> None:
+        # Physical fuel model: efficiency trims the burn *rate*; tank capacity no longer
+        # touches the rate — it sets real range (litres burned / capacity).
         base = deepcopy(self.cars["kanto_k660"])
-        thrifty = deepcopy(base)
-        thrifty.fuel.fuel_capacity_l = base.fuel.fuel_capacity_l + 30
-        thrifty.fuel.fuel_efficiency = min(99, base.fuel.fuel_efficiency + 25)
-        self.assertLess(self._eff(thrifty).fuel_burn_rate, self._eff(base).fuel_burn_rate)
+        efficient = deepcopy(base)
+        efficient.fuel.fuel_efficiency = min(99, base.fuel.fuel_efficiency + 25)
+        self.assertLess(self._eff(efficient).fuel_burn_rate, self._eff(base).fuel_burn_rate)
+
+        bigger = deepcopy(base)
+        bigger.fuel.fuel_capacity_l = base.fuel.fuel_capacity_l + 30
+        # Same burn rate, but the larger tank is carried through for range.
+        self.assertAlmostEqual(self._eff(bigger).fuel_burn_rate, self._eff(base).fuel_burn_rate, places=9)
+        self.assertGreater(self._eff(bigger).fuel_capacity_l, self._eff(base).fuel_capacity_l)
 
     def test_body_damage_raises_drag(self) -> None:
         base = deepcopy(self.cars["suzuka_roadster"])

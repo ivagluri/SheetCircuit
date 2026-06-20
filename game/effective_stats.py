@@ -223,7 +223,8 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> Effect
     # lap, so capacity becomes a real strategic lever (bounded to avoid extremes).
     fuel_efficiency = (pt.fuel_efficiency + fu.fuel_efficiency) / 2
     fuel_burn_rate *= _centered_factor(fuel_efficiency, C.FUEL_EFFICIENCY_REF, -C.FUEL_EFFICIENCY_BURN_PER_UNIT)
-    fuel_burn_rate *= max(0.75, min(1.35, C.FUEL_CAPACITY_REF_L / max(fu.fuel_capacity_l, 1)))
+    # Tank capacity no longer fudges the burn *rate*; it sets real range at race time
+    # (litres burned / capacity). A bigger tank = more laps between stops, not less burn.
     tire_wear_rate = max(0.20, (PERCENT_MAX - ti.tire_wear_resistance) / PERCENT_MAX)
     tire_heat_rate = max(0.20, (PERCENT_MAX - ti.tire_heat_resistance) / PERCENT_MAX)
     # Wider tyres run a touch hotter and wear faster; quicker-warming tyres heat sooner.
@@ -274,6 +275,7 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> Effect
         suspension_compliance=suspension_compliance,
         curb_handling=curb_handling,
         drivetrain=drivetrain,
+        fuel_capacity_l=float(fu.fuel_capacity_l),
     )
 
 

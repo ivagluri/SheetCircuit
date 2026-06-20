@@ -11,14 +11,13 @@ from game.race_session import enter_event, simulate_tick
 from game.simulation import calculate_lap_time, lap_time_over_interval
 
 
-def _track(segments, base_lap_time=120.0, laps=3, length_km=3.0):
+def _track(segments, base_lap_time=120.0, length_km=3.0):
     return track_from_dict(
         {
             "id": "tmp",
             "name": "Tmp",
             "layout_type": "circuit",
             "base_lap_time": base_lap_time,
-            "laps": laps,
             "length_km": length_km,
             "pit_lane_loss_s": 20.0,
             "overtake_difficulty": 0.5,

@@ -1,0 +1,22 @@
+{
+  "id": "oval_night",
+  "name": "Oval Night",
+  "track_id": "northbank_oval",
+  "car_class_limit": "D",
+  "entry_fee": 350,
+  "prize_money": [
+    3000,
+    1800,
+    1000,
+    500,
+    250,
+    100,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {
+    "max_class_rating": 299
+  },
+  "laps": 8
+}

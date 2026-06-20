@@ -195,8 +195,12 @@ tarmac integrates to the legacy `calculate_lap_time` exactly and balance is pres
 the reference used by opponents and `simulate_race`. Surface/condition come from
 `SURFACE_MODIFIERS`/`CONDITION_MODIFIERS` (grip + tyre-wear mult, plus a `wet_weight`
 that blends car grip->wet_grip and driver pace->wet_skill). Because mistakes/failures
-roll per tick, a single-lap point-to-point stage (`laps: 1`, start != finish) races
-with the same pseudo-live telemetry and commands as a multi-lap circuit.
+roll per tick, a single-lap point-to-point stage (an event with `laps: 1`, start !=
+finish) races with the same pseudo-live telemetry and commands as a multi-lap circuit.
+Race length lives on the **event** (one of `laps` / `distance_km` / `duration_s`,
+resolved by `loader.resolve_race`), not the track; the track defines one lap of
+geometry. Attrition is physical: fuel is litres vs the tank, tyres are a distance-based
+life, engine heat and driver fatigue accrue over time (see `_apply_lap_wear`).
 
 Non-interactive full race:
 
@@ -277,7 +281,7 @@ If balancing feels wrong, inspect (tune constants first):
 ```text
 constants.py  (RIVAL_* block)
 game/opponents.py
-data/events/seed_events.json
+data/events/*.json   (one file per event; race length lives here)
 game/effective_stats.py
 ```
 
@@ -324,7 +328,7 @@ build_segment_profiles(segments) -> Track.segment_profiles  # intensive, positio
 ```
 
 `data/tracks/` ships eight tracks. `summit_ridge_gp.json` (circuit) and
-`alpine_hillclimb.json` (`laps: 1` point-to-point) are reference tracks
+`alpine_hillclimb.json` (point-to-point; its event runs `laps: 1`) are reference tracks
 exercising all 12 tags and the full surface/condition range; `maple_short.json`,
 `northbank_oval.json`, `red_valley_club.json`, `cresta_speed_run.json`,
 `glenmoor_esses.json`, and `cinder_pass.json` round out the calendar.
