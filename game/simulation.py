@@ -27,6 +27,7 @@ from constants import (
     ENGINE_TEMP_PENALTY_MAX,
     FUEL_L_PER_KM_UNIT,
     MILEAGE_KM_MULTIPLIER,
+    MIN_LAP_FRACTION,
     PIT_ENGINE_COOL_C,
     PIT_FUEL_RESTORE_PCT,
     PIT_TIRE_RESTORE_PCT,
@@ -110,6 +111,7 @@ def lap_time_over_interval(
             - driver_pace_bonus
         ) * length
 
+    core = max(core, track.base_lap_time * length * MIN_LAP_FRACTION)
     return core + (_state_penalty(state) + _lap_variance(driver, rng)) * length
 
 

@@ -111,7 +111,10 @@ Split into two commits:
   and all display/sort readers route to it. Stored `car_class` removed from `CarIdentity`,
   `car_from_dict`, all 27 `data/cars/*.json`, and the creator schema. Event
   `max_class_rating` restrictions rescaled to the new PR scale (`new = round(1.4·old+60)`).
-- **3b (pending)** — widen the on-track race gulf (`PERF_SCALE`); re-pin balance baseline.
+- **3b (done)** — widen the on-track race gulf: `PERF_SCALE` 0.25 -> 0.36, so a hypercar
+  laps a pure drag ~49% quicker than a 32 hp microcar (was ~33%) while equal-capability
+  cars stay even. Added a `MIN_LAP_FRACTION` lap-time floor; re-pinned the balance
+  baseline and the (now wider) S-class competitiveness guards.
 
 ### Follow-ups (separate tasks, noted)
 - **F1 — player explainer.** Class is no longer editable, so the garage/market needs a

@@ -10,7 +10,15 @@ PERCENT_MAX = 100.0
 PERCENT_LOW_FUEL_WARNING = 20.0
 PERCENT_WORN_TIRE_WARNING = 30.0
 
-PERF_SCALE = 0.25
+# How many seconds a unit of capability composite shaves off a lap. Raised from the
+# original 0.25 to widen the on-track gulf: a performance advantage now moves lap time
+# more, so a power car genuinely pulls away on a straight (a hypercar laps a pure drag
+# ~50% quicker than a microcar, vs ~33% before) while equal-capability cars stay even.
+# The class brackets are unaffected -- they read the base_lap_time-independent composite.
+PERF_SCALE = 0.36
+# A lap (or interval) can never drop below this fraction of its base time, so a very
+# high-composite custom car cannot drive the clock toward zero at the higher PERF_SCALE.
+MIN_LAP_FRACTION = 0.30
 DRIVER_PACE_SCALE = 0.08
 DRIVER_XP_PER_RACE = 10
 DRIVER_XP_PER_STAT_POINT = 50

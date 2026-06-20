@@ -40,19 +40,17 @@ class CarCatalogTests(unittest.TestCase):
     def test_s_class_focus_cars_are_competitive(self) -> None:
         s_cars = [car for car in self.cars if derived_class(car, self.parts) == "S"]
 
-        # Secondary stats (chassis/suspension/tyre/brake detail) now influence pace,
-        # so a focus car is a touch further off on the track that punishes its weakness
-        # (maple, the most handling-biased layout). The cars stay competitive — the
-        # spread is ~2.8% of a 73s lap — so the guard is widened from the pre-wiring 2.0s
-        # rather than removed. If this creeps further, the orphan-stat magnitudes in
-        # constants.py are too hot.
+        # The Phase 3b gulf widening (PERF_SCALE 0.36) lets a capability edge open a bigger
+        # lap-time gap, so the intra-S spread grew to ~2.9s (~4% of a ~75s lap). The S cars
+        # stay competitive within a class, so the guard is widened to 3.1s. If it creeps
+        # past that, PERF_SCALE or the orphan-stat magnitudes are too hot.
         for track in self.tracks:
             laps = [
                 calculate_lap_time(compute_effective_stats(car, self.parts), track)
                 for car in s_cars
             ]
             with self.subTest(track=track.id):
-                self.assertLess(max(laps) - min(laps), 2.2)
+                self.assertLess(max(laps) - min(laps), 3.1)
 
     def test_s_class_focuses_are_reflected_in_raw_stats(self) -> None:
         s_cars = {car.identity.id: car for car in self.cars if derived_class(car, self.parts) == "S"}

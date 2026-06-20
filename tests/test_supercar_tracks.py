@@ -43,8 +43,9 @@ class SupercarTrackTests(unittest.TestCase):
             fastest = min(laps, key=laps.get)
             with self.subTest(track=track_id):
                 self.assertEqual(fastest, favoured_id, f"{track_id} laps: {laps}")
-                # Subtle tilt, not a blowout — keep inside the S-class competitiveness band.
-                self.assertLess(max(laps.values()) - min(laps.values()), 2.2)
+                # Subtle tilt, not a blowout — the favoured car wins but the S field stays
+                # competitive. Band widened to 3.1s after the Phase 3b gulf widening.
+                self.assertLess(max(laps.values()) - min(laps.values()), 3.1)
 
     def test_straight_track_is_no_laps_point_to_point(self) -> None:
         # Race length now lives on the event: the cresta event runs a single pass.
@@ -52,11 +53,13 @@ class SupercarTrackTests(unittest.TestCase):
         self.assertEqual(resolve_race(event, self.tracks["cresta_speed_run"]).laps, 1)
 
     def test_favoured_car_laps_near_placeholder_benchmark(self) -> None:
-        # 90s is a soft placeholder; just guard against a grossly mis-set base_lap_time.
+        # A loose sanity band against a grossly mis-set base_lap_time. The lower bound
+        # dropped after the Phase 3b gulf widening (a favoured S car now laps its home
+        # track in the high 70s). base_lap_time realism is Phase 4, which will retighten this.
         for track_id, favoured_id in FAVOURED.items():
             lap = self._lap(self.cars[favoured_id], self.tracks[track_id])
             with self.subTest(track=track_id):
-                self.assertGreater(lap, 84.0)
+                self.assertGreater(lap, 72.0)
                 self.assertLess(lap, 96.0)
 
     def test_speed_axes_have_headroom_with_no_wall(self) -> None:

@@ -23,9 +23,9 @@ from game.loader import load_cars, load_parts, load_tracks
 from game.simulation import calculate_lap_time, simulate_race
 
 # Player (kanto_k660 / driver_novak / sunday_cup) total time, re-pinned after the
-# Phase 2 orphan-reference re-anchoring. Folds may nudge these but must stay within
-# tolerance.
-PLAYER_TOTAL_BASELINE = {7: 416.813, 42: 418.119, 9: 417.428}
+# Phase 3b race-gulf widening (PERF_SCALE 0.25 -> 0.36): a capability advantage now moves
+# lap time more, so the field is faster. Folds may nudge these but must stay within tolerance.
+PLAYER_TOTAL_BASELINE = {7: 400.465, 42: 401.568, 9: 400.422}
 TOLERANCE = 0.03  # +/-3%
 
 
