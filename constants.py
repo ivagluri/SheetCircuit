@@ -222,7 +222,7 @@ CAMBER_IDEAL_DEG = 2.0
 CAMBER_PENALTY = 0.08
 RIDE_HEIGHT_IDEAL_MM = 135
 RIDE_HEIGHT_PENALTY = 0.002
-WEIGHT_REFERENCE_KG = 1100
+WEIGHT_REFERENCE_KG = 1100   # intrinsic light-sports-car reference (not a catalog mean)
 DOWNFORCE_DRAG_PENALTY = 0.06
 COOLING_HEAT_REDUCTION = 0.006
 STRESS_RELIABILITY_PENALTY = 0.004
@@ -233,19 +233,22 @@ FINAL_DRIVE_SPEED_FACTOR = 0.08
 # --- Orphan-stat reference points -------------------------------------------
 # Previously-unused car/tune/durability stats are folded into the existing
 # effective axes as *centered* multipliers: each factor is 1.0 when a stat sits
-# at its seed-data reference (roughly the catalog mean), and swings only a few
-# percent either side, clamped per axis to [ORPHAN_FACTOR_FLOOR, _CEIL]. This
-# keeps the catalog's current balance (reference lap k660@maple stays in band)
-# while making composition matter car-to-car. Reference points are the catalog
-# means at the time of wiring; see tests/test_balance_baseline.py for the guard.
+# at its reference, and swings only a few percent either side, clamped per axis
+# to [ORPHAN_FACTOR_FLOOR, _CEIL]. The references are *intrinsic design anchors*
+# (the design-range midpoint of a 0-100 rating, or a documented real-world
+# typical value), NOT the mean of whatever cars happen to be loaded: a car's
+# effective stats must not depend on what else is in the catalog. So "neutral"
+# stays put as the catalog grows or a custom out-of-distribution car is built.
+# The clamp band contains any single axis; see tests/test_balance_baseline.py
+# for the (deliberately re-pinned) drift tripwire.
 ORPHAN_FACTOR_FLOOR = 0.88
 ORPHAN_FACTOR_CEIL = 1.12
 
 # Rating-style stats (0-100). per_unit is "fraction per point of deviation".
-RATING_REF = 65.0            # shared neutral center for most 0-100 ratings
+RATING_REF = 50.0            # design-range midpoint shared by most 0-100 ratings
 
 # Engine character -> acceleration / response
-TORQUE_RATIO_REF = 1.23      # torque_nm / power_hp neutral ratio (catalog mean ~1.23)
+TORQUE_RATIO_REF = 1.25      # typical road-engine torque_nm:power_hp ratio
 TORQUE_RATIO_ACCEL_FACTOR = 0.06
 POWERBAND_REF = RATING_REF
 POWERBAND_ACCEL_PER_UNIT = 0.0010
@@ -261,26 +264,27 @@ CENTER_OF_GRAVITY_REF = RATING_REF      # higher = lower CoG = better
 COG_HANDLING_PER_UNIT = 0.0004
 ROTATION_REF = RATING_REF
 ROTATION_HANDLING_PER_UNIT = 0.00035
-WEIGHT_DIST_IDEAL = 0.52                # ideal front weight fraction
+WEIGHT_DIST_IDEAL = 0.52                # intrinsic near-50/50 ideal front weight fraction
 WEIGHT_DIST_HANDLING_PENALTY = 0.25     # per unit |dev| in fraction
 
-# Tires -> grip / wear / heat
-TIRE_WIDTH_FRONT_REF = 214.0
-TIRE_WIDTH_REAR_REF = 231.0
+# Tires -> grip / wear / heat. References are a typical mid-spec staggered
+# performance-tyre size, not the catalog mean.
+TIRE_WIDTH_FRONT_REF = 205.0
+TIRE_WIDTH_REAR_REF = 225.0
 TIRE_WIDTH_GRIP_PER_MM = 0.0006
 TIRE_WIDTH_WEAR_PER_MM = 0.0004         # wider tyres wear/heat slightly more
 TIRE_WARMUP_REF = RATING_REF
 TIRE_WARMUP_HEAT_PER_UNIT = 0.0030      # higher warmup -> faster tyre heat climb
 
-# Brakes -> braking
-BRAKE_COOLING_REF = 60.0
+# Brakes -> braking (0-100 ratings, design-range midpoint)
+BRAKE_COOLING_REF = 50.0
 BRAKE_COOLING_PER_UNIT = 0.0007
-BRAKE_FADE_REF = 57.0
+BRAKE_FADE_REF = 50.0
 BRAKE_FADE_PER_UNIT = 0.0007
 BRAKE_STABILITY_BLEND = 0.08            # weight of computed brake_stability into braking
 
-# Suspension -> handling / grip
-BUMP_ABSORPTION_REF = 52.0
+# Suspension -> handling / grip (0-100 ratings, design-range midpoint)
+BUMP_ABSORPTION_REF = 50.0
 BUMP_HANDLING_PER_UNIT = 0.0004
 STEERING_PRECISION_REF = RATING_REF
 STEERING_HANDLING_PER_UNIT = 0.0004
@@ -290,8 +294,8 @@ COMPLIANCE_HANDLING_PER_UNIT = 0.00035
 CURB_HANDLING_REF = RATING_REF
 CURB_HANDLING_PER_UNIT = 0.00035
 
-# Aero -> drag / top speed confidence
-AERO_EFFICIENCY_REF = 40.0
+# Aero -> drag / top speed confidence (0-100 rating, design-range midpoint)
+AERO_EFFICIENCY_REF = 50.0
 AERO_EFFICIENCY_DRAG_PER_UNIT = 0.0040  # higher efficiency trims effective drag
 STABILITY_TOPSPEED_BLEND = 0.08         # weight of computed stability into top_speed
 
@@ -304,30 +308,33 @@ ELEVATION_FUEL_PER_M = 0.0005
 ELEVATION_FACTOR_FLOOR = 0.96
 ELEVATION_FACTOR_CEIL = 1.20
 
-# Tune knobs. Ideals are the catalog-mean default setups, so a stock car is neutral
-# and only *tuning away from default* moves performance (keeps balance intact).
+# Tune knobs. Ideals are the *neutral street setup* -- the value that neither helps
+# nor hurts -- so a stock car is neutral and only tuning away from it moves
+# performance. Anchored to the setup's own meaning, not the catalog mean.
 GEAR_BIAS_ACCEL_FACTOR = 0.05          # +bias -> accel, -top_speed (like a soft final drive)
 GEAR_BIAS_SPEED_FACTOR = 0.04
-SUSP_STIFFNESS_IDEAL = 49              # catalog-mean stiffness
+SUSP_STIFFNESS_IDEAL = 50              # mid of the 1-100 range (neutral stiffness)
 SUSP_STIFFNESS_HANDLING_PER_UNIT = 0.0010
 SUSP_STIFFNESS_GRIP_PENALTY_PER_UNIT = 0.0006   # deviation from ideal hurts mechanical grip
-ANTIROLL_IDEAL = 4.5                   # catalog-mean anti-roll
+ANTIROLL_IDEAL = 5.0                   # mid of the 1-10 range (neutral anti-roll)
 ANTIROLL_HANDLING_PER_UNIT = 0.010
 TOE_GRIP_PENALTY = 0.05                 # per unit total |toe| (deg) hurts grip
 TOE_RESPONSE_FACTOR = 0.03              # per unit front |toe| aids turn-in handling
-DIFF_POWER_IDEAL = 34                   # catalog-mean power-side diff
+DIFF_POWER_IDEAL = 30                   # a modest street power-LSD lock (neutral)
 DIFF_POWER_ACCEL_PER_UNIT = 0.0009
-DIFF_COAST_IDEAL = 18                   # catalog-mean coast-side diff
+DIFF_COAST_IDEAL = 15                   # a light coast-side lock (relaxed street default)
 DIFF_COAST_HANDLING_PER_UNIT = 0.0009
-DIFF_PRELOAD_IDEAL = 15                 # catalog-mean preload
+DIFF_PRELOAD_IDEAL = 12                 # minimal preload (gentle street default)
 DIFF_PRELOAD_GRIP_PENALTY_PER_UNIT = 0.0008
 
 # Durability / condition -> reliability (folded into effective.reliability)
-DURABILITY_REF = 68.0
+DURABILITY_REF = 50.0                      # 0-100 build-robustness midpoint
 DURABILITY_RELIABILITY_PER_UNIT = 0.0015   # blend of secondary durability stats
 MECH_SYMPATHY_MOD_PER_UNIT = 0.004         # car's mechanical_sympathy_modifier (range ~ -4..15)
-GEARBOX_CONDITION_REF = 80.0
-BODY_CONDITION_REF = 78.0
+# Condition is wear: 100 = factory fresh. Reference is a well-kept, lived-in
+# baseline; a more-worn example is penalised, a near-pristine one rewarded.
+GEARBOX_CONDITION_REF = 85.0
+BODY_CONDITION_REF = 85.0
 BODY_CONDITION_DRAG_PER_UNIT = 0.0015      # damaged body adds drag
 CONDITION_RELIABILITY_PER_UNIT = 0.0010
 
@@ -335,9 +342,8 @@ CONDITION_RELIABILITY_PER_UNIT = 0.0010
 FITNESS_REF = 60.0
 FITNESS_DRAIN_PER_UNIT = 0.006             # fitter driver drains slower
 
-# Fuel model -> capacity / efficiency aware burn
-FUEL_CAPACITY_REF_L = 62.0
-FUEL_EFFICIENCY_REF = 45.0
+# Fuel model -> efficiency-aware burn (0-100 rating, design-range midpoint)
+FUEL_EFFICIENCY_REF = 50.0
 FUEL_EFFICIENCY_BURN_PER_UNIT = 0.0030     # higher efficiency trims burn
 
 TUNE_FIELD_RANGES: dict[str, tuple[float, float]] = {

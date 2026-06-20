@@ -3,8 +3,9 @@
 Roadmap for the remaining "track-agnostic / de-pin from sample data" work, plus the
 deferred time/duration race buildout. Phase 1 (events own race length + physical-units
 attrition + creator event editor + starter-by-criteria) is **done** on branch
-`refactor/track-agnostic-sim` (commit `f4e745e`). This document is self-contained so it
-can be ported to an issue tracker or another repo.
+`refactor/track-agnostic-sim` (commit `f4e745e`). Phase 2 (re-anchor the orphan-stat
+references to intrinsic design anchors) is **implemented, pending review/commit**. This
+document is self-contained so it can be ported to an issue tracker or another repo.
 
 Conventions used below:
 - References are by **symbol/function name**, not line number, so they survive edits.
@@ -127,6 +128,37 @@ Medium-high (touches the progression/economy backbone via class gating). Isolate
 ---
 
 ## Phase 4 — Time / duration races (wire in the deferred buildout)
+
+### Time-scale model (decided)
+Keep three quantities strictly independent (NBA2K's "quarter length" slider wrongly
+fuses them, which is what produces the "season of 2-min quarters" odd-numbers trap):
+1. **Canonical clock** — the real in-world seconds a race takes (`laps × base_lap_time`
+   or `duration_s`). This is the only one that drives physics, attrition, strategy, and
+   points. The engine already integrates real `seconds`, so this exists.
+2. **Sim resolution** — `ticks_per_lap` (4–16). Integration granularity only; the
+   outcome is a Riemann sum over the same real seconds, so it is already
+   resolution-invariant. Never let it affect results.
+3. **Presentation speed** — wall-clock the player spends (1× live → fast-forward →
+   instant-resolve). A pure render multiplier; must have **zero** effect on the result.
+   Does not exist yet — add it as a runtime/UI concept, not race data. For *interactive*
+   races this also sets **decision density** (canonical seconds between player commands):
+   the real arcade↔sim feel knob, still presentation-layer, never canonical length.
+
+**Regime: A now, B later.** Regime **A** = fixed canonical length per event; watchability
+is solved by presentation speed, so results never change with how you watched and the
+odd-numbers trap is structurally impossible. Build A first. **B** (player-selectable
+sprint/full/enduro with economy outputs — points/prize/XP — normalised to a reference
+distance so seasons stay comparable) is a later layer on the same plumbing: A + a
+normalisation factor on extrapolatable rewards only. **Never** ship C (selectable length
+with raw, un-normalised rewards).
+
+**Anchor `base_lap_time` to realism (decided).** The current per-track lap times (and the
+84–90 s reference band) were chosen for watchability, not realism. Derive/validate
+`base_lap_time` from `length_km` × a plausible class average speed (a real-world
+magnitude), and move watchability entirely to presentation speed. Then the reference-lap
+test asserts realism (a class's average speed on the track), not a comfort window. Expect
+to adjust some `data/tracks/*` values and re-pin `test_balance_baseline.py` in the same
+commit. Continues the de-pin throughline.
 
 Phase 1 made the model **duration-ready**; this phase makes it **raceable**. Already in
 place:

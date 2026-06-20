@@ -1,12 +1,15 @@
-"""Characterization guard for the orphan-stat wiring work.
+"""Drift tripwire for the effective-stats model.
 
-The orphan-stat folds (engine/chassis/tyre/brake/suspension/tune/durability stats
-into the existing effective axes) are meant to be *balance-neutral*: composition now
-matters car-to-car, but the catalog's overall pace is unchanged. These tests pin the
-reference lap and a few full-race outcomes so that any phase which accidentally shifts
-balance fails loudly. The tolerance is wide enough to allow the intended few-percent
-refinement but tight enough to catch a real regression. If a change is deliberate,
-update the captured baselines here in the same commit.
+This is a *regression guard*, not a definition of correctness: it does not tie the
+sim to the starter car, it only fails loudly when a change shifts balance more than
+intended so any regression stays bisectable. The orphan-stat folds and their
+references are meant to be roughly balance-neutral at the reference (composition
+matters car-to-car, but the catalog's overall pace is steady). The reference-lap
+band is an absolute, track-anchored sanity check; the captured race times are a
+characterization of the current model. When a change deliberately moves the
+reference (e.g. re-anchoring the orphan references in Phase 2), re-pin the values
+below in the same commit. The tolerance is wide enough to allow the intended
+few-percent refinement but tight enough to catch a real regression.
 """
 
 from __future__ import annotations
@@ -19,9 +22,10 @@ from game.game_state import GameState
 from game.loader import load_cars, load_parts, load_tracks
 from game.simulation import calculate_lap_time, simulate_race
 
-# Player (kanto_k660 / driver_novak / sunday_cup) total time captured on the
-# pre-wiring code. Folds may nudge these but must stay within tolerance.
-PLAYER_TOTAL_BASELINE = {7: 415.463, 42: 417.641, 9: 415.822}
+# Player (kanto_k660 / driver_novak / sunday_cup) total time, re-pinned after the
+# Phase 2 orphan-reference re-anchoring. Folds may nudge these but must stay within
+# tolerance.
+PLAYER_TOTAL_BASELINE = {7: 416.813, 42: 418.119, 9: 417.428}
 TOLERANCE = 0.03  # +/-3%
 
 
