@@ -11,7 +11,7 @@ from __future__ import annotations
 from copy import deepcopy
 import unittest
 
-from game.effective_stats import class_rating, derived_class, performance_type
+from game.effective_stats import class_breakdown, class_rating, derived_class, derived_rating, performance_type
 from game.loader import load_cars, load_parts
 from game.reference_suite import REFERENCE_FIXTURES, archetype_capabilities
 from game.effective_stats import compute_effective_stats
@@ -59,6 +59,15 @@ class ReferenceClassTests(unittest.TestCase):
         veyron.aero.downforce = 10
         self.assertEqual(derived_class(veyron, self.parts), "S")
         self.assertEqual(derived_class(self.cars["kanto_k660"], self.parts), "E")
+
+    def test_class_breakdown_matches_the_real_class(self) -> None:
+        # The player-facing explainer must never drift from the actual eligibility class.
+        for cid in ("torino_500r", "detroit_v8", "aichi_gt_one"):
+            bd = class_breakdown(self.cars[cid], self.parts)
+            self.assertEqual(bd["pr"], derived_rating(self.cars[cid], self.parts))
+            self.assertEqual(bd["class"], derived_class(self.cars[cid], self.parts))
+            self.assertEqual(bd["shape"], performance_type(self.cars[cid], self.parts))
+            self.assertEqual(set(bd), {"drag", "slalom", "hybrid", "mean", "pr", "class", "shape"})
 
     def test_no_axis_pins_the_reference_suite_for_being_atypical(self) -> None:
         # Both extremes produce a full capability profile on every fixture (no zero/NaN),

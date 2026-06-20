@@ -116,12 +116,12 @@ Split into two commits:
   cars stay even. Added a `MIN_LAP_FRACTION` lap-time floor; re-pinned the balance
   baseline and the (now wider) S-class competitiveness guards.
 
-### Follow-ups (separate tasks, noted)
-- **F1 — player explainer.** Class is no longer editable, so the garage/market needs a
-  view of *how* it was derived (the per-fixture suite scores).
-- **F2 — creator derivation.** The creator already shows the derived class live in its
-  preview (`editor/app.py`, `editor/_verify.py`); a fuller creator-side suite readout is
-  the remaining polish.
+### Follow-ups
+- **F1 — player explainer (done).** Help explains class is computed from a fixed
+  drag/slalom/hybrid reference suite; the car detail screen has a "Class Derivation" table
+  (per-fixture capability -> mean -> PR -> class/shape) via `effective_stats.class_breakdown`.
+- **F2 — creator derivation (done).** The creator preview shows the per-fixture suite
+  scores live (`editor/app.py`) alongside the derived class.
 
 ### Acceptance criteria (met in 3a)
 - A spread of archetypes land in sensible brackets; a fabricated Veyron reads top-tier

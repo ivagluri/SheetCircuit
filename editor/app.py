@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from game.effective_stats import class_rating, derived_class, performance_type, compute_effective_stats
+from game.effective_stats import class_breakdown, class_rating, derived_class, performance_type, compute_effective_stats
 from game.loader import (
     DATA_ROOT,
     DataLoadError,
@@ -231,9 +231,12 @@ def car_preview(draft: dict) -> list[str]:
     except (DataLoadError, KeyError, TypeError, ValueError) as exc:
         return [f"[red]incomplete:[/red] {exc}"]
     eff = compute_effective_stats(car)
+    bd = class_breakdown(car)
     return [
         f"[bold]PR {class_rating(car)}[/bold]  class [cyan]{derived_class(car)}[/cyan]"
         f"  ({performance_type(car)})",
+        f"class from reference suite — drag {bd['drag']}  slalom {bd['slalom']}"
+        f"  hybrid {bd['hybrid']}  (mean {bd['mean']})",
         f"power {eff.power:.0f}  accel {eff.acceleration:.0f}  top {eff.top_speed:.0f}"
         f"  grip {eff.grip:.0f}  brake {eff.braking:.0f}  handling {eff.handling:.0f}",
         f"aero {eff.aero_grip:.0f}  drag {eff.drag:.0f}  reliability {eff.reliability:.0f}"

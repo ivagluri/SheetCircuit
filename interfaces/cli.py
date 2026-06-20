@@ -467,10 +467,15 @@ def _show_help() -> None:
         "Car Columns",
         ["Column", "Meaning"],
         [
-            ["Class", "Broad event eligibility letter; restrictions may still apply"],
-            ["PR", "Synthetic performance rating derived from effective race stats"],
-            ["Type", "Short role hint such as Balanced, Power, Handling, or Challenge"],
+            ["Class", "Event eligibility letter (E..S), derived from PR; restrictions may still apply"],
+            ["PR", "Performance rating: mean capability across three reference tracks (drag/slalom/hybrid)"],
+            ["Type", "Shape — where pace comes from: Balanced, Power, Handling, or Challenge"],
         ],
+    )
+    terminal.print(
+        "Class is computed, not stored: every car (including ones you build) is run on a fixed"
+        " drag, slalom and hybrid reference track; the average is its PR/class and the spread is"
+        " its Type. Open a car's details to see the per-track numbers."
     )
     terminal.print(
         "Rivals are matched near your car's derived event pace; higher-class events keep a faster pace floor."

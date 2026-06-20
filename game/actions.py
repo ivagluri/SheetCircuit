@@ -7,7 +7,7 @@ from typing import Any
 
 from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
-from game.effective_stats import class_rating, compute_effective_stats, derived_class, performance_type
+from game.effective_stats import class_breakdown, class_rating, compute_effective_stats, derived_class, performance_type
 from game.game_state import GameState
 from game.loader import load_drivers, load_events, load_tracks, resolve_race
 from game.market import list_market_cars
@@ -206,6 +206,7 @@ def market_car_detail_screen(car_id: str) -> ScreenData:
 
 
 def _car_detail_screen(car, name: str) -> ScreenData:
+    bd = class_breakdown(car)
     return ScreenData(
         name=name,
         title=car.identity.name,
@@ -224,6 +225,19 @@ def _car_detail_screen(car, name: str) -> ScreenData:
                     ["Weight", f"{car.chassis.weight_kg} kg"],
                     ["Drivetrain", car.identity.drivetrain],
                     ["Tags", ", ".join(car.identity.tags)],
+                ],
+            ),
+            # Class is computed, not stored: a car's capability on three standard reference
+            # tracks, averaged into the PR/class; the spread is its "shape".
+            TableData(
+                "Class Derivation",
+                ["Reference", "Capability"],
+                [
+                    ["Drag (power)", bd["drag"]],
+                    ["Slalom (technical)", bd["slalom"]],
+                    ["Hybrid", bd["hybrid"]],
+                    ["Mean -> PR", f"{bd['mean']} -> {bd['pr']}"],
+                    ["Class / Shape", f"{bd['class']} / {bd['shape']}"],
                 ],
             ),
             TableData(

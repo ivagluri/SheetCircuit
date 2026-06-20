@@ -298,6 +298,27 @@ def derived_class(car: Car, parts: list[Part] | None = None) -> str:
     return rating_class(derived_rating(car, parts))
 
 
+def class_breakdown(car: Car, parts: list[Part] | None = None) -> dict:
+    """Display-ready view of how the class is derived: the car's capability on each
+    reference fixture, the mean, and the resulting PR / class / shape. Lets the UI explain
+    a class that is computed rather than stored."""
+    from game.reference_suite import archetype_capabilities  # lazy: avoid import cycle
+
+    effective = compute_effective_stats(car, parts)
+    caps = archetype_capabilities(effective)
+    mean = sum(caps.values()) / len(caps)
+    pr = round(mean * CLASS_RATING_SCALE)
+    return {
+        "drag": round(caps["power"]),
+        "slalom": round(caps["technical"]),
+        "hybrid": round(caps["hybrid"]),
+        "mean": round(mean, 1),
+        "pr": pr,
+        "class": rating_class(pr),
+        "shape": performance_type(car, parts),
+    }
+
+
 def performance_type(car: Car, parts: list[Part] | None = None) -> str:
     """The car's "shape": where its pace comes from, comparing speed axes against control
     axes. Distinguishes same-tier cars (a power specialist vs a balanced car vs a handler)."""
