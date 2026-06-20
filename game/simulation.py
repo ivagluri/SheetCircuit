@@ -63,11 +63,10 @@ def calculate_lap_time(
     state: RaceCarState | None = None,
     rng: random.Random | None = None,
     command: str = "normal",
-    performance_scalar: float = 1.0,
 ) -> float:
     """Time for one full lap. Segment-resolved when the track has segment_profiles."""
     return lap_time_over_interval(
-        effective, track, driver, state, rng, command, performance_scalar,
+        effective, track, driver, state, rng, command,
         start=0.0, length=1.0,
     )
 
@@ -79,7 +78,6 @@ def lap_time_over_interval(
     state: RaceCarState | None = None,
     rng: random.Random | None = None,
     command: str = "normal",
-    performance_scalar: float = 1.0,
     start: float = 0.0,
     length: float = 1.0,
 ) -> float:
@@ -99,7 +97,7 @@ def lap_time_over_interval(
             driver_pace = _blended_pace(driver, profile.wet_weight)
             time_rate = (
                 track.base_lap_time
-                - PERF_SCALE * composite * pace_factor * performance_scalar
+                - PERF_SCALE * composite * pace_factor
                 - driver_pace * DRIVER_PACE_SCALE
             )
             core += time_rate * overlap
@@ -108,7 +106,7 @@ def lap_time_over_interval(
         driver_pace_bonus = driver.pace * DRIVER_PACE_SCALE if driver is not None else 0.0
         core = (
             track.base_lap_time
-            - PERF_SCALE * composite * pace_factor * performance_scalar
+            - PERF_SCALE * composite * pace_factor
             - driver_pace_bonus
         ) * length
 
@@ -191,9 +189,8 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
     )
     cars.update(opponent_cars)
     drivers.update(opponent_drivers)
-    for index, (opponent_car_id, opponent_driver_id, scalar) in enumerate(opponent_entries, start=1):
+    for index, (opponent_car_id, opponent_driver_id) in enumerate(opponent_entries, start=1):
         opponent_state = _initial_state(opponent_car_id, opponent_driver_id, f"Rival {index}", False)
-        opponent_state.performance_scalar = scalar
         race_cars.append(opponent_state)
 
     lap_times: dict[str, list[float]] = {state.label: [] for state in race_cars}
@@ -203,7 +200,7 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
             car = player_car if state.is_player else cars[state.car_id]
             driver = player_driver if state.is_player else drivers[state.driver_id]
             effective = compute_effective_stats(car, parts)
-            lap_time = calculate_lap_time(effective, track, driver, state, rng, performance_scalar=state.performance_scalar)
+            lap_time = calculate_lap_time(effective, track, driver, state, rng)
             state.last_lap_time = lap_time
             state.total_time += lap_time
             state.lap += 1

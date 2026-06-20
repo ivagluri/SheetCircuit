@@ -249,6 +249,7 @@ class Event:
     prize_money: list[int]
     opponent_count: int
     restrictions: dict
+    rival_skill: int | None = None
 
 
 @dataclass
@@ -313,7 +314,6 @@ class RaceCarState:
     total_time: float
     event_log: list[str]
     is_dnf: bool = False
-    performance_scalar: float = 1.0
     lap_elapsed: float = 0.0
 
 

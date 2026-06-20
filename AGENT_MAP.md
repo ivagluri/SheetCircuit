@@ -220,7 +220,7 @@ after the stop and the CLI loop resumes the prior command. AI uses only `push`/`
 validate_event_entry(car, event, parts)
 build_opponent_grid(event, player_car_id, player_driver, cars, parts, track, seed)
   -> (car_roster, driver_roster, entries)
-     entries: list of (car_id, driver_id, performance_scalar)
+     entries: list of (car_id, driver_id)
 ```
 
 Opponents respect event restrictions:
@@ -230,16 +230,14 @@ car_class_limit  max_power_hp  max_weight_kg
 max_overall_condition  allowed_tires  max_class_rating
 ```
 
-Field generation is hybrid-difficulty (see `RIVAL_*` constants):
+Field generation is event-set difficulty (see `RIVAL_*` constants):
 
 ```text
-1. player_ref = player's honest normal-pace lap on this track
-2. center = clamp(player_ref, event class band) + RIVAL_PLAYER_EDGE_S
-     -> rivals track the player but you can outgrow easy events
-3. rivals spread into a small deterministic tier ladder around center
-4. each target lap realised via closest eligible base car + solved
-   driver pace, with RaceCarState.performance_scalar covering the
-   residual (scales car_performance_bonus in calculate_lap_time)
+1. eligible = cars that pass car_class_limit + event restrictions
+2. tier_pool = strongest eligible cars within RIVAL_TIER_RATING_BAND
+   -> player must bring an adequate car; thin classes reuse models
+3. rival_skill = event.rival_skill or CLASS_RIVAL_SKILL[class]
+4. each rival is a real copied car + generated Driver; no performance scalar
 ```
 
 Liveliness comes from two engine-side touches in `simulate_tick`:
@@ -341,4 +339,3 @@ test_car_catalog.py        Catalog class distribution and S-class competitivenes
 test_actions.py            UI-neutral action/screen layer.
 test_cli.py                Terminal menu/screen behavior.
 ```
-

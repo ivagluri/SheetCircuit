@@ -129,7 +129,9 @@ def driver_from_dict(data: dict[str, Any], path: Path | None = None) -> Driver:
 
 
 def event_from_dict(data: dict[str, Any], path: Path | None = None) -> Event:
-    return _dataclass_from_dict(Event, data, path or Path("<memory>"))
+    event_data = dict(data)
+    event_data.setdefault("rival_skill", None)
+    return _dataclass_from_dict(Event, event_data, path or Path("<memory>"))
 
 
 def part_from_dict(data: dict[str, Any], path: Path | None = None) -> Part:

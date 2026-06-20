@@ -67,9 +67,8 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
     )
     cars.update(opponent_cars)
     drivers.update(opponent_drivers)
-    for index, (opponent_car_id, opponent_driver_id, scalar) in enumerate(opponent_entries, start=1):
+    for index, (opponent_car_id, opponent_driver_id) in enumerate(opponent_entries, start=1):
         opponent_state = _initial_state(opponent_car_id, opponent_driver_id, f"Rival {index}", False)
-        opponent_state.performance_scalar = scalar
         states.append(opponent_state)
 
     ticks_per_lap = max(4, min(16, round(track.base_lap_time / RACE_TICKS_PER_LAP_DIVISOR)))
@@ -135,7 +134,7 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         effective = compute_effective_stats(car, session.parts)
         tick_time = lap_time_over_interval(
             effective, session.track, driver, state, rng,
-            command=command, performance_scalar=state.performance_scalar,
+            command=command,
             start=seg_start, length=seg_length,
         )
         if not state.is_player:

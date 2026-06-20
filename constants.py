@@ -132,31 +132,18 @@ TYRE_COOLING_COMMANDS = ("save_tyres", "cool_down", "pit")
 ENGINE_COOLING_COMMANDS = ("save_fuel", "cool_down", "pit")
 
 # --- Rival field generation (see game/opponents.py) ---
-# Per-class "center" lap offset vs the track's base_lap_time, in seconds. A more
-# negative value means a faster class. These define each event's absolute pace
-# band so the player can outgrow easier events. Tunable per class; extend as new
-# classes/cars are added. NOT tied to any specific car.
-CLASS_RIVAL_PACE_OFFSET: dict[str, float] = {
-    "E": -9.0,
-    "D": -13.0,
-    "C": -17.0,
-    "B": -21.0,
-    "A": -25.0,
-    "S": -29.0,
+# Per-class default rival driver skill. Events can override this with rival_skill.
+CLASS_RIVAL_SKILL: dict[str, int] = {
+    "E": 32,
+    "D": 44,
+    "C": 56,
+    "B": 68,
+    "A": 78,
+    "S": 88,
 }
-RIVAL_BAND_HALF_S = 4.0          # half-width of an event's absolute pace band, seconds
-# Deterministic rival pace tiers, as a fraction of base_lap_time. Kept small: this
-# only sets a soft finishing order, not the race-long gaps. Per-tick variance
-# (RIVAL_TICK_VARIANCE_S) does the shuffling so the field stays a tight pack.
-RIVAL_SPREAD_FRAC = 0.003        # ~±0.29s/lap tier on a 95s track (each side of centre)
-RIVAL_TARGET_JITTER_S = 0.15     # per-rival random jitter on target lap, seconds
+RIVAL_SKILL_SIGMA = 8.0          # seeded spread around an event's rival_skill
+RIVAL_TIER_RATING_BAND = 30      # rating points below the best eligible car still in the field tier
 RIVAL_TICK_VARIANCE_S = 0.06     # per-TICK random jitter on each rival's pace (live shuffling)
-RIVAL_REF_PACE = 50              # neutral driver pace used to measure a car's natural lap
-RIVAL_PACE_MIN = 22              # clamp bounds for solved rival driver pace
-RIVAL_PACE_MAX = 96
-RIVAL_PERF_SCALAR_MIN = 0.80     # clamp bounds for per-rival car-performance scalar fallback
-RIVAL_PERF_SCALAR_MAX = 1.45
-RIVAL_PLAYER_EDGE_S = 0.15       # per-lap pace the field cedes the player, so skill/strategy can win
 RIVAL_REACTIVE_GAP_S = 1.0       # opponents push only in an immediate battle within this gap (interactive)
 RACE_DISTANCE_LAP_PROGRESS = 1.0
 LOW_FEEDBACK_THRESHOLD = 50
