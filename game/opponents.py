@@ -5,10 +5,14 @@ from copy import deepcopy
 
 from constants import (
     CLASS_RIVAL_SKILL,
+    EVENT_PACE_FLOOR_PERCENTILE,
+    RIVAL_MATCH_LAP_BAND_FRAC,
+    RIVAL_MATCH_EXPANSION_FACTOR,
+    RIVAL_MATCH_MIN_UNIQUE,
+    RIVAL_MATCH_POOL_FACTOR,
     RIVAL_SKILL_SIGMA,
-    RIVAL_TIER_RATING_BAND,
 )
-from game.effective_stats import class_rating
+from game.effective_stats import compute_effective_stats, derived_rating
 from game.models import Car, Driver, Event, Track
 
 CLASS_ORDER = {"E": 0, "D": 1, "C": 2, "B": 3, "A": 4, "S": 5}
@@ -39,8 +43,13 @@ def build_opponent_grid(
     track: Track,
     seed: int,
 ) -> tuple[dict[str, Car], dict[str, Driver], list[tuple[str, str]]]:
-    """Build a seeded rival field from honest cars and real driver stats."""
-    _ = player_driver, track  # Kept in the API because callers already have this context.
+    """Build a seeded rival field from honest cars and real driver stats.
+
+    The field is anchored to the player's derived event pace, not to the fastest
+    eligible car. That keeps very low-end cars competitive with nearby machinery
+    while still adapting when the catalog grows or a wildly faster/slower car is added.
+    """
+    _ = player_driver  # Skill still affects the race, just not car matchmaking.
     rng = random.Random(seed)
 
     eligible = [deepcopy(car) for car in cars.values() if car.identity.id != player_car_id and _is_eligible(car, event, parts)]
@@ -49,11 +58,8 @@ def build_opponent_grid(
     if not eligible:
         eligible = [deepcopy(car) for car in cars.values() if car.identity.id != player_car_id] or [deepcopy(next(iter(cars.values())))]
 
-    best_rating = max(class_rating(car, parts) for car in eligible)
-    tier_pool = [
-        car for car in eligible
-        if best_rating - class_rating(car, parts) <= RIVAL_TIER_RATING_BAND
-    ] or eligible
+    player_car = cars.get(player_car_id)
+    tier_pool = _event_peer_pool(player_car, eligible, parts, track, event) if player_car else eligible
     rival_skill = _effective_rival_skill(event)
 
     car_roster: dict[str, Car] = {}
@@ -68,6 +74,59 @@ def build_opponent_grid(
         driver_roster[driver.id] = driver
         entries.append((car_id, driver.id))
     return car_roster, driver_roster, entries
+
+
+def _event_peer_pool(
+    player_car: Car,
+    eligible: list[Car],
+    parts: list,
+    track: Track,
+    event: Event,
+) -> list[Car]:
+    if not eligible:
+        return eligible
+
+    player_lap = _natural_lap(player_car, parts, track)
+    profiles = [
+        (car, _natural_lap(car, parts, track))
+        for car in eligible
+    ]
+    floor_lap = _event_floor_lap([lap for _car, lap in profiles], event.car_class_limit)
+    anchor_lap = min(player_lap, floor_lap)
+    profiles.sort(key=lambda profile: (abs(profile[1] - anchor_lap), derived_rating(profile[0], parts), profile[0].identity.id))
+
+    band = anchor_lap * RIVAL_MATCH_LAP_BAND_FRAC
+    target_unique = min(
+        len(profiles),
+        max(RIVAL_MATCH_MIN_UNIQUE, min(event.opponent_count, round(len(profiles) ** 0.5))),
+    )
+    max_pool = min(len(profiles), max(target_unique, round(event.opponent_count * RIVAL_MATCH_POOL_FACTOR)))
+    pool = [car for car, lap in profiles if abs(lap - anchor_lap) <= band]
+    if not pool:
+        expanded = [
+            car for car, lap in profiles
+            if abs(lap - anchor_lap) <= band * RIVAL_MATCH_EXPANSION_FACTOR
+        ]
+        pool = expanded or [profiles[0][0]]
+    elif len(pool) > max_pool:
+        pool = pool[:max_pool]
+    return pool
+
+
+def _event_floor_lap(laps: list[float], class_limit: str) -> float:
+    if not laps:
+        return float("inf")
+    ordered = sorted(laps)
+    percentile = EVENT_PACE_FLOOR_PERCENTILE.get(class_limit, EVENT_PACE_FLOOR_PERCENTILE["E"])
+    percentile = _clamp(percentile, 0.0, 1.0)
+    index = round((len(ordered) - 1) * percentile)
+    return ordered[index]
+
+
+def _natural_lap(car: Car, parts: list, track: Track) -> float:
+    from game.simulation import calculate_lap_time
+
+    return calculate_lap_time(compute_effective_stats(car, parts), track)
 
 
 def _effective_rival_skill(event: Event) -> int:
@@ -97,7 +156,7 @@ def _failed_restriction(car: Car, event: Event, parts: list) -> str:
     if "allowed_tires" in restrictions and car.tires.tire_compound not in restrictions["allowed_tires"]:
         allowed = ", ".join(restrictions["allowed_tires"])
         return f"allowed_tires {allowed}"
-    if "max_class_rating" in restrictions and class_rating(car, parts) > restrictions["max_class_rating"]:
+    if "max_class_rating" in restrictions and derived_rating(car, parts) > restrictions["max_class_rating"]:
         return f"max_class_rating {restrictions['max_class_rating']}"
     return ""
 

@@ -4,12 +4,12 @@ from copy import deepcopy
 import unittest
 from unittest.mock import patch
 
-from game.effective_stats import class_rating
+from game.effective_stats import compute_effective_stats, derived_rating
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks
 from game.opponents import EventEntryError, build_opponent_grid, validate_event_entry
 from game.race_session import enter_event
-from game.simulation import simulate_race
+from game.simulation import calculate_lap_time, simulate_race
 
 
 class OpponentGenerationTests(unittest.TestCase):
@@ -87,10 +87,43 @@ class OpponentGenerationTests(unittest.TestCase):
         opponent_cars, _drivers, entries = build_opponent_grid(
             event, "blackpool_twelve", self.drivers["driver_bellamy"], self.cars, self.parts, track, seed=4
         )
+        player_lap = calculate_lap_time(compute_effective_stats(self.cars["blackpool_twelve"], self.parts), track)
 
         self.assertEqual(len(entries), event.opponent_count)
-        self.assertTrue(all(opponent_cars[car_id].identity.car_class == "S" for car_id, _driver_id in entries))
-        self.assertTrue(all(class_rating(opponent_cars[car_id], self.parts) >= 330 for car_id, _driver_id in entries))
+        self.assertTrue(all(derived_rating(opponent_cars[car_id], self.parts) >= 300 for car_id, _driver_id in entries))
+        self.assertTrue(
+            all(
+                abs(calculate_lap_time(compute_effective_stats(opponent_cars[car_id], self.parts), track) - player_lap)
+                <= track.base_lap_time * 0.03
+                for car_id, _driver_id in entries
+            )
+        )
+
+    def test_lowest_tier_player_gets_nearby_pace_rivals(self) -> None:
+        event = self.events["sunday_cup"]
+        track = self.tracks[event.track_id]
+        opponent_cars, _drivers, entries = build_opponent_grid(
+            event, "torino_500r", self.drivers["driver_novak"], self.cars, self.parts, track, seed=1
+        )
+        player_lap = calculate_lap_time(compute_effective_stats(self.cars["torino_500r"], self.parts), track)
+
+        for car_id, _driver_id in entries:
+            rival_lap = calculate_lap_time(compute_effective_stats(opponent_cars[car_id], self.parts), track)
+            self.assertLessEqual(abs(rival_lap - player_lap), track.base_lap_time * 0.03)
+
+    def test_higher_class_event_keeps_pace_floor_for_slow_player(self) -> None:
+        event = self.events["clubman_trial"]
+        track = self.tracks[event.track_id]
+        opponent_cars, _drivers, entries = build_opponent_grid(
+            event, "torino_500r", self.drivers["driver_novak"], self.cars, self.parts, track, seed=1
+        )
+        player_lap = calculate_lap_time(compute_effective_stats(self.cars["torino_500r"], self.parts), track)
+        rival_laps = [
+            calculate_lap_time(compute_effective_stats(opponent_cars[car_id], self.parts), track)
+            for car_id, _driver_id in entries
+        ]
+
+        self.assertLess(min(rival_laps), player_lap - track.base_lap_time * 0.03)
 
     def test_higher_rival_skill_makes_race_harder(self) -> None:
         low_skill_events = deepcopy(list(self.events.values()))

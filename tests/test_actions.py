@@ -46,8 +46,8 @@ class ActionLayerTests(unittest.TestCase):
         price_sorted = market_screen(parse_sort_spec("market", "price"))
         power_sorted = market_screen(parse_sort_spec("market", "hp"))
 
-        prices = [int(row[4].replace("$", "")) for row in price_sorted.tables[0].rows]
-        powers = [int(row[5].replace(" hp", "")) for row in power_sorted.tables[0].rows]
+        prices = [int(row[6].replace("$", "")) for row in price_sorted.tables[0].rows]
+        powers = [int(row[7].replace(" hp", "")) for row in power_sorted.tables[0].rows]
 
         self.assertEqual(prices, sorted(prices))
         self.assertEqual(powers, sorted(powers, reverse=True))
@@ -105,6 +105,19 @@ class ActionLayerTests(unittest.TestCase):
         self.assertEqual(garage_car.title, "1994 Kanto K660")
         self.assertEqual(market_car.title, "1994 Kanto K660")
         self.assertIn("Driver Stats", [table.title for table in driver.tables])
+
+    def test_garage_and_market_show_pr_and_type(self) -> None:
+        state = new_career()
+
+        garage = garage_screen(state)
+        market = market_screen()
+
+        self.assertEqual(garage.tables[0].headers[4:6], ["PR", "Type"])
+        self.assertEqual(market.tables[0].headers[4:6], ["PR", "Type"])
+        self.assertIsInstance(garage.tables[0].rows[0][4], int)
+        self.assertIsInstance(market.tables[0].rows[0][4], int)
+        self.assertTrue(garage.tables[0].rows[0][5])
+        self.assertTrue(market.tables[0].rows[0][5])
 
     def test_economy_and_tune_actions_mutate_state_and_return_screen(self) -> None:
         state = GameState()

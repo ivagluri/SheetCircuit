@@ -119,7 +119,7 @@ def _class_rank(class_name: str) -> int:
 _CAR_SORT_OPTIONS = [
     SortOption("name", "Name", lambda car: car.identity.name, aliases=("car",)),
     SortOption("class", "Class", lambda car: _class_rank(car.identity.car_class), True, ("tier",)),
-    SortOption("rating", "Rating", class_rating, True, ("pr", "score")),
+    SortOption("rating", "PR", class_rating, True, ("pr", "score")),
     SortOption("hp", "HP", lambda car: car.powertrain.power_hp, True, ("power", "horsepower")),
     SortOption("torque", "Torque", lambda car: car.powertrain.torque_nm, True, ("nm",)),
     SortOption("price", "Price", lambda car: car.value, aliases=("value", "cost")),

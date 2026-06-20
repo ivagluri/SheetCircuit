@@ -492,7 +492,7 @@ def _sell_picker(state: GameState) -> None:
     terminal.header("Sell Car", "Choose a garage car by number or ID; q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "sell"))
     terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
     car = _choose(cars, lambda item: item.identity.id, "Sell")
     if car is None:
         return
@@ -510,7 +510,7 @@ def _repair_picker(state: GameState) -> None:
     terminal.header("Repair", "Choose a garage car by number or ID; q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "repair"))
     terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
     car = _choose(cars, lambda item: item.identity.id, "Repair")
     if car is None:
         return
@@ -528,7 +528,7 @@ def _tune_picker(state: GameState) -> None:
     terminal.header("Tune", "Choose car, field, and value. q cancels.")
     terminal.print(status_bar(state.money, state.week, len(state.garage), "tune"))
     terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
     car = _choose(cars, lambda item: item.identity.id, "Car")
     if car is None:
         return
@@ -660,7 +660,7 @@ def _race_picker(state: GameState) -> None:
     terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
     terminal.menu(menu_bar())
     cars = _sorted_garage(state)
-    terminal.table(_sort_table_title("Your Cars", "garage"), ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+    terminal.table(_sort_table_title("Your Cars", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
     car = _choose(cars, lambda item: item.identity.id, "Car")
     if car is None:
         return

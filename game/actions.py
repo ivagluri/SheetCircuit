@@ -7,7 +7,7 @@ from typing import Any
 
 from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
-from game.effective_stats import class_rating, compute_effective_stats
+from game.effective_stats import class_rating, compute_effective_stats, performance_type
 from game.game_state import GameState
 from game.loader import load_drivers, load_events, load_tracks
 from game.market import list_market_cars
@@ -79,7 +79,7 @@ def garage_screen(state: GameState, sort_spec: SortSpec | None = None) -> Screen
         tables=[
             TableData(
                 _table_title("Garage", "garage", sort_spec),
-                ["#", "ID", "Car", "Class", "Rating", "Condition", "Power"],
+                ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"],
                 [
                     [
                         index,
@@ -87,6 +87,7 @@ def garage_screen(state: GameState, sort_spec: SortSpec | None = None) -> Screen
                         car.identity.name,
                         car.identity.car_class,
                         class_rating(car),
+                        performance_type(car),
                         f"{car.condition.overall_condition:.0f}%",
                         f"{car.powertrain.power_hp} hp",
                     ]
@@ -162,13 +163,15 @@ def market_screen(sort_spec: SortSpec | None = None) -> ScreenData:
         tables=[
             TableData(
                 _table_title("Market", "market", sort_spec),
-                ["#", "ID", "Car", "Class", "Price", "Power", "Cond"],
+                ["#", "ID", "Car", "Class", "PR", "Type", "Price", "Power", "Cond"],
                 [
                     [
                         index,
                         car.identity.id,
                         car.identity.name,
                         car.identity.car_class,
+                        class_rating(car),
+                        performance_type(car),
                         f"${car.value}",
                         f"{car.powertrain.power_hp} hp",
                         f"{car.condition.overall_condition:.0f}%",
@@ -206,7 +209,8 @@ def _car_detail_screen(car, name: str) -> ScreenData:
                 [
                     ["ID", car.identity.id],
                     ["Value", f"${car.value}"],
-                    ["Rating", class_rating(car)],
+                    ["PR", class_rating(car)],
+                    ["Type", performance_type(car)],
                     ["Power", f"{car.powertrain.power_hp} hp"],
                     ["Torque", f"{car.powertrain.torque_nm} Nm"],
                     ["Weight", f"{car.chassis.weight_kg} kg"],
@@ -276,7 +280,8 @@ def _car_extended_screen(car, name: str) -> ScreenData:
                     ["Drivetrain", i.drivetrain],
                     ["Layout", i.layout],
                     ["Value", f"${car.value:,}"],
-                    ["Rating", class_rating(car)],
+                    ["PR", class_rating(car)],
+                    ["Type", performance_type(car)],
                     ["Tags", ", ".join(i.tags)],
                     ["Installed Parts", ", ".join(car.installed_parts) if car.installed_parts else "none"],
                 ],

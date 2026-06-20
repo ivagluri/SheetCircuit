@@ -141,8 +141,25 @@ CLASS_RIVAL_SKILL: dict[str, int] = {
     "A": 78,
     "S": 88,
 }
+# Dynamic event pace floor. Values are percentiles over the eligible event field
+# after sorting by natural lap time, fastest first. E stays permissive; higher
+# classes refuse to scale all the way down if a player brings a much slower car.
+EVENT_PACE_FLOOR_PERCENTILE: dict[str, float] = {
+    "E": 1.00,
+    "D": 0.60,
+    "C": 0.45,
+    "B": 0.30,
+    "A": 0.20,
+    "S": 0.10,
+}
 RIVAL_SKILL_SIGMA = 8.0          # seeded spread around an event's rival_skill
-RIVAL_TIER_RATING_BAND = 30      # rating points below the best eligible car still in the field tier
+# Rival cars are matched around the player's derived event pace instead of the
+# fastest eligible car. The band scales with track length, and the local pool expands
+# to a few nearest neighbours so tiny catalogs still have variety.
+RIVAL_MATCH_LAP_BAND_FRAC = 0.025
+RIVAL_MATCH_EXPANSION_FACTOR = 2.0
+RIVAL_MATCH_MIN_UNIQUE = 3
+RIVAL_MATCH_POOL_FACTOR = 2.0
 RIVAL_TICK_VARIANCE_S = 0.06     # per-TICK random jitter on each rival's pace (live shuffling)
 RIVAL_REACTIVE_GAP_S = 1.0       # opponents push only in an immediate battle within this gap (interactive)
 RACE_DISTANCE_LAP_PROGRESS = 1.0

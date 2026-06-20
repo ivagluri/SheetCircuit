@@ -277,7 +277,8 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> Effect
     )
 
 
-def class_rating(car: Car, parts: list[Part] | None = None) -> int:
+def derived_rating(car: Car, parts: list[Part] | None = None) -> int:
+    """Synthetic performance rating derived from the car's effective race stats."""
     effective = compute_effective_stats(car, parts)
     condition_score = (
         car.condition.overall_condition
@@ -299,6 +300,35 @@ def class_rating(car: Car, parts: list[Part] | None = None) -> int:
         + condition_score * CLASS_RATING_WEIGHTS["condition"]
     )
     return round(composite * CLASS_RATING_SCALE)
+
+
+def class_rating(car: Car, parts: list[Part] | None = None) -> int:
+    return derived_rating(car, parts)
+
+
+def performance_type(car: Car, parts: list[Part] | None = None) -> str:
+    """Short garage/market hint for what the performance rating does not explain."""
+    effective = compute_effective_stats(car, parts)
+    rating = derived_rating(car, parts)
+    tags = set(car.identity.tags)
+    speed_score = (effective.power + effective.acceleration + effective.top_speed) / 3
+    control_score = (effective.grip + effective.braking + effective.handling) / 3
+
+    if rating < 100 or tags.intersection({"challenge", "joke"}):
+        return "Challenge"
+    if speed_score - control_score >= 18 or (
+        car.powertrain.power_hp >= 200 and effective.top_speed - effective.handling >= 40
+    ):
+        return "Power"
+    if control_score - speed_score >= 12:
+        return "Handling"
+    if abs(speed_score - control_score) <= 8:
+        return "Balanced"
+    if car.chassis.weight_kg >= 1600:
+        return "Heavy"
+    if car.chassis.weight_kg <= 900:
+        return "Lightweight"
+    return "Specialist"
 
 
 def rating_class(rating: int) -> str:
@@ -326,5 +356,3 @@ def _pressure_factor(front: float, rear: float) -> float:
 def _ride_height_factor(front: int, rear: int) -> float:
     average = (front + rear) / 2
     return max(0.85, 1 - abs(average - RIDE_HEIGHT_IDEAL_MM) * RIDE_HEIGHT_PENALTY)
-
-

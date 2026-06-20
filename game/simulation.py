@@ -182,6 +182,7 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
     player_car = _find_garage_car(game_state, car_id) or deepcopy(_get(cars, car_id, "car"))
     player_driver = _get(drivers, driver_id, "driver")
     validate_event_entry(player_car, event, parts)
+    cars[player_car.identity.id] = deepcopy(player_car)
 
     race_cars = [_initial_state(player_car.identity.id, player_driver.id, "YOU", True)]
     opponent_cars, opponent_drivers, opponent_entries = build_opponent_grid(
