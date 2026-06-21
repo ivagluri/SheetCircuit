@@ -596,7 +596,10 @@ class CreatorApp:
     def _domain(spec: FieldSpec) -> str:
         if spec.choices:
             shown = list(spec.choices)
-            text = "/".join(shown if len(shown) <= 4 else shown[:4] + ["…"])
+            if len(shown) <= 4:
+                text = "/".join(shown)
+            else:
+                text = "/".join(shown[:4]) + f"/+{len(shown) - 4} more"
             return text + (" (+free)" if spec.free_choices else "")
         if spec.minimum is not None or spec.maximum is not None:
             lo = "" if spec.minimum is None else f"{spec.minimum:g}"
