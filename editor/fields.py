@@ -358,7 +358,7 @@ EVENT_SECTIONS: list[Section] = [
         _f(("rival_skill",), "rival_skill", "int", "0 = class default; else 1-100 override", 0, 100),
     ]),
     Section("Race Length", [
-        _f(("race_mode",), "race_mode", "enum", "laps | distance_km | duration_s (duration not yet raceable)", choices=RACE_MODES),
+        _f(("race_mode",), "race_mode", "enum", "laps | distance_km | duration_s (time-capped enduro)", choices=RACE_MODES),
         _f(("race_value",), "race_value", "float", "laps count, OR race km, OR seconds — per race_mode", 0.0, None),
     ]),
     Section("Restrictions (optional)", [

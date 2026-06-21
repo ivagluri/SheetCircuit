@@ -6,10 +6,10 @@ Phase 1 (events own race length + physical-units attrition + creator event edito
 starter-by-criteria, `f4e745e`); Phase 2 (re-anchor orphan-stat references to intrinsic
 design anchors, `e796a2b`); Phase 3 (car class derived at runtime from a drag/slalom/hybrid
 reference suite + the on-track gulf widened, `5b23a58`/`6118935`, with the F1/F2 class
-explainers `084eba0`). Phase 4 is reassessed and underway: **4.1** (geometry-derived
-`base_lap_time`), **4.2** (run duration races on the lockstep engine), and **4.3**
-(presentation speed / fast-forward) are done; **4.4** (duration-aware race UI + creator copy)
-remains. This document is self-contained so it can be ported to an issue
+explainers `084eba0`). Phase 4 is **done**: **4.1** (geometry-derived `base_lap_time`),
+**4.2** (run duration races on the lockstep engine), **4.3** (presentation speed /
+fast-forward), and **4.4** (duration-aware race UI + creator copy) all landed. The deferred
+async/ragged-enduro follow-up and the two small cleanups below are the only open items. This document is self-contained so it can be ported to an issue
 tracker or another repo.
 
 Conventions used below:
@@ -233,9 +233,14 @@ document both. Tests: `advance_to_lap_end_action` matches ticking a lap by hand
 Touched: `interfaces/cli.py` (race loop, `_print_lap_bar`, `_show_race_help`, `_cycle_speed`),
 `game/actions.py`.
 
-**4.4 — Duration-aware UI + creator copy.** Race screen shows elapsed/target time instead of
-"Lap X/Y" for a duration race; drop "duration not yet raceable" in `editor/fields.py`. Touch:
-`game/actions.py` `race_screen`.
+**4.4 — Duration-aware UI + creator copy (done).** The race screen subtitle and the CLI live
+lap bar now read elapsed/target time (`H:MM:SS` via `actions.format_race_clock`, leader clock
+via `race_clock_elapsed`) plus the climbing lap count for a duration race, instead of a
+"Lap X/Y" target; lap/distance races are unchanged. The creator's `race_mode` help no longer
+says "duration not yet raceable" (now "time-capped enduro"). Test: a duration race's subtitle
+reads in time, a lap race keeps its lap target (`tests/test_duration_race.py`). Touched:
+`game/actions.py` (`race_screen`, formatters), `interfaces/cli.py` (`_print_lap_bar`),
+`editor/fields.py`.
 
 ### Acceptance criteria
 - Every car laps at a plausible speed for the track's length (no 200 km/h keis); k660@maple

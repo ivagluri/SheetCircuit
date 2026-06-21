@@ -20,6 +20,7 @@ from game.actions import (
     event_detail_screen,
     events_screen,
     finish_race_action,
+    format_race_clock,
     fire_driver_action,
     garage_screen,
     hire_driver_action,
@@ -28,6 +29,7 @@ from game.actions import (
     market_screen,
     market_car_detail_screen,
     market_car_extended_screen,
+    race_clock_elapsed,
     race_command_options,
     race_entry_screen,
     race_screen,
@@ -799,15 +801,20 @@ def _cycle_speed(current: float) -> float:
 
 
 def _print_lap_bar(session, current_command: str, pending_command: str | None, speed_mult: float = 1.0) -> None:
-    tpl = session.ticks_per_lap
-    st = session.current_sub_tick
-    filled = int(st / tpl * 24)
-    bar = "█" * filled + "░" * (24 - filled)
-    pct = int(st / tpl * 100)
-    lap = min(session.current_lap + 1, session.total_laps)
     status = f"next: {pending_command}" if pending_command else current_command
+    if session.duration_s is not None:
+        # Duration race: the bar tracks elapsed against the time cap, not within-lap position.
+        elapsed = race_clock_elapsed(session)
+        frac = min(elapsed / session.duration_s, 1.0) if session.duration_s else 1.0
+        label = f"{format_race_clock(elapsed)}/{format_race_clock(session.duration_s)} · Lap {session.current_lap}"
+    else:
+        frac = session.current_sub_tick / session.ticks_per_lap
+        lap = min(session.current_lap + 1, session.total_laps)
+        label = f"Lap {lap}/{session.total_laps}"
+    filled = int(frac * 24)
+    bar = "█" * filled + "░" * (24 - filled)
     sys.stdout.write(
-        f"  Lap {lap}/{session.total_laps}  [{bar}] {pct:3d}%  [{status}]  {speed_mult:g}x"
+        f"  {label}  [{bar}] {int(frac * 100):3d}%  [{status}]  {speed_mult:g}x"
         "  cmd+Enter  N=next lap  F=faster  X=end\n"
     )
     sys.stdout.flush()

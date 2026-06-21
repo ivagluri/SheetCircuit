@@ -13,7 +13,7 @@ from copy import deepcopy
 import unittest
 from unittest import mock
 
-from game.actions import advance_race_action, simulate_to_end_action
+from game.actions import advance_race_action, race_screen, simulate_to_end_action, start_race_action
 from game.game_state import GameState
 from game.loader import load_cars, load_events
 from game.models import Event
@@ -107,6 +107,22 @@ class DurationRaceTests(unittest.TestCase):
 
         self.assertGreater(fuel_left(600.0), 20.0)   # short race: still has a margin
         self.assertLessEqual(fuel_left(1800.0), 5.0)  # long race: forced to refuel
+
+    def test_race_screen_reads_in_time_for_a_duration_race(self) -> None:
+        # 4.4: a duration race shows elapsed/target time, not "Lap X/Y"; a lap race still
+        # shows the lap target.
+        gs = GameState(garage=[self._beater()])
+        gs.money = 10 ** 7
+        session = enter_event(gs, "beater_enduro", "kanto_k660", "driver_novak", seed=3)
+        for _ in range(40):
+            advance_race_action(session, "normal")
+        subtitle = race_screen(session).subtitle
+        self.assertIn("/ 20:00", subtitle)   # against the 1200 s cap
+        self.assertNotIn("Lap 1/", subtitle)  # no fixed lap target
+
+        lap_state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])
+        lap_session = start_race_action(lap_state, "sunday_cup", "kanto_k660", "driver_novak", seed=3).session
+        self.assertIn(f"Lap {lap_session.current_lap}/{lap_session.total_laps}", race_screen(lap_session).subtitle)
 
 
 if __name__ == "__main__":

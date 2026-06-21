@@ -673,6 +673,21 @@ def _gauge_bar(value: float, max_val: float = 100.0, width: int = 16) -> str:
     return "█" * filled + "░" * (width - filled)
 
 
+def format_race_clock(seconds: float) -> str:
+    """Race elapsed/target as H:MM:SS (or M:SS under an hour)."""
+    seconds = max(0, int(round(seconds)))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes}:{secs:02d}"
+
+
+def race_clock_elapsed(session: "RaceSession") -> float:
+    """The duration-race clock: the leader's (front-runner's) elapsed seconds."""
+    return min((state.total_time for state in session.cars), default=0.0)
+
+
 _RACE_LOG_VISIBLE_EVENTS = 10
 
 
@@ -719,13 +734,22 @@ def race_screen(session: RaceSession, tick: RaceTickResult | None = None, error:
     if session.race_log:
         rows = [[lap, message] for lap, message in session.race_log[-_RACE_LOG_VISIBLE_EVENTS:]]
         tables.append(TableData("Race Log", ["Lap", "Event"], rows))
+    if session.duration_s is not None:
+        # Duration race: the canonical clock is the readout, not a lap target. Lap count is
+        # still shown (it climbs as the field circulates) but elapsed/target time leads.
+        lap_part = (
+            f"{format_race_clock(race_clock_elapsed(session))} / {format_race_clock(session.duration_s)}"
+            f" · Lap {session.current_lap}"
+        )
+    else:
+        lap_part = f"Lap {session.current_lap}/{session.total_laps}"
+    subtitle = lap_part + (
+        f" · S{session.current_sub_tick}/{session.ticks_per_lap}" if session.ticks_per_lap > 1 else ""
+    )
     return ScreenData(
         name="race",
         title="Race",
-        subtitle=(
-            f"Lap {session.current_lap}/{session.total_laps}"
-            + (f" · S{session.current_sub_tick}/{session.ticks_per_lap}" if session.ticks_per_lap > 1 else "")
-        ),
+        subtitle=subtitle,
         tables=tables,
         messages=messages,
         actions=race_command_options(),
