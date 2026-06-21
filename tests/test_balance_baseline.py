@@ -22,10 +22,11 @@ from game.game_state import GameState
 from game.loader import load_cars, load_parts, load_tracks
 from game.simulation import calculate_lap_time, simulate_race
 
-# Player (kanto_k660 / driver_novak / sunday_cup) total time, re-pinned after the
-# Phase 3b race-gulf widening (PERF_SCALE 0.25 -> 0.36): a capability advantage now moves
-# lap time more, so the field is faster. Folds may nudge these but must stay within tolerance.
-PLAYER_TOTAL_BASELINE = {7: 400.465, 42: 401.568, 9: 400.422}
+# Player (kanto_k660 / driver_novak / sunday_cup) total time, re-pinned after Phase 4.1
+# made base_lap_time geometry-derived (maple's derived base, 96.3s, is a touch above its old
+# hand-set 95s, so the reference race is marginally slower). Folds may nudge these but must
+# stay within tolerance.
+PLAYER_TOTAL_BASELINE = {7: 406.753, 42: 407.856, 9: 406.71}
 TOLERANCE = 0.03  # +/-3%
 
 

@@ -3,7 +3,6 @@
   "name": "Cinder Pass",
   "description": "A loose gravel rallycross circuit of short sprints and slow corners, with a damp braking zone where traction is scarce. Acceleration plus AWD traction on low-grip surface is king here, suiting the all-wheel-drive Escarpa Pikes. RWD power still launches well on the sprints.",
   "layout_type": "rallycross",
-  "base_lap_time": 111.7,
   "length_km": 3.9,
   "pit_lane_loss_s": 20.0,
   "overtake_difficulty": 0.45,

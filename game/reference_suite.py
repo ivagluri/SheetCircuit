@@ -6,8 +6,8 @@ never from a stored label or the loaded track catalog. This keeps class a proper
 car alone: a custom/creator car gets a real class with nothing to look up and nothing to
 go stale (the same de-pin principle the orphan-stat references follow).
 
-The fixtures' ``base_lap_time``/``length_km`` are irrelevant here -- class reads the
-capability *composite* (a base_lap_time-independent weighted sum of the car's effective
+The fixtures' geometry (length, derived base lap time) is irrelevant here -- class reads
+the capability *composite* (a base_lap_time-independent weighted sum of the car's effective
 axes for that archetype's tag mix), so the race-pace tuning (PERF_SCALE etc.) does not
 move the tiers.
 """
@@ -26,7 +26,7 @@ def _fixture(fixture_id: str, tags: list[str]) -> Track:
     return track_from_dict(
         {
             "id": fixture_id, "name": fixture_id, "layout_type": "circuit",
-            "base_lap_time": 80.0, "laps": 1, "length_km": 3.0, "pit_lane_loss_s": 20.0,
+            "laps": 1, "length_km": 3.0, "pit_lane_loss_s": 20.0,
             "overtake_difficulty": 0.5, "surface": "tarmac", "default_condition": "dry",
             "weather_variability": 0.0, "elevation_change_m": 10, "segments": segments,
         }

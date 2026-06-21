@@ -19,6 +19,39 @@ PERF_SCALE = 0.36
 # A lap (or interval) can never drop below this fraction of its base time, so a very
 # high-composite custom car cannot drive the clock toward zero at the higher PERF_SCALE.
 MIN_LAP_FRACTION = 0.30
+
+# --- Derived base lap time (Phase 4.1) -------------------------------------
+# base_lap_time is never stored; it is computed from a track's own geometry at load
+# (game.loader.derive_base_lap_time), the way a real lap estimate falls out of the
+# corner/straight sequence. Two intrinsic anchors drive it -- neither pinned to whatever
+# tracks happen to be loaded:
+#   * BASE_REFERENCE_SPEED -- the average speed (km/h) a notional mid-spec car holds on a
+#     track whose geometry is perfectly neutral (speed_factor == 1.0).
+#   * REFERENCE_COMPOSITE -- the capability composite of that notional car: the 50/100
+#     design midpoint of every axis, an intrinsic anchor, NOT the catalog mean.
+#   * SEGMENT_TAG_SPEED -- a dimensionless speed factor per segment tag (straights fast,
+#     chicanes slow), consistent with SEGMENT_TAG_WEIGHTS. A segment's factor is the mean
+#     of its tags'; the lap's speed_factor is the length-weighted mean across segments.
+# ref_lap = length_km / (BASE_REFERENCE_SPEED x speed_factor); base_lap_time then adds
+# PERF_SCALE x REFERENCE_COMPOSITE so the design-midpoint car laps exactly at the reference
+# speed and weaker/stronger cars fall slower/faster. The additive constant rescales absolute
+# lap times without changing who wins, and it auto-updates for custom/creator tracks.
+BASE_REFERENCE_SPEED = 125.0   # km/h on neutral geometry, mid-spec car
+REFERENCE_COMPOSITE = 50.0     # design midpoint composite, intrinsic (not a catalog mean)
+SEGMENT_TAG_SPEED: dict[str, float] = {
+    "long_straight": 1.90,
+    "short_straight": 1.15,
+    "high_speed_corner": 1.35,
+    "slow_corner": 0.50,
+    "hard_braking_zone": 0.70,
+    "technical_section": 0.65,
+    "tight_chicane": 0.45,
+    "bumpy_surface": 0.75,
+    "curb_riding": 0.80,
+    "narrow_track": 0.75,
+    "wide_track": 1.25,
+    "exposed": 1.05,
+}
 DRIVER_PACE_SCALE = 0.08
 DRIVER_XP_PER_RACE = 10
 DRIVER_XP_PER_STAT_POINT = 50

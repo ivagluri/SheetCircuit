@@ -2,7 +2,6 @@
   "id": "northbank_oval",
   "name": "Northbank Oval",
   "layout_type": "oval",
-  "base_lap_time": 78.0,
   "length_km": 2.8,
   "pit_lane_loss_s": 18.0,
   "overtake_difficulty": 0.25,

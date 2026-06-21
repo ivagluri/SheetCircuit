@@ -52,15 +52,24 @@ class SupercarTrackTests(unittest.TestCase):
         event = next(e for e in load_events() if e.track_id == "cresta_speed_run")
         self.assertEqual(resolve_race(event, self.tracks["cresta_speed_run"]).laps, 1)
 
-    def test_favoured_car_laps_near_placeholder_benchmark(self) -> None:
-        # A loose sanity band against a grossly mis-set base_lap_time. The lower bound
-        # dropped after the Phase 3b gulf widening (a favoured S car now laps its home
-        # track in the high 70s). base_lap_time realism is Phase 4, which will retighten this.
+    def test_favoured_car_laps_at_a_realistic_pace(self) -> None:
+        # Phase 4.1 derives base_lap_time from the track's own geometry, so the favoured S
+        # car's home lap is now an absolute realism anchor, not a loose placeholder band:
+        # the average speed must be plausible for the track's length and character (a fast
+        # point-to-point speed run vs a twisty esses vs a gravel mountain pass).
+        expected_kmh = {
+            "cresta_speed_run": (230, 280),  # ~6.2 km speed run, top-end hypercar flat out
+            "glenmoor_esses": (115, 140),    # ~4.4 km handling circuit
+            "cinder_pass": (105, 130),       # ~3.9 km gravel pass, traction-limited
+        }
         for track_id, favoured_id in FAVOURED.items():
-            lap = self._lap(self.cars[favoured_id], self.tracks[track_id])
+            track = self.tracks[track_id]
+            lap = self._lap(self.cars[favoured_id], track)
+            avg_kmh = track.length_km / lap * 3600
+            low, high = expected_kmh[track_id]
             with self.subTest(track=track_id):
-                self.assertGreater(lap, 72.0)
-                self.assertLess(lap, 96.0)
+                self.assertGreaterEqual(avg_kmh, low, f"{track_id}: {avg_kmh:.0f} km/h too slow")
+                self.assertLessEqual(avg_kmh, high, f"{track_id}: {avg_kmh:.0f} km/h too fast")
 
     def test_speed_axes_have_headroom_with_no_wall(self) -> None:
         # Supercars exceed 100 internally (no flat clamp) and stay distinct on a speed axis

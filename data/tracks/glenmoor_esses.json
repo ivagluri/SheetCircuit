@@ -3,7 +3,6 @@
   "name": "Glenmoor Esses",
   "description": "A tight, technical road course of linked esses, chicanes and a hard hairpin, with one short straight to breathe. Handling and braking carry the weighting, so a nimble car like the Aichi GT-One is favoured. The short straight keeps the field honest.",
   "layout_type": "road_course",
-  "base_lap_time": 114.4,
   "length_km": 4.4,
   "pit_lane_loss_s": 22.0,
   "overtake_difficulty": 0.7,

@@ -3,7 +3,6 @@
   "name": "Summit Ridge GP",
   "description": "Reference track demonstrating every track edit point. Exercises all 12 segment tags, multi-tag segments, all three surfaces (tarmac/concrete/gravel) and all three conditions (dry/damp/wet) at the per-segment level, plus every top-level field. The 'description' field is ignored by the loader and is here for documentation only.",
   "layout_type": "road_course",
-  "base_lap_time": 132.0,
   "length_km": 4.6,
   "pit_lane_loss_s": 24.0,
   "overtake_difficulty": 0.55,

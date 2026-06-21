@@ -2,7 +2,6 @@
   "id": "maple_short",
   "name": "Maple Short",
   "layout_type": "circuit",
-  "base_lap_time": 95.0,
   "length_km": 2.1,
   "pit_lane_loss_s": 22.0,
   "overtake_difficulty": 0.65,

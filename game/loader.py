@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 from constants import (
+    BASE_REFERENCE_SPEED,
     CONDITION_MODIFIERS,
     CONDITION_NEUTRAL,
     ELEVATION_FACTOR_CEIL,
@@ -14,7 +15,10 @@ from constants import (
     ELEVATION_HEAT_PER_M,
     ELEVATION_REF_M,
     OVERTAKE_DIFFICULTY_TAG_DELTA,
+    PERF_SCALE,
+    REFERENCE_COMPOSITE,
     SEGMENT_TAG_RATES,
+    SEGMENT_TAG_SPEED,
     SEGMENT_TAG_WEIGHTS,
     SURFACE_MODIFIERS,
     SURFACE_NEUTRAL,
@@ -260,6 +264,34 @@ def build_segment_profiles(segments: list[TrackSegment]) -> list[SegmentProfile]
     return profiles
 
 
+def _segment_speed_factor(segment: TrackSegment) -> float:
+    """Dimensionless reference-speed factor for one segment: the mean of its tags'
+    factors (a tagless segment is neutral 1.0). Straights pull it up, chicanes down."""
+    if not segment.tags:
+        return 1.0
+    total = 0.0
+    for tag in segment.tags:
+        if tag not in SEGMENT_TAG_SPEED:
+            raise DataLoadError(f"Unknown segment tag: {tag}")
+        total += SEGMENT_TAG_SPEED[tag]
+    return total / len(segment.tags)
+
+
+def derive_base_lap_time(segments: list[TrackSegment], length_km: float) -> float:
+    """Reference lap time (s) for one lap, derived from the track's own geometry.
+
+    A length-weighted speed factor over the segment tag mix sets the track's reference
+    speed (``BASE_REFERENCE_SPEED x speed_factor``); the reference lap is distance / speed.
+    Adding ``PERF_SCALE x REFERENCE_COMPOSITE`` centres a design-midpoint car at that speed
+    (see constants), so weaker cars lap slower and stronger ones faster. Never stored ->
+    custom/creator tracks get a sane base for free. See constants.SEGMENT_TAG_SPEED.
+    """
+    speed_factor = sum(seg.length_pct * _segment_speed_factor(seg) for seg in segments)
+    speed_factor = max(speed_factor, 1e-6)
+    ref_lap = length_km / (BASE_REFERENCE_SPEED * speed_factor) * 3600.0
+    return ref_lap + PERF_SCALE * REFERENCE_COMPOSITE
+
+
 def _elevation_factor(elevation_m: float, per_m: float) -> float:
     """Bounded multiplier for elevation-driven fuel/heat load (1.0 at the reference)."""
     factor = 1.0 + (elevation_m - ELEVATION_REF_M) * per_m
@@ -304,7 +336,7 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
         id=data["id"],
         name=data["name"],
         layout_type=data["layout_type"],
-        base_lap_time=data["base_lap_time"],
+        base_lap_time=derive_base_lap_time(segments, data["length_km"]),
         length_km=data["length_km"],
         pit_lane_loss_s=data["pit_lane_loss_s"],
         segments=segments,

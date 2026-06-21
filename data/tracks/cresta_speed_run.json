@@ -3,7 +3,6 @@
   "name": "Cresta Speed Run",
   "description": "A coastal point-to-point speed run: nearly all full-throttle straight, run once start-to-finish (laps: 1). Power and top-end dominate the weighting, so a high-power car like the Blackpool Twelve is in its element. Favoured, not guaranteed.",
   "layout_type": "sprint",
-  "base_lap_time": 119.7,
   "length_km": 6.2,
   "pit_lane_loss_s": 24.0,
   "overtake_difficulty": 0.2,

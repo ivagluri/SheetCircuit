@@ -6,8 +6,10 @@ Phase 1 (events own race length + physical-units attrition + creator event edito
 starter-by-criteria, `f4e745e`); Phase 2 (re-anchor orphan-stat references to intrinsic
 design anchors, `e796a2b`); Phase 3 (car class derived at runtime from a drag/slalom/hybrid
 reference suite + the on-track gulf widened, `5b23a58`/`6118935`, with the F1/F2 class
-explainers `084eba0`). Phase 4 (below) is reassessed and ready to build. This document is
-self-contained so it can be ported to an issue tracker or another repo.
+explainers `084eba0`). Phase 4 is reassessed and underway: **4.1** (geometry-derived
+`base_lap_time`) is done; **4.2–4.4** (run duration races, presentation speed,
+duration-aware UI) remain. This document is self-contained so it can be ported to an issue
+tracker or another repo.
 
 Conventions used below:
 - References are by **symbol/function name**, not line number, so they survive edits.
@@ -183,22 +185,28 @@ Already wired from Phase 1: `Event.duration_s` parses; `loader.resolve_race` ret
 `race_session.py`) are the live blockers.
 
 ### Work to do (four sub-commits)
-**4.1 — Derive `base_lap_time` fully dynamically from track geometry (decided).** Never
-stored; computed from the track's own segments at load (mirrors how a real lap estimate
-comes from the corner/straight sequence): (a) a track **speed factor** from its segment
-tag mix (an intrinsic tag→reference-speed table, consistent with `SEGMENT_TAG_WEIGHTS` —
-straights fast, chicanes slow), integrated `Σ length_pct × tag_speed`; (b) realistic
-reference lap `ref_lap = length_km / (BASE_REFERENCE_SPEED × speed_factor) × 3600`; (c)
-`base_lap_time = ref_lap + PERF_SCALE × REFERENCE_COMPOSITE`, so a notional average car
-(fixed intrinsic `REFERENCE_COMPOSITE`, not a live catalog stat) laps at `ref_lap` and a
-below-average kei correctly laps slower. Additive constant ⇒ rescales absolute lap times
-without changing who wins; auto-updates for custom/creator tracks. Coordinate with
-`PERF_SCALE` (a larger base on long tracks compresses the % gulf — re-check the 3b
-drag-fixture gulf, nudge if needed) and retighten the 3b-loosened bands. Touch:
-`game/loader.py` (`track_from_dict`), `constants.py` (tag-speed table, `BASE_REFERENCE_SPEED`,
-`REFERENCE_COMPOSITE`), `data/tracks/*.json` (drop stored `base_lap_time`), `editor/`
-(derived base in preview), re-pin `test_balance_baseline.py` / `test_supercar_tracks.py`,
-new `tests/test_lap_time_realism.py`.
+**4.1 — Derive `base_lap_time` fully dynamically from track geometry (done).** Never
+stored; computed from the track's own segments at load (`loader.derive_base_lap_time`,
+mirrors how a real lap estimate comes from the corner/straight sequence): (a) a track
+**speed factor** from its segment tag mix (intrinsic `SEGMENT_TAG_SPEED` table, consistent
+with `SEGMENT_TAG_WEIGHTS` — straights fast, chicanes slow; a segment's factor is the mean
+of its tags', integrated `Σ length_pct × seg_factor`); (b) realistic reference lap
+`ref_lap = length_km / (BASE_REFERENCE_SPEED × speed_factor) × 3600`; (c)
+`base_lap_time = ref_lap + PERF_SCALE × REFERENCE_COMPOSITE`, so a design-midpoint car
+(`REFERENCE_COMPOSITE = 50`, the intrinsic 50/100 axis midpoint, not a live catalog stat)
+laps at `ref_lap` and a below-average kei correctly laps slower. Additive constant ⇒
+rescales absolute lap times without changing who wins; auto-updates for custom/creator
+tracks. `PERF_SCALE` kept at the 3b value (0.36): with realistic per-track bases the gross
+unrealism is gone (the kei now laps the twisty glenmoor at ~106 km/h, was 154; no car-class
+breaks its plausible band — keis stay sub-200 even on the speed run, hypercars reach ~305 on
+the oval, which is superspeedway-real), so no nudge was needed and the 3b on-track gulf is
+untouched. Landed: `BASE_REFERENCE_SPEED`/`REFERENCE_COMPOSITE`/`SEGMENT_TAG_SPEED` in
+`constants.py`; `derive_base_lap_time` in `game/loader.py` (`track_from_dict` derives it);
+stored `base_lap_time` dropped from all `data/tracks/*.json`, the reference-suite fixtures,
+and the creator schema (`editor/fields.py`); the creator preview shows the derived base
+(`editor/app.py`); re-pinned `test_balance_baseline.py` + retightened the 3b-loosened
+`test_supercar_tracks.py` benchmark into per-track realism bands; new
+`tests/test_lap_time_realism.py`.
 
 **4.2 — Run duration races (lockstep time-cap, Regime A).** Lift both guards; add one
 `_race_finished(states, race_format)` predicate (laps → lap count; duration → leader

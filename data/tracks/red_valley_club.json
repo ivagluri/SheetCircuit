@@ -2,7 +2,6 @@
   "id": "red_valley_club",
   "name": "Red Valley Club",
   "layout_type": "circuit",
-  "base_lap_time": 115.0,
   "length_km": 3.2,
   "pit_lane_loss_s": 26.0,
   "overtake_difficulty": 0.5,

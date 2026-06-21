@@ -60,7 +60,6 @@ def build_pikes():
         ("name",): "Pikes Peak International Hill Climb",
         ("layout_type",): "hillclimb",
         ("length_km",): "19.99",
-        ("base_lap_time",): "530.0",
         ("pit_lane_loss_s",): "0",
         ("elevation_change_m",): "1440",
         ("surface",): "tarmac",

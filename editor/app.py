@@ -19,6 +19,7 @@ from game.loader import (
     DATA_ROOT,
     DataLoadError,
     car_from_dict,
+    derive_base_lap_time,
     derive_weights,
     event_from_dict,
     load_tracks,
@@ -251,25 +252,21 @@ def track_preview(draft: dict) -> list[str]:
     lines = [f"segments: {len(segments)}   length sum: {total:.3f} {flag}"]
     try:
         length_km = float(draft.get("length_km", 0.0))
-        base = float(draft.get("base_lap_time", 0.0))
-        lines.append(
-            f"one lap: {length_km:g} km @ base_lap_time {base:g}s"
-            "   (race length is set per-event; attrition scales with distance)"
-        )
-        if length_km > 0:
-            # base_lap_time is just distance/speed — suggest values for common avg paces.
-            suggest = "  ".join(f"{kmh}km/h→{length_km / kmh * 3600:.0f}s" for kmh in (90, 130, 170))
-            lines.append(f"suggested base_lap_time: {suggest}")
-    except (TypeError, ValueError):
-        pass
-    try:
         seg_objs = [TrackSegment(**s) for s in segments]
+        # base_lap_time is no longer authored: it's derived from the segment geometry the
+        # same way the loaded track is, so the preview shows what the game will actually use.
+        base = derive_base_lap_time(seg_objs, length_km)
+        ref_kmh = length_km / base * 3600 if base > 0 else 0.0
+        lines.append(
+            f"one lap: {length_km:g} km, derived base_lap_time {base:.1f}s "
+            f"(~{ref_kmh:.0f} km/h reference pace)   (race length is set per-event)"
+        )
         weights = derive_weights(seg_objs)
         emphasis = ", ".join(
             f"{dim} {val:.0%}" for dim, val in sorted(weights.items(), key=lambda kv: -kv[1]) if val > 0.0
         )
         lines.append(f"emphasis: {emphasis or '—'}")
-    except (TypeError, DataLoadError) as exc:
+    except (TypeError, ValueError, DataLoadError) as exc:
         lines.append(f"[yellow]profile pending:[/yellow] {exc}")
     return lines
 

@@ -3,7 +3,6 @@
   "name": "Alpine Hillclimb",
   "description": "Reference point-to-point stage: start and finish differ and the run is completed once (laps: 1). Demonstrates that the same segment schema describes non-looping tracks, which the simulation runs with identical pseudo-live telemetry, action commands, and per-tick mistakes/failures as a multi-lap circuit. Also exercises all 12 segment tags and a mix of surfaces/conditions. The 'description' field is ignored by the loader.",
   "layout_type": "point_to_point",
-  "base_lap_time": 198.0,
   "length_km": 5.8,
   "pit_lane_loss_s": 6.0,
   "overtake_difficulty": 0.85,
