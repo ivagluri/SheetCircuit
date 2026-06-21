@@ -7,7 +7,7 @@
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["cheap_power", "fwd", "understeer_prone"],
-  "powertrain": {"power_hp": 195, "torque_nm": 255, "powerband": 55, "throttle_response": 58, "engine_reliability": 70, "cooling": 60, "fuel_efficiency": 52, "aspiration": "turbo", "engine_stress": 32},
+  "powertrain": {"power_hp": 195, "torque_nm": 255, "powerband": 55, "throttle_response": 58, "engine_reliability": 70, "cooling": 60, "aspiration": "turbo", "engine_stress": 32},
   "chassis": {"weight_kg": 1250, "weight_distribution_front": 0.63, "center_of_gravity": 55, "chassis_rigidity": 55, "stability": 58, "rotation": 42},
   "tires": {"tire_compound": "street", "tire_width_front": 205, "tire_width_rear": 205, "base_grip": 52, "wet_grip": 44, "tire_wear_resistance": 60, "tire_heat_resistance": 55, "tire_warmup": 60},
   "brakes": {"braking_power": 48, "brake_stability": 50, "brake_cooling": 48, "brake_fade_resistance": 45},

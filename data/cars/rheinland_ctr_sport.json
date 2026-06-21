@@ -7,7 +7,7 @@
   "drivetrain": "AWD",
   "layout": "rear_engine",
   "tags": ["german", "turbo", "rear_engine", "awd", "high_speed"],
-  "powertrain": {"power_hp": 520, "torque_nm": 650, "powerband": 74, "throttle_response": 66, "engine_reliability": 62, "cooling": 66, "fuel_efficiency": 28, "aspiration": "turbo", "engine_stress": 58},
+  "powertrain": {"power_hp": 520, "torque_nm": 650, "powerband": 74, "throttle_response": 66, "engine_reliability": 62, "cooling": 66, "aspiration": "turbo", "engine_stress": 58},
   "chassis": {"weight_kg": 1280, "weight_distribution_front": 0.40, "center_of_gravity": 76, "chassis_rigidity": 82, "stability": 78, "rotation": 76},
   "tires": {"tire_compound": "sport", "tire_width_front": 235, "tire_width_rear": 295, "base_grip": 84, "wet_grip": 62, "tire_wear_resistance": 46, "tire_heat_resistance": 74, "tire_warmup": 70},
   "brakes": {"braking_power": 84, "brake_stability": 76, "brake_cooling": 78, "brake_fade_resistance": 74},

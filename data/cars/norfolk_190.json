@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "mid_engine",
   "tags": ["british", "lightweight", "mid_engine", "driver_car", "high_handling"],
-  "powertrain": {"power_hp": 190, "torque_nm": 185, "powerband": 78, "throttle_response": 84, "engine_reliability": 72, "cooling": 64, "fuel_efficiency": 54, "aspiration": "NA", "engine_stress": 32},
+  "powertrain": {"power_hp": 190, "torque_nm": 185, "powerband": 78, "throttle_response": 84, "engine_reliability": 72, "cooling": 64, "aspiration": "NA", "engine_stress": 32},
   "chassis": {"weight_kg": 720, "weight_distribution_front": 0.40, "center_of_gravity": 92, "chassis_rigidity": 76, "stability": 64, "rotation": 92},
   "tires": {"tire_compound": "sport", "tire_width_front": 195, "tire_width_rear": 225, "base_grip": 80, "wet_grip": 58, "tire_wear_resistance": 54, "tire_heat_resistance": 66, "tire_warmup": 72},
   "brakes": {"braking_power": 72, "brake_stability": 62, "brake_cooling": 66, "brake_fade_resistance": 62},

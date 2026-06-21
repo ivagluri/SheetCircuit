@@ -264,13 +264,13 @@ races, real strategy, and realistic time.
 
 ## Small deferred cleanups (fold into a convenient commit)
 
-1. **`fuel_efficiency` duplication.** It lives on **both** `PowertrainStats.fuel_efficiency`
-   and `FuelStats.fuel_efficiency` and is averaged in `effective_stats.compute_effective_stats`
-   (`fuel_efficiency = (pt.fuel_efficiency + fu.fuel_efficiency) / 2`). Pick one home
-   (recommend `fuel.fuel_efficiency`), drop the other from `models.py`, `loader.py`,
-   the effective-stats average, the creator schema (`editor/fields.py`), and all 27
-   `data/cars/*.json`. Cosmetic; no balance change if the single value equals the old
-   average input.
+1. **`fuel_efficiency` duplication (done).** Collapsed onto `FuelStats.fuel_efficiency`;
+   dropped `PowertrainStats.fuel_efficiency` from `models.py`, the effective-stats average
+   (now reads `fu.fuel_efficiency` directly), the creator schema + `_verify` builder, the car
+   detail screen (the "Efficiency Rating" row in Fuel already showed it), and all 27
+   `data/cars/*.json`. Balance-neutral: the only car whose two values differed (`kanto_k660`,
+   80/78) kept its old averaged 79, and the `basic_turbo_kit` modifier moved from
+   `powertrain.fuel_efficiency: -6` to `fuel.fuel_efficiency: -3` (the same effective delta).
 
 2. **Attrition calibration by feel.** Phase 1 calibrated the physical constants to land at
    realistic stint/range, but the **fuel-economy spread is too wide** (the kei

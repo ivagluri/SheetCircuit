@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["lightweight", "high_handling", "momentum_car", "driver_car"],
-  "powertrain": {"power_hp": 128, "torque_nm": 155, "powerband": 58, "throttle_response": 78, "engine_reliability": 80, "cooling": 72, "fuel_efficiency": 62, "aspiration": "NA", "engine_stress": 18},
+  "powertrain": {"power_hp": 128, "torque_nm": 155, "powerband": 58, "throttle_response": 78, "engine_reliability": 80, "cooling": 72, "aspiration": "NA", "engine_stress": 18},
   "chassis": {"weight_kg": 990, "weight_distribution_front": 0.52, "center_of_gravity": 78, "chassis_rigidity": 72, "stability": 70, "rotation": 80},
   "tires": {"tire_compound": "street", "tire_width_front": 185, "tire_width_rear": 195, "base_grip": 72, "wet_grip": 60, "tire_wear_resistance": 62, "tire_heat_resistance": 65, "tire_warmup": 62},
   "brakes": {"braking_power": 60, "brake_stability": 68, "brake_cooling": 60, "brake_fade_resistance": 58},

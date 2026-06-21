@@ -7,7 +7,7 @@
   "drivetrain": "AWD",
   "layout": "front_engine",
   "tags": ["japanese", "grand_tourer", "awd", "turbo", "heavy"],
-  "powertrain": {"power_hp": 320, "torque_nm": 427, "powerband": 70, "throttle_response": 62, "engine_reliability": 68, "cooling": 70, "fuel_efficiency": 31, "aspiration": "turbo", "engine_stress": 42},
+  "powertrain": {"power_hp": 320, "torque_nm": 427, "powerband": 70, "throttle_response": 62, "engine_reliability": 68, "cooling": 70, "aspiration": "turbo", "engine_stress": 42},
   "chassis": {"weight_kg": 1600, "weight_distribution_front": 0.58, "center_of_gravity": 58, "chassis_rigidity": 74, "stability": 82, "rotation": 48},
   "tires": {"tire_compound": "sport", "tire_width_front": 245, "tire_width_rear": 245, "base_grip": 72, "wet_grip": 64, "tire_wear_resistance": 50, "tire_heat_resistance": 66, "tire_warmup": 64},
   "brakes": {"braking_power": 74, "brake_stability": 78, "brake_cooling": 70, "brake_fade_resistance": 66},

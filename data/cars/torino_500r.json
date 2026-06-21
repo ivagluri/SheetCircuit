@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "rear_engine",
   "tags": ["italian", "microcar", "rear_engine", "lightweight", "challenge"],
-  "powertrain": {"power_hp": 32, "torque_nm": 44, "powerband": 38, "throttle_response": 58, "engine_reliability": 66, "cooling": 44, "fuel_efficiency": 84, "aspiration": "NA", "engine_stress": 16},
+  "powertrain": {"power_hp": 32, "torque_nm": 44, "powerband": 38, "throttle_response": 58, "engine_reliability": 66, "cooling": 44, "aspiration": "NA", "engine_stress": 16},
   "chassis": {"weight_kg": 520, "weight_distribution_front": 0.38, "center_of_gravity": 64, "chassis_rigidity": 30, "stability": 28, "rotation": 70},
   "tires": {"tire_compound": "economy", "tire_width_front": 125, "tire_width_rear": 135, "base_grip": 30, "wet_grip": 28, "tire_wear_resistance": 86, "tire_heat_resistance": 60, "tire_warmup": 50},
   "brakes": {"braking_power": 22, "brake_stability": 30, "brake_cooling": 24, "brake_fade_resistance": 22},

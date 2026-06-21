@@ -95,7 +95,7 @@ CAR_TEMPLATE: dict[str, Any] = {
     "tags": [],
     "powertrain": {
         "power_hp": 300, "torque_nm": 380, "powerband": 60, "throttle_response": 60,
-        "engine_reliability": 65, "cooling": 65, "fuel_efficiency": 45,
+        "engine_reliability": 65, "cooling": 65,
         "aspiration": "NA", "engine_stress": 45,
     },
     "chassis": {
@@ -169,7 +169,6 @@ CAR_SECTIONS: list[Section] = [
         _f(("powertrain", "throttle_response"), "throttle_response", "int", "", *_R100),
         _f(("powertrain", "engine_reliability"), "engine_reliability", "int", "", *_R100),
         _f(("powertrain", "cooling"), "cooling", "int", "", *_R100),
-        _f(("powertrain", "fuel_efficiency"), "fuel_efficiency", "int", "", *_R100),
         _f(("powertrain", "aspiration"), "aspiration", "enum", choices=ASPIRATIONS, free=True),
         _f(("powertrain", "engine_stress"), "engine_stress", "int", "", *_R100),
     ]),

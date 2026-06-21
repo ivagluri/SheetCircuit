@@ -7,7 +7,7 @@
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["french", "hot_hatch", "lightweight", "momentum_car", "lift_off_rotation"],
-  "powertrain": {"power_hp": 118, "torque_nm": 145, "powerband": 62, "throttle_response": 74, "engine_reliability": 72, "cooling": 62, "fuel_efficiency": 64, "aspiration": "NA", "engine_stress": 24},
+  "powertrain": {"power_hp": 118, "torque_nm": 145, "powerband": 62, "throttle_response": 74, "engine_reliability": 72, "cooling": 62, "aspiration": "NA", "engine_stress": 24},
   "chassis": {"weight_kg": 910, "weight_distribution_front": 0.61, "center_of_gravity": 70, "chassis_rigidity": 58, "stability": 54, "rotation": 68},
   "tires": {"tire_compound": "street", "tire_width_front": 185, "tire_width_rear": 175, "base_grip": 56, "wet_grip": 52, "tire_wear_resistance": 66, "tire_heat_resistance": 58, "tire_warmup": 66},
   "brakes": {"braking_power": 52, "brake_stability": 54, "brake_cooling": 50, "brake_fade_resistance": 48},

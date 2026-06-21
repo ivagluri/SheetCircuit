@@ -339,7 +339,6 @@ def _car_extended_screen(car, name: str) -> ScreenData:
                     ["Throttle Response", pt.throttle_response],
                     ["Reliability", pt.engine_reliability],
                     ["Cooling", pt.cooling],
-                    ["Fuel Efficiency", pt.fuel_efficiency],
                     ["Engine Stress", pt.engine_stress],
                 ],
             ),

@@ -7,7 +7,7 @@
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["german", "starter", "lightweight", "efficient", "momentum_car"],
-  "powertrain": {"power_hp": 75, "torque_nm": 128, "powerband": 44, "throttle_response": 54, "engine_reliability": 82, "cooling": 66, "fuel_efficiency": 78, "aspiration": "NA", "engine_stress": 16},
+  "powertrain": {"power_hp": 75, "torque_nm": 128, "powerband": 44, "throttle_response": 54, "engine_reliability": 82, "cooling": 66, "aspiration": "NA", "engine_stress": 16},
   "chassis": {"weight_kg": 900, "weight_distribution_front": 0.62, "center_of_gravity": 58, "chassis_rigidity": 44, "stability": 44, "rotation": 48},
   "tires": {"tire_compound": "economy", "tire_width_front": 165, "tire_width_rear": 165, "base_grip": 38, "wet_grip": 38, "tire_wear_resistance": 78, "tire_heat_resistance": 68, "tire_warmup": 52},
   "brakes": {"braking_power": 36, "brake_stability": 44, "brake_cooling": 38, "brake_fade_resistance": 36},

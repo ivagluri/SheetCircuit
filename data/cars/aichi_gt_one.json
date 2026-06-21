@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "mid_engine",
   "tags": ["japanese", "prototype", "homologation", "high_downforce", "halo_car", "s_handling_focus"],
-  "powertrain": {"power_hp": 650, "torque_nm": 720, "powerband": 88, "throttle_response": 86, "engine_reliability": 64, "cooling": 86, "fuel_efficiency": 22, "aspiration": "turbo", "engine_stress": 72},
+  "powertrain": {"power_hp": 650, "torque_nm": 720, "powerband": 88, "throttle_response": 86, "engine_reliability": 64, "cooling": 86, "aspiration": "turbo", "engine_stress": 72},
   "chassis": {"weight_kg": 980, "weight_distribution_front": 0.44, "center_of_gravity": 94, "chassis_rigidity": 96, "stability": 90, "rotation": 88},
   "tires": {"tire_compound": "semi_slick", "tire_width_front": 285, "tire_width_rear": 335, "base_grip": 98, "wet_grip": 62, "tire_wear_resistance": 38, "tire_heat_resistance": 92, "tire_warmup": 84},
   "brakes": {"braking_power": 98, "brake_stability": 88, "brake_cooling": 96, "brake_fade_resistance": 94},

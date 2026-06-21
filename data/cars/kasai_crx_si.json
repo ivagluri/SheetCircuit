@@ -7,7 +7,7 @@
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["japanese", "lightweight", "momentum_car", "lift_off_rotation", "tuner_favorite"],
-  "powertrain": {"power_hp": 132, "torque_nm": 144, "powerband": 66, "throttle_response": 78, "engine_reliability": 78, "cooling": 66, "fuel_efficiency": 68, "aspiration": "NA", "engine_stress": 22},
+  "powertrain": {"power_hp": 132, "torque_nm": 144, "powerband": 66, "throttle_response": 78, "engine_reliability": 78, "cooling": 66, "aspiration": "NA", "engine_stress": 22},
   "chassis": {"weight_kg": 880, "weight_distribution_front": 0.62, "center_of_gravity": 72, "chassis_rigidity": 56, "stability": 52, "rotation": 76},
   "tires": {"tire_compound": "street", "tire_width_front": 185, "tire_width_rear": 185, "base_grip": 60, "wet_grip": 54, "tire_wear_resistance": 66, "tire_heat_resistance": 60, "tire_warmup": 66},
   "brakes": {"braking_power": 54, "brake_stability": 56, "brake_cooling": 50, "brake_fade_resistance": 48},

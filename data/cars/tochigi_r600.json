@@ -7,7 +7,7 @@
   "drivetrain": "AWD",
   "layout": "front_engine",
   "tags": ["japanese", "super_gt", "awd", "turbo", "high_downforce", "a_class_anchor"],
-  "powertrain": {"power_hp": 600, "torque_nm": 652, "powerband": 86, "throttle_response": 82, "engine_reliability": 78, "cooling": 88, "fuel_efficiency": 26, "aspiration": "turbo", "engine_stress": 58},
+  "powertrain": {"power_hp": 600, "torque_nm": 652, "powerband": 86, "throttle_response": 82, "engine_reliability": 78, "cooling": 88, "aspiration": "turbo", "engine_stress": 58},
   "chassis": {"weight_kg": 1750, "weight_distribution_front": 0.54, "center_of_gravity": 68, "chassis_rigidity": 92, "stability": 92, "rotation": 78},
   "tires": {"tire_compound": "semi_slick", "tire_width_front": 255, "tire_width_rear": 285, "base_grip": 94, "wet_grip": 68, "tire_wear_resistance": 46, "tire_heat_resistance": 88, "tire_warmup": 78},
   "brakes": {"braking_power": 94, "brake_stability": 92, "brake_cooling": 90, "brake_fade_resistance": 88},

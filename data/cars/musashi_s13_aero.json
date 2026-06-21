@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["japanese", "turbo", "rwd", "tuner_favorite", "oversteer_prone"],
-  "powertrain": {"power_hp": 205, "torque_nm": 275, "powerband": 66, "throttle_response": 64, "engine_reliability": 68, "cooling": 60, "fuel_efficiency": 42, "aspiration": "turbo", "engine_stress": 36},
+  "powertrain": {"power_hp": 205, "torque_nm": 275, "powerband": 66, "throttle_response": 64, "engine_reliability": 68, "cooling": 60, "aspiration": "turbo", "engine_stress": 36},
   "chassis": {"weight_kg": 1180, "weight_distribution_front": 0.54, "center_of_gravity": 62, "chassis_rigidity": 60, "stability": 58, "rotation": 72},
   "tires": {"tire_compound": "street", "tire_width_front": 205, "tire_width_rear": 215, "base_grip": 60, "wet_grip": 46, "tire_wear_resistance": 58, "tire_heat_resistance": 58, "tire_warmup": 62},
   "brakes": {"braking_power": 58, "brake_stability": 54, "brake_cooling": 54, "brake_fade_resistance": 50},

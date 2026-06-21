@@ -7,7 +7,7 @@
   "drivetrain": "AWD",
   "layout": "front_engine",
   "tags": ["japanese", "rally_bred", "awd", "turbo", "short_gears"],
-  "powertrain": {"power_hp": 276, "torque_nm": 373, "powerband": 74, "throttle_response": 70, "engine_reliability": 70, "cooling": 72, "fuel_efficiency": 36, "aspiration": "turbo", "engine_stress": 44},
+  "powertrain": {"power_hp": 276, "torque_nm": 373, "powerband": 74, "throttle_response": 70, "engine_reliability": 70, "cooling": 72, "aspiration": "turbo", "engine_stress": 44},
   "chassis": {"weight_kg": 1260, "weight_distribution_front": 0.59, "center_of_gravity": 66, "chassis_rigidity": 76, "stability": 74, "rotation": 68},
   "tires": {"tire_compound": "sport", "tire_width_front": 225, "tire_width_rear": 225, "base_grip": 76, "wet_grip": 70, "tire_wear_resistance": 52, "tire_heat_resistance": 70, "tire_warmup": 70},
   "brakes": {"braking_power": 76, "brake_stability": 78, "brake_cooling": 72, "brake_fade_resistance": 68},

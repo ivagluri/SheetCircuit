@@ -7,7 +7,7 @@
   "drivetrain": "AWD",
   "layout": "mid_engine",
   "tags": ["japanese", "hillclimb", "awd", "turbo", "s_traction_focus"],
-  "powertrain": {"power_hp": 790, "torque_nm": 920, "powerband": 72, "throttle_response": 70, "engine_reliability": 54, "cooling": 82, "fuel_efficiency": 16, "aspiration": "turbo", "engine_stress": 78},
+  "powertrain": {"power_hp": 790, "torque_nm": 920, "powerband": 72, "throttle_response": 70, "engine_reliability": 54, "cooling": 82, "aspiration": "turbo", "engine_stress": 78},
   "chassis": {"weight_kg": 900, "weight_distribution_front": 0.48, "center_of_gravity": 88, "chassis_rigidity": 90, "stability": 82, "rotation": 84},
   "tires": {"tire_compound": "semi_slick", "tire_width_front": 285, "tire_width_rear": 315, "base_grip": 96, "wet_grip": 74, "tire_wear_resistance": 32, "tire_heat_resistance": 86, "tire_warmup": 86},
   "brakes": {"braking_power": 92, "brake_stability": 84, "brake_cooling": 90, "brake_fade_resistance": 86},

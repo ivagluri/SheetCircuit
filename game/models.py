@@ -23,7 +23,6 @@ class PowertrainStats:
     throttle_response: int
     engine_reliability: int
     cooling: int
-    fuel_efficiency: int
     aspiration: str
     engine_stress: int
 

@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["american", "body_on_frame", "durable", "heavy", "fleet_special"],
-  "powertrain": {"power_hp": 215, "torque_nm": 386, "powerband": 58, "throttle_response": 46, "engine_reliability": 78, "cooling": 70, "fuel_efficiency": 34, "aspiration": "NA", "engine_stress": 24},
+  "powertrain": {"power_hp": 215, "torque_nm": 386, "powerband": 58, "throttle_response": 46, "engine_reliability": 78, "cooling": 70, "aspiration": "NA", "engine_stress": 24},
   "chassis": {"weight_kg": 1810, "weight_distribution_front": 0.56, "center_of_gravity": 38, "chassis_rigidity": 45, "stability": 56, "rotation": 26},
   "tires": {"tire_compound": "street", "tire_width_front": 225, "tire_width_rear": 225, "base_grip": 40, "wet_grip": 36, "tire_wear_resistance": 68, "tire_heat_resistance": 62, "tire_warmup": 60},
   "brakes": {"braking_power": 40, "brake_stability": 46, "brake_cooling": 42, "brake_fade_resistance": 40},

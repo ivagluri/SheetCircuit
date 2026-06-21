@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["japanese", "rotary", "turbo", "lightweight", "high_handling"],
-  "powertrain": {"power_hp": 276, "torque_nm": 314, "powerband": 82, "throttle_response": 76, "engine_reliability": 60, "cooling": 62, "fuel_efficiency": 30, "aspiration": "turbo", "engine_stress": 48},
+  "powertrain": {"power_hp": 276, "torque_nm": 314, "powerband": 82, "throttle_response": 76, "engine_reliability": 60, "cooling": 62, "aspiration": "turbo", "engine_stress": 48},
   "chassis": {"weight_kg": 1280, "weight_distribution_front": 0.50, "center_of_gravity": 76, "chassis_rigidity": 72, "stability": 70, "rotation": 82},
   "tires": {"tire_compound": "sport", "tire_width_front": 235, "tire_width_rear": 255, "base_grip": 74, "wet_grip": 54, "tire_wear_resistance": 50, "tire_heat_resistance": 66, "tire_warmup": 68},
   "brakes": {"braking_power": 72, "brake_stability": 68, "brake_cooling": 68, "brake_fade_resistance": 64},

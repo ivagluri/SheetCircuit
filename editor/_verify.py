@@ -98,7 +98,6 @@ def build_veyron():
         ("powertrain", "throttle_response"): "78",
         ("powertrain", "engine_reliability"): "60",
         ("powertrain", "cooling"): "88",
-        ("powertrain", "fuel_efficiency"): "14",
         ("powertrain", "aspiration"): "twin_turbo",
         ("powertrain", "engine_stress"): "82",
         ("chassis", "weight_kg"): "1888",

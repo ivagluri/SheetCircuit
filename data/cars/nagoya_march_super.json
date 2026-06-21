@@ -7,7 +7,7 @@
   "drivetrain": "FWD",
   "layout": "front_engine",
   "tags": ["japanese", "tiny_turbo", "lightweight", "cheap_power", "short_gears"],
-  "powertrain": {"power_hp": 110, "torque_nm": 130, "powerband": 54, "throttle_response": 60, "engine_reliability": 62, "cooling": 50, "fuel_efficiency": 60, "aspiration": "turbo", "engine_stress": 34},
+  "powertrain": {"power_hp": 110, "torque_nm": 130, "powerband": 54, "throttle_response": 60, "engine_reliability": 62, "cooling": 50, "aspiration": "turbo", "engine_stress": 34},
   "chassis": {"weight_kg": 760, "weight_distribution_front": 0.63, "center_of_gravity": 62, "chassis_rigidity": 42, "stability": 44, "rotation": 58},
   "tires": {"tire_compound": "street", "tire_width_front": 175, "tire_width_rear": 165, "base_grip": 46, "wet_grip": 42, "tire_wear_resistance": 66, "tire_heat_resistance": 56, "tire_warmup": 62},
   "brakes": {"braking_power": 42, "brake_stability": 44, "brake_cooling": 38, "brake_fade_resistance": 36},

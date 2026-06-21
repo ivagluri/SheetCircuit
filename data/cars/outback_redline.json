@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["australian", "muscle_sedan", "big_power", "stable", "heavy"],
-  "powertrain": {"power_hp": 407, "torque_nm": 570, "powerband": 70, "throttle_response": 66, "engine_reliability": 74, "cooling": 74, "fuel_efficiency": 33, "aspiration": "NA", "engine_stress": 36},
+  "powertrain": {"power_hp": 407, "torque_nm": 570, "powerband": 70, "throttle_response": 66, "engine_reliability": 74, "cooling": 74, "aspiration": "NA", "engine_stress": 36},
   "chassis": {"weight_kg": 1740, "weight_distribution_front": 0.53, "center_of_gravity": 52, "chassis_rigidity": 74, "stability": 78, "rotation": 55},
   "tires": {"tire_compound": "sport", "tire_width_front": 245, "tire_width_rear": 275, "base_grip": 72, "wet_grip": 58, "tire_wear_resistance": 54, "tire_heat_resistance": 66, "tire_warmup": 62},
   "brakes": {"braking_power": 76, "brake_stability": 78, "brake_cooling": 72, "brake_fade_resistance": 70},

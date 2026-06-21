@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["big_power", "heavy", "poor_brakes", "trap_car", "oval_specialist"],
-  "powertrain": {"power_hp": 265, "torque_nm": 420, "powerband": 72, "throttle_response": 50, "engine_reliability": 62, "cooling": 55, "fuel_efficiency": 28, "aspiration": "NA", "engine_stress": 40},
+  "powertrain": {"power_hp": 265, "torque_nm": 420, "powerband": 72, "throttle_response": 50, "engine_reliability": 62, "cooling": 55, "aspiration": "NA", "engine_stress": 40},
   "chassis": {"weight_kg": 1580, "weight_distribution_front": 0.54, "center_of_gravity": 42, "chassis_rigidity": 48, "stability": 52, "rotation": 30},
   "tires": {"tire_compound": "street", "tire_width_front": 205, "tire_width_rear": 225, "base_grip": 38, "wet_grip": 30, "tire_wear_resistance": 55, "tire_heat_resistance": 50, "tire_warmup": 65},
   "brakes": {"braking_power": 42, "brake_stability": 40, "brake_cooling": 38, "brake_fade_resistance": 35},

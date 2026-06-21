@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["balanced", "aging", "rwd_classic"],
-  "powertrain": {"power_hp": 170, "torque_nm": 222, "powerband": 65, "throttle_response": 62, "engine_reliability": 65, "cooling": 62, "fuel_efficiency": 48, "aspiration": "NA", "engine_stress": 28},
+  "powertrain": {"power_hp": 170, "torque_nm": 222, "powerband": 65, "throttle_response": 62, "engine_reliability": 65, "cooling": 62, "aspiration": "NA", "engine_stress": 28},
   "chassis": {"weight_kg": 1210, "weight_distribution_front": 0.50, "center_of_gravity": 58, "chassis_rigidity": 62, "stability": 65, "rotation": 62},
   "tires": {"tire_compound": "street", "tire_width_front": 195, "tire_width_rear": 205, "base_grip": 58, "wet_grip": 50, "tire_wear_resistance": 65, "tire_heat_resistance": 60, "tire_warmup": 58},
   "brakes": {"braking_power": 55, "brake_stability": 62, "brake_cooling": 55, "brake_fade_resistance": 52},

@@ -7,7 +7,7 @@
   "drivetrain": "RWD",
   "layout": "front_engine",
   "tags": ["british", "hyper_gt", "big_power", "high_speed", "s_power_focus"],
-  "powertrain": {"power_hp": 840, "torque_nm": 880, "powerband": 76, "throttle_response": 72, "engine_reliability": 48, "cooling": 64, "fuel_efficiency": 18, "aspiration": "NA", "engine_stress": 82},
+  "powertrain": {"power_hp": 840, "torque_nm": 880, "powerband": 76, "throttle_response": 72, "engine_reliability": 48, "cooling": 64, "aspiration": "NA", "engine_stress": 82},
   "chassis": {"weight_kg": 1080, "weight_distribution_front": 0.52, "center_of_gravity": 82, "chassis_rigidity": 86, "stability": 78, "rotation": 80},
   "tires": {"tire_compound": "semi_slick", "tire_width_front": 285, "tire_width_rear": 345, "base_grip": 92, "wet_grip": 50, "tire_wear_resistance": 34, "tire_heat_resistance": 82, "tire_warmup": 78},
   "brakes": {"braking_power": 94, "brake_stability": 76, "brake_cooling": 86, "brake_fade_resistance": 82},
