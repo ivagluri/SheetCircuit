@@ -272,18 +272,21 @@ races, real strategy, and realistic time.
    80/78) kept its old averaged 79, and the `basic_turbo_kit` modifier moved from
    `powertrain.fuel_efficiency: -6` to `fuel.fuel_efficiency: -3` (the same effective delta).
 
-2. **Attrition calibration by feel.** Phase 1 calibrated the physical constants to land at
-   realistic stint/range, but the **fuel-economy spread is too wide** (the kei
-   `kanto_k660` reads ~4.6 L/100km — hypermiling territory). The *shape* is right (thirsty
-   cars need enduro stops); the absolute numbers are tunable:
-   - `FUEL_L_PER_KM_UNIT` (0.13) — global economy scale.
-   - `TYRE_WEAR_PCT_PER_KM` (1.25) — global tyre-life scale.
-   - `ENGINE_HEAT_PER_S`, `ENGINE_COOL_PER_S`, `TIRE_HEAT_PER_KM`, `TIRE_COOL_PER_S`,
-     `DRIVER_*_PER_S` — time/work rates.
-   Consider making economy **affine** (`economy = floor + eff.fuel_burn_rate × unit`) to
-   compress the kei↔hypercar range into a realistic ~15–65 L/100km band instead of the
-   current ~5–95. Verify against `tests/test_attrition_physical.py`
-   (`test_realistic_stint_and_range_order_of_magnitude`).
+2. **Attrition calibration — fuel economy (done).** Fuel economy is now **affine** in the
+   car's burn rate: `economy (L/km) = FUEL_ECONOMY_FLOOR_L_PER_KM (0.137) + eff.fuel_burn_rate
+   × FUEL_L_PER_KM_UNIT (0.064)` (slope dropped from the old purely-multiplicative 0.13). This
+   compresses the catalog from the old ~3–104 L/100km spread into a realistic **15–65 L/100km**
+   band — the kei `kanto_k660` reads 16 (was 4.6, hypermiling), the `blackpool_twelve` 65 (was
+   104) — so pit strategy matters across the whole field, not only the top. The track tag rate
+   and pace command still multiply the whole economy, so a thirsty track / go-all-out lap burns
+   proportionally more. Balance-neutral at the reference (sub-ms baseline drift; the kei's
+   higher burn barely moves fuel weight over the short sunday_cup). Touched: `constants.py`,
+   `game/simulation.py` (`_apply_lap_wear`). `test_attrition_physical` (range still 40–2000 km
+   for the kei) and `test_duration_race` (thirsty-car thresholds) stay green.
+
+   The tyre-life (`TYRE_WEAR_PCT_PER_KM`) and time/work rates (`*_HEAT_PER_S`, `*_COOL_PER_S`,
+   `DRIVER_*_PER_S`) were left as-is — Phase 1's stint/range shape is right; only the
+   fuel-economy *spread* needed compressing.
 
 ---
 

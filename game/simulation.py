@@ -25,6 +25,7 @@ from constants import (
     ENGINE_HEAT_PER_S,
     ENGINE_OVERHEAT_C,
     ENGINE_TEMP_PENALTY_MAX,
+    FUEL_ECONOMY_FLOOR_L_PER_KM,
     FUEL_L_PER_KM_UNIT,
     MILEAGE_KM_MULTIPLIER,
     MIN_LAP_FRACTION,
@@ -310,8 +311,11 @@ def _apply_lap_wear(
     tire_cooling = TIRE_COOL_PER_S * seconds if command in TYRE_COOLING_COMMANDS else 0.0
     state.tire_temp = max(0.0, state.tire_temp + heat_gain - tire_cooling)
 
-    # Fuel: litres over distance, drawn against the tank -> % of capacity.
-    litres = effective.fuel_burn_rate * FUEL_L_PER_KM_UNIT * fuel_burn_rate * distance_km * modifiers[COMMAND_FUEL_BURN_INDEX]
+    # Fuel: litres over distance, drawn against the tank -> % of capacity. Economy is affine
+    # in the car's burn rate (floor + rate x unit) so the catalog stays in a realistic band;
+    # the track tag rate and pace command scale the whole economy (see constants).
+    economy_l_per_km = FUEL_ECONOMY_FLOOR_L_PER_KM + effective.fuel_burn_rate * FUEL_L_PER_KM_UNIT
+    litres = economy_l_per_km * fuel_burn_rate * distance_km * modifiers[COMMAND_FUEL_BURN_INDEX]
     state.fuel_pct = max(0.0, state.fuel_pct - litres / max(effective.fuel_capacity_l, 1.0) * PERCENT_MAX)
 
     # Engine heat: per second of running at load.

@@ -81,7 +81,14 @@ FUEL_WEIGHT_PENALTY_PER_L = 0.02
 # The track tag rates (fuel/tyre/heat) stay as real per-segment multipliers on top.
 # The unit constants below are calibrated against the reference car/track to land at
 # realistic range/stint, then the catalog is spot-checked for sane pit/tyre counts.
-FUEL_L_PER_KM_UNIT = 0.13          # effective.fuel_burn_rate -> litres/km economy
+# Fuel economy is affine in the car's burn rate: economy (L/km) = floor + burn_rate x unit.
+# The floor is a baseline every car spends just being on track, so a frugal kei can't drift
+# into hypermiling territory and a hypercar isn't absurdly thirsty -- this compresses the
+# catalog from a ~3-104 L/100km spread into a realistic ~15-65 band where pit strategy
+# matters across the whole field, not only at the top. Track tag rate + pace command still
+# multiply the whole economy, so a thirsty track / go-all-out lap burns proportionally more.
+FUEL_ECONOMY_FLOOR_L_PER_KM = 0.137   # ~15 L/100km baseline at the leanest end
+FUEL_L_PER_KM_UNIT = 0.064            # slope: effective.fuel_burn_rate -> litres/km economy
 TYRE_WEAR_PCT_PER_KM = 1.25        # × eff.tire_wear_rate × track tyre mult -> %/km
 TIRE_HEAT_PER_KM = 2.5             # tyre temp rises with work (distance × load)
 TIRE_COOL_PER_S = 0.06            # tyre temp bleeds off with airflow (time)
