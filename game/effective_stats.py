@@ -274,6 +274,7 @@ def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> Effect
         curb_handling=curb_handling,
         drivetrain=drivetrain,
         fuel_capacity_l=float(fu.fuel_capacity_l),
+        power_to_weight=power / weight,  # real hp/kg (post-parts, post-map): drives climb pace
     )
 
 

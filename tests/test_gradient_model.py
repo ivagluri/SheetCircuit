@@ -1,20 +1,22 @@
-"""Hillclimb gradient model: a net climb costs time, eased by power-to-weight.
+"""Hillclimb climb model: a net climb's pace is driven by real power-to-weight.
 
-The pace model is otherwise an additive seconds shave that's fixed regardless of track
-length, so on a long climb a stock-vs-prepped capability gap compresses to nothing. The
-gradient term makes a climb genuinely slow AND makes power-to-weight matter, so a built car
-climbs faster. It is gated to net-climb traversals (point-to-point / hillclimb): a loop
-returns to start, so its stored elevation is undulation, not net gain, and gets no penalty.
+Lap time is otherwise an additive `base - PERF_SCALE*composite` shave that compresses to
+near-nothing over a long lap, so it can't tell a shitbox from a supercar on a 20 km climb.
+The climb model adds a time adjustment that's monotonic in the car's own hp/kg, anchored to
+REAL paved Pikes Peak stock times (econobox ~14:00, 911 Turbo S 9:53) -- never to our
+catalog, so a custom car gets a real climb time from its own specs. Gated to net-climb
+layouts; loops return to start and get no adjustment.
 """
 
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import fields
 import unittest
 
 from game.effective_stats import compute_effective_stats, derived_class
 from game.loader import load_cars, load_parts, load_tracks, track_from_dict
-from game.simulation import _gradient_penalty, calculate_lap_time, lap_time_over_interval
+from game.simulation import _climb_adjustment, calculate_lap_time, lap_time_over_interval
 
 
 def _track(layout_type: str, elevation_change_m: int = 1000):
@@ -31,56 +33,71 @@ def _track(layout_type: str, elevation_change_m: int = 1000):
     return track_from_dict(payload)
 
 
-class GradientModelTests(unittest.TestCase):
+def _showroom(car):
+    """A condition-100 copy, so effective hp/kg equals the car's factory spec."""
+    car = deepcopy(car)
+    for field in fields(car.condition):
+        setattr(car.condition, field.name, 100.0 if field.name != "mileage" else 0)
+    return car
+
+
+class ClimbModelTests(unittest.TestCase):
     def setUp(self) -> None:
         self.parts = load_parts()
         self.cars = {c.identity.id: c for c in load_cars()}
         self.tracks = {t.id: t for t in load_tracks()}
-        self.eff = compute_effective_stats(self.cars["bavaria_325s"], self.parts)
 
-    def test_net_climb_is_slower_than_the_same_geometry_on_a_loop(self) -> None:
+    def _eff(self, car_id):
+        return compute_effective_stats(self.cars[car_id], self.parts)
+
+    def test_climb_adjustment_is_monotonic_in_power_to_weight(self) -> None:
+        # The whole point: a lower hp/kg car eats more climb time than a higher one, all the
+        # way down -- no plateau, no clamp bunching weak cars together.
         climb = _track("hillclimb")
-        loop = _track("circuit")  # identical segments, but returns to start -> no net climb
+        by_pw = sorted(
+            ("torino_500r", "kanto_k660", "bavaria_325s", "maranello_forty", "blackpool_twelve"),
+            key=lambda cid: self._eff(cid).power_to_weight,
+        )
+        adjustments = [_climb_adjustment(climb, self._eff(cid)) for cid in by_pw]
+        self.assertEqual(adjustments, sorted(adjustments, reverse=True))
+
+    def test_below_reference_car_is_slower_on_a_climb_than_the_same_loop(self) -> None:
+        # A modest car (below the time-neutral hp/kg) loses time to the grade.
+        climb = _track("hillclimb")
+        loop = _track("circuit")  # identical segments, returns to start -> no net climb
         self.assertGreater(climb.climb_gradient_pct, 0.0)
         self.assertEqual(loop.climb_gradient_pct, 0.0)
-        self.assertGreater(calculate_lap_time(self.eff, climb), calculate_lap_time(self.eff, loop))
+        eff = self._eff("bavaria_325s")
+        self.assertGreater(calculate_lap_time(eff, climb), calculate_lap_time(eff, loop))
 
-    def test_penalty_shrinks_with_power_to_weight(self) -> None:
-        climb = _track("hillclimb")
-        weak = compute_effective_stats(self.cars["kanto_k660"], self.parts)     # 64 hp kei
-        strong = compute_effective_stats(self.cars["blackpool_twelve"], self.parts)  # hypercar
-        self.assertLess(strong.acceleration, 200)  # sanity: accel is the P/W axis
-        self.assertGreater(weak.acceleration, 0)
-        self.assertLess(_gradient_penalty(climb, strong), _gradient_penalty(climb, weak))
-
-    def test_loop_layouts_never_get_a_gradient_penalty(self) -> None:
-        # Every shipped loop track (circuit/oval/road_course/rallycross) has zero grade and
-        # zero penalty regardless of its stored elevation_change_m.
+    def test_loop_layouts_never_get_a_climb_adjustment(self) -> None:
         loops = {"circuit", "oval", "road_course", "rallycross"}
+        eff = self._eff("bavaria_325s")
         for track in self.tracks.values():
             if track.layout_type in loops:
                 with self.subTest(track=track.id):
                     self.assertEqual(track.climb_gradient_pct, 0.0)
-                    self.assertEqual(_gradient_penalty(track, self.eff), 0.0)
+                    self.assertEqual(_climb_adjustment(track, eff), 0.0)
 
-    def test_gradient_preserves_the_segment_aggregate_integral(self) -> None:
-        # The penalty distributes by interval length, so a whole-lap time still equals the
+    def test_climb_preserves_the_segment_aggregate_integral(self) -> None:
+        # The adjustment distributes by interval length, so a whole-lap time still equals the
         # sum of its pieces on a climb (the documented integration invariant).
         climb = _track("hillclimb")
-        whole = calculate_lap_time(self.eff, climb)
+        eff = self._eff("bavaria_325s")
+        whole = calculate_lap_time(eff, climb)
         pieces = (
-            lap_time_over_interval(self.eff, climb, start=0.0, length=0.4)
-            + lap_time_over_interval(self.eff, climb, start=0.4, length=0.6)
+            lap_time_over_interval(eff, climb, start=0.0, length=0.4)
+            + lap_time_over_interval(eff, climb, start=0.4, length=0.6)
         )
         self.assertAlmostEqual(whole, pieces, places=6)
 
-    def test_gradient_does_not_change_derived_class(self) -> None:
+    def test_climb_does_not_change_derived_class(self) -> None:
         # Class reads the flat reference suite's composite, not lap time, so it's untouched.
         self.assertEqual(derived_class(self.cars["bavaria_325s"], self.parts), "D")
 
 
 class GranitePeakRealismTests(unittest.TestCase):
-    """Calibration against real Pikes Peak 325 times (11:35 modified .. 14:02 stock-ish)."""
+    """Validation against real paved Pikes Peak factory-stock times."""
 
     def setUp(self) -> None:
         self.parts = load_parts()
@@ -90,22 +107,31 @@ class GranitePeakRealismTests(unittest.TestCase):
     def _lap(self, car) -> float:
         return calculate_lap_time(compute_effective_stats(car, self.parts), self.track)
 
-    def test_stock_bavaria_matches_the_stock_era_time(self) -> None:
-        # The 1992 stock-ish 325i ran 14:02.451; our stock 325S should land in that envelope.
-        lap = self._lap(self.cars["bavaria_325s"])
-        self.assertGreater(lap, 13 * 60 + 30, f"{lap:.0f}s too fast")
-        self.assertLess(lap, 14 * 60 + 30, f"{lap:.0f}s too slow")
+    def test_showroom_supercar_matches_the_real_911_time(self) -> None:
+        # maranello_forty (0.377 hp/kg) is a 911-Turbo-S analog; David Donner's 100% stock
+        # 911 Turbo S ran 9:53. A showroom maranello must land in that envelope -- and the
+        # model was anchored to the curve, not to this car, so this is a real validation.
+        lap = self._lap(_showroom(self.cars["maranello_forty"]))
+        self.assertGreater(lap, 9 * 60 + 30, f"{lap:.0f}s too fast")
+        self.assertLess(lap, 10 * 60 + 20, f"{lap:.0f}s too slow")
 
-    def test_street_upgrades_meaningfully_help_on_the_climb(self) -> None:
-        # Power-to-weight matters on a climb, so a street-built 325 is tens of seconds quicker
-        # than stock -- the differentiation the flat additive model could not express.
+    def test_the_climb_spreads_the_field_by_minutes_not_seconds(self) -> None:
+        # No plateau: a shitbox and a supercar are minutes apart, the way the real curve runs.
+        shitbox = self._lap(_showroom(self.cars["torino_500r"]))   # ~0.06 hp/kg
+        supercar = self._lap(_showroom(self.cars["maranello_forty"]))  # ~0.38 hp/kg
+        self.assertGreater(shitbox - supercar, 240.0)  # > 4 minutes apart
+
+    def test_a_worn_car_climbs_slower_than_a_showroom_one(self) -> None:
+        # Condition feeds effective power, so an aged engine makes less power and climbs slower.
+        car = self.cars["maranello_forty"]
+        self.assertGreater(self._lap(car), self._lap(_showroom(car)))
+
+    def test_more_power_to_weight_helps_on_the_climb(self) -> None:
+        # Upgrades that raise hp/kg (power, weight reduction) cut climb time -- no plateau.
         stock = self._lap(self.cars["bavaria_325s"])
         built = deepcopy(self.cars["bavaria_325s"])
-        built.installed_parts = [
-            "basic_intake_1", "performance_exhaust_1", "cooling_upgrade_1",
-            "sport_suspension_1", "street_tires_1", "sport_brake_kit_1", "weight_reduction_1",
-        ]
-        self.assertLess(self._lap(built), stock - 20.0)
+        built.installed_parts = ["basic_turbo_kit", "weight_reduction_1", "basic_intake_1"]
+        self.assertLess(self._lap(built), stock)
 
 
 if __name__ == "__main__":

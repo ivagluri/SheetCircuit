@@ -53,24 +53,24 @@ SEGMENT_TAG_SPEED: dict[str, float] = {
     "exposed": 1.05,
 }
 
-# --- Hillclimb gradient -----------------------------------------------------
-# A net climb costs time the flat geometry doesn't capture, and the cost shrinks with the
-# car's power-to-weight (a strong, light car climbs faster). effective.acceleration already
-# *is* normalized power-to-weight (see effective_stats), so it modulates the penalty. Only
-# tracks that do not return to start have a real net climb; loops (circuit/oval/road_course/
-# rallycross) climb and descend equally over a lap, so they get no penalty regardless of
-# their stored elevation_change_m (which for a loop is undulation, not net gain).
-#   penalty(lap) = GRADIENT_PENALTY_SCALE x climb_gradient_pct x length_km x climb_factor
-#   climb_factor = clamp(GRADIENT_CLIMB_REF_ACCEL / accel, FLOOR, CEIL)
-# GRADIENT_CLIMB_REF_ACCEL is the intrinsic design midpoint (50/100), not a catalog mean, so
-# the reference car gets climb_factor ~1.0 and the band stays bounded for both a 8 hp microcar
-# and a hypercar. Calibrated so a stock 1980s sports sedan climbs a 20 km / 7 % grade in ~14
-# min while street upgrades meaningfully claw time back.
+# --- Hillclimb climb model --------------------------------------------------
+# On a net climb the time is driven by the car's POWER-TO-WEIGHT (the real physical driver of
+# climbing), not by the flat-track composite, which compresses to near-nothing over a long
+# lap. We model the climb as a time adjustment to the flat-geometry lap, monotonic in the
+# car's own intrinsic hp/kg:
+#   adjustment(lap) = GRADIENT_PW_GAIN * ln(GRADIENT_PW_REF / power_to_weight)
+#                     * climb_gradient_pct * length_km
+# Below GRADIENT_PW_REF the climb adds time; above it a strong car claws time back (the flat
+# composite under-rewards it on a long climb). NOTHING here is pinned to our catalog: the two
+# constants are anchored to REAL-WORLD paved Pikes Peak stock times -- a ~0.09 hp/kg econobox
+# at ~14:00 and a 0.39 hp/kg 911 Turbo S at 9:53 -- and the input is the car's own hp/kg, so a
+# custom car gets a real climb time with nothing to look up (the de-pin principle). The curve
+# is a smooth power law (no plateau, no bracket), so wild customs extrapolate sanely and the
+# lap-time floor catches anything degenerate. Gated to net-climb layouts; loops return to
+# start, so their stored elevation_change_m is undulation, not net gain (climb_gradient_pct 0).
 NET_CLIMB_LAYOUTS = {"point_to_point", "hillclimb", "sprint"}
-GRADIENT_PENALTY_SCALE = 0.385    # s per (%-grade x km), before the power-to-weight factor
-GRADIENT_CLIMB_REF_ACCEL = 50.0   # design-midpoint acceleration (power-to-weight) anchor
-GRADIENT_CLIMB_FACTOR_FLOOR = 0.45
-GRADIENT_CLIMB_FACTOR_CEIL = 2.60
+GRADIENT_PW_GAIN = 1.05    # seconds per (%-grade x km) per natural-log unit of the hp/kg ratio
+GRADIENT_PW_REF = 0.217    # hp/kg at which the climb is time-neutral (from the real paved anchors)
 
 DRIVER_PACE_SCALE = 0.08
 DRIVER_XP_PER_RACE = 10

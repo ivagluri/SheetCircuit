@@ -301,6 +301,8 @@ class EffectiveCarStats:
     # Physical attrition inputs: fuel economy is fuel_burn_rate × FUEL_L_PER_KM_UNIT
     # (litres/km), drawn against this tank; tyre life derives from tire_wear_rate.
     fuel_capacity_l: float = 0.0
+    # Real power-to-weight (hp/kg, post-parts) -- the intrinsic driver of hillclimb pace.
+    power_to_weight: float = 0.0
 
 
 @dataclass

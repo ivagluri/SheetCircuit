@@ -70,15 +70,16 @@ def build_granite_peak():
         ("weather_variability",): "0.55",
         ("overtake_difficulty",): "0.9",
     })
+    # Modern, fully-paved course (all tarmac/dry) -- matches the shipped catalog track.
     draft["segments"] = [
         _segment({"name": "Forest Gateway", "length_pct": "0.10", "tags": "short_straight wide_track", "surface": "tarmac", "condition": "dry"}),
         _segment({"name": "Lower Forest Switchbacks", "length_pct": "0.16", "tags": "technical_section slow_corner", "surface": "tarmac", "condition": "dry"}),
         _segment({"name": "Tight Esses", "length_pct": "0.14", "tags": "tight_chicane hard_braking_zone", "surface": "tarmac", "condition": "dry"}),
         _segment({"name": "Halfway Straight", "length_pct": "0.10", "tags": "long_straight exposed", "surface": "tarmac", "condition": "dry"}),
-        _segment({"name": "Mid-Mountain Switchbacks", "length_pct": "0.14", "tags": "technical_section slow_corner", "surface": "tarmac", "condition": "damp"}),
-        _segment({"name": "Boulder Field", "length_pct": "0.10", "tags": "bumpy_surface narrow_track", "surface": "gravel", "condition": "damp"}),
-        _segment({"name": "Cliffside Sweeper", "length_pct": "0.12", "tags": "high_speed_corner exposed", "surface": "tarmac", "condition": "wet"}),
-        _segment({"name": "Summit Switchbacks", "length_pct": "0.14", "tags": "hard_braking_zone slow_corner curb_riding", "surface": "tarmac", "condition": "wet"}),
+        _segment({"name": "Mid-Mountain Switchbacks", "length_pct": "0.14", "tags": "technical_section slow_corner", "surface": "tarmac", "condition": "dry"}),
+        _segment({"name": "Boulder Field", "length_pct": "0.10", "tags": "bumpy_surface narrow_track", "surface": "tarmac", "condition": "dry"}),
+        _segment({"name": "Cliffside Sweeper", "length_pct": "0.12", "tags": "high_speed_corner exposed", "surface": "tarmac", "condition": "dry"}),
+        _segment({"name": "Summit Switchbacks", "length_pct": "0.14", "tags": "hard_braking_zone slow_corner curb_riding", "surface": "tarmac", "condition": "dry"}),
     ]
     return draft
 

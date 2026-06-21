@@ -43,8 +43,12 @@ class CarCatalogTests(unittest.TestCase):
         # The Phase 3b gulf widening (PERF_SCALE 0.36) lets a capability edge open a bigger
         # lap-time gap, so the intra-S spread grew to ~2.9s (~4% of a ~75s lap). The S cars
         # stay competitive within a class, so the guard is widened to 3.1s. If it creeps
-        # past that, PERF_SCALE or the orphan-stat magnitudes are too hot.
+        # past that, PERF_SCALE or the orphan-stat magnitudes are too hot. Net-climb tracks
+        # are excluded: a hillclimb is a power-to-weight time-attack, not wheel-to-wheel
+        # racing, so same-class cars rightly spread out by tens of seconds there.
         for track in self.tracks:
+            if track.climb_gradient_pct > 0.0:
+                continue
             laps = [
                 calculate_lap_time(compute_effective_stats(car, self.parts), track)
                 for car in s_cars
