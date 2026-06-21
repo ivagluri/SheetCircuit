@@ -6,9 +6,13 @@ import sys
 import time
 
 _RACE_SPEED_FACTOR = 13.3   # display each lap this many times faster than real-time
+# Presentation fast-forward multipliers cycled with F in the race loop. Pure render speed:
+# they change only the per-tick wall-clock pause, never the simulated result.
+_RACE_SPEEDS = (1.0, 2.0, 4.0, 8.0)
 
 from game.actions import (
     advance_race_action,
+    advance_to_lap_end_action,
     buy_car_action,
     car_detail_screen,
     driver_detail_screen,
@@ -494,6 +498,8 @@ def _show_race_help() -> None:
         ["Key", "Command", "Effect"],
         [[option.key, option.label, option.description] for option in race_command_options()]
         + [
+            ["N / next", "Next lap", "Fast-forward to the end of the current lap"],
+            ["F / >", "Faster", "Cycle presentation speed (1x/2x/4x/8x); no effect on the result"],
             ["X / end", "End", "Simulate remaining laps instantly and show result"],
             ["? / help", "Help", "Show race command help"],
         ],
@@ -719,24 +725,31 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
     show_help = False
     interactive = sys.stdin.isatty() and sys.stdout.isatty()
     track = session.track
-    tick_sleep = (track.base_lap_time / _RACE_SPEED_FACTOR / session.ticks_per_lap) if track else 0.4
+    base_tick_sleep = (track.base_lap_time / _RACE_SPEED_FACTOR / session.ticks_per_lap) if track else 0.4
+    speed_mult = 1.0  # presentation speed; F cycles it, never touches the result
 
     _render_race_screen(state, session, None, "")
-    _print_lap_bar(session, current_command, pending_command)
+    _print_lap_bar(session, current_command, pending_command, speed_mult)
 
     while not session.is_finished:
+        skip_to_lap = False
         if interactive:
-            ready = select.select([sys.stdin], [], [], tick_sleep)[0]
+            ready = select.select([sys.stdin], [], [], base_tick_sleep / speed_mult)[0]
             if ready:
                 raw = sys.stdin.readline().strip()
-                if raw.lower() in {"help", "?"}:
+                low = raw.lower()
+                if low in {"help", "?"}:
                     show_help = True
-                elif raw.lower() in {"end", "skip", "x"}:
+                elif low in {"end", "skip", "x"}:
                     result = simulate_to_end_action(session, current_command)
                     last_result = result.tick
                     _render_race_screen(state, session, last_result, "")
                     terminal.print("Race simulated to completion.")
                     break
+                elif low in {"n", "next", "lap", "l"}:
+                    skip_to_lap = True  # fast-forward over the rest of this lap
+                elif low in {"f", "ff", ">"}:
+                    speed_mult = _cycle_speed(speed_mult)
                 elif raw:
                     matched = _race_command(raw)
                     if matched is not None:
@@ -749,7 +762,8 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
             pending_command = None
 
         try:
-            race_result = advance_race_action(session, current_command)
+            advance = advance_to_lap_end_action if skip_to_lap else advance_race_action
+            race_result = advance(session, current_command)
             last_result = race_result.tick
         except SimulationError as exc:
             race_error = str(exc)
@@ -766,7 +780,7 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
             _show_race_help()
             show_help = False
 
-        _print_lap_bar(session, current_command, pending_command)
+        _print_lap_bar(session, current_command, pending_command, speed_mult)
 
     finished = finish_race_action(state, session)
     terminal.print(f"Race finished. Prize: ${finished.prize_money}")
@@ -775,7 +789,16 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
     terminal.pause()
 
 
-def _print_lap_bar(session, current_command: str, pending_command: str | None) -> None:
+def _cycle_speed(current: float) -> float:
+    """Step to the next presentation speed, wrapping 8x back to 1x."""
+    try:
+        index = _RACE_SPEEDS.index(current)
+    except ValueError:
+        index = 0
+    return _RACE_SPEEDS[(index + 1) % len(_RACE_SPEEDS)]
+
+
+def _print_lap_bar(session, current_command: str, pending_command: str | None, speed_mult: float = 1.0) -> None:
     tpl = session.ticks_per_lap
     st = session.current_sub_tick
     filled = int(st / tpl * 24)
@@ -783,7 +806,10 @@ def _print_lap_bar(session, current_command: str, pending_command: str | None) -
     pct = int(st / tpl * 100)
     lap = min(session.current_lap + 1, session.total_laps)
     status = f"next: {pending_command}" if pending_command else current_command
-    sys.stdout.write(f"  Lap {lap}/{session.total_laps}  [{bar}] {pct:3d}%  [{status}]  cmd+Enter  X=skip to end\n")
+    sys.stdout.write(
+        f"  Lap {lap}/{session.total_laps}  [{bar}] {pct:3d}%  [{status}]  {speed_mult:g}x"
+        "  cmd+Enter  N=next lap  F=faster  X=end\n"
+    )
     sys.stdout.flush()
 
 

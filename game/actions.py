@@ -809,6 +809,23 @@ def simulate_to_end_action(session: RaceSession, command: str = "normal") -> Rac
     return RaceActionResult(session=session, tick=last_tick, screen=screen)
 
 
+def advance_to_lap_end_action(session: RaceSession, command: str = "normal") -> RaceActionResult:
+    """Advance at full speed until the current lap completes (or the race ends).
+
+    Pure presentation fast-forward: it runs exactly the ticks the live loop would, just
+    without the per-tick wall-clock pause, so the outcome is identical to watching the lap
+    tick by tick. Lets a long/duration event skip lap-by-lap instead of being hand-ticked.
+    """
+    last_tick: RaceTickResult | None = None
+    while not session.is_finished:
+        result = advance_race_action(session, command)
+        last_tick = result.tick
+        if last_tick is not None and last_tick.is_lap_end:
+            break
+    screen = race_screen(session, last_tick)
+    return RaceActionResult(session=session, tick=last_tick, screen=screen)
+
+
 def finish_race_action(state: GameState, session: RaceSession) -> RaceActionResult:
     prize, progression_message = finish_event(state, session)
     screen = race_screen(session)

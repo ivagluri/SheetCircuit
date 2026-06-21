@@ -7,9 +7,9 @@ starter-by-criteria, `f4e745e`); Phase 2 (re-anchor orphan-stat references to in
 design anchors, `e796a2b`); Phase 3 (car class derived at runtime from a drag/slalom/hybrid
 reference suite + the on-track gulf widened, `5b23a58`/`6118935`, with the F1/F2 class
 explainers `084eba0`). Phase 4 is reassessed and underway: **4.1** (geometry-derived
-`base_lap_time`) and **4.2** (run duration races on the lockstep engine) are done; **4.3**
-(presentation speed / fast-forward) and **4.4** (duration-aware race UI + creator copy)
-remain. This document is self-contained so it can be ported to an issue
+`base_lap_time`), **4.2** (run duration races on the lockstep engine), and **4.3**
+(presentation speed / fast-forward) are done; **4.4** (duration-aware race UI + creator copy)
+remains. This document is self-contained so it can be ported to an issue
 tracker or another repo.
 
 Conventions used below:
@@ -223,10 +223,15 @@ display still reads "Lap X/Y" for duration races — 4.4 swaps it for elapsed/ta
 Touched: `game/models.py`, `game/simulation.py`, `game/race_session.py`,
 `data/events/beater_enduro.json`.
 
-**4.3 — Presentation speed (watchability).** Decoupled from the sim (zero outcome effect).
-Instant-resolve and "end" exist; add a "skip to next lap" / fast-forward control to the race
-loop so a multi-hour event isn't ticked by hand. Touch: `interfaces/cli.py` (race loop +
-`_show_race_help`), `game/actions.py` (advance-to-lap-end helper).
+**4.3 — Presentation speed (watchability) (done).** Decoupled from the sim (zero outcome
+effect). Added `actions.advance_to_lap_end_action` (runs the same ticks the live loop would,
+without the per-tick pause) wired to a new **N = next lap** control, plus an **F = faster**
+control that cycles a presentation multiplier (`_RACE_SPEEDS` 1x/2x/4x/8x) which only scales
+the race loop's per-tick wall-clock sleep, never the result. Lap bar and `_show_race_help`
+document both. Tests: `advance_to_lap_end_action` matches ticking a lap by hand
+(presentation invariance) and `_cycle_speed` wraps the multipliers (`tests/test_actions.py`).
+Touched: `interfaces/cli.py` (race loop, `_print_lap_bar`, `_show_race_help`, `_cycle_speed`),
+`game/actions.py`.
 
 **4.4 — Duration-aware UI + creator copy.** Race screen shows elapsed/target time instead of
 "Lap X/Y" for a duration race; drop "duration not yet raceable" in `editor/fields.py`. Touch:

@@ -7,6 +7,7 @@ import unittest
 from constants import TUNE_FIELD_RANGES
 from game.actions import (
     advance_race_action,
+    advance_to_lap_end_action,
     buy_car_action,
     car_detail_screen,
     drivers_screen,
@@ -217,6 +218,38 @@ class ActionLayerTests(unittest.TestCase):
         self.assertEqual(len(race_log.rows), 10)
         self.assertEqual(race_log.rows[0], [6, "event 6"])
         self.assertEqual(race_log.rows[-1], [15, "event 15"])
+
+    def test_fast_forward_to_lap_end_matches_ticking_by_hand(self) -> None:
+        # Presentation fast-forward must have zero effect on the result: skipping to the lap
+        # end produces the exact same per-car state as ticking the lap one sub-tick at a time.
+        cars = {car.identity.id: car for car in load_cars()}
+
+        def by_hand() -> dict[str, float]:
+            state = GameState(garage=[deepcopy(cars["kanto_k660"])])
+            session = start_race_action(state, "sunday_cup", "kanto_k660", "driver_novak", seed=5).session
+            while True:
+                result = advance_race_action(session, "normal")
+                if result.tick is not None and result.tick.is_lap_end:
+                    break
+            return session.current_lap, {s.label: round(s.total_time, 6) for s in session.cars}
+
+        def fast_forward() -> dict[str, float]:
+            state = GameState(garage=[deepcopy(cars["kanto_k660"])])
+            session = start_race_action(state, "sunday_cup", "kanto_k660", "driver_novak", seed=5).session
+            advance_to_lap_end_action(session, "normal")
+            return session.current_lap, {s.label: round(s.total_time, 6) for s in session.cars}
+
+        self.assertEqual(by_hand(), fast_forward())
+
+    def test_cycle_speed_wraps_through_the_presentation_multipliers(self) -> None:
+        from interfaces.cli import _RACE_SPEEDS, _cycle_speed
+
+        seen = [1.0]
+        for _ in range(len(_RACE_SPEEDS)):
+            seen.append(_cycle_speed(seen[-1]))
+        # Steps through every speed and wraps back to the first.
+        self.assertEqual(seen[:-1], list(_RACE_SPEEDS))
+        self.assertEqual(seen[-1], _RACE_SPEEDS[0])
 
     def test_race_screen_surfaces_labelled_command_options(self) -> None:
         options = race_command_options()
