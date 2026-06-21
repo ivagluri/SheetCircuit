@@ -290,6 +290,35 @@ races, real strategy, and realistic time.
 
 ---
 
+## Realism follow-up — hillclimb gradient model (done, beyond original scope)
+
+A real-world calibration (BMW E30 325 facsimile `bavaria_325s` on the Pikes Peak Hill Climb,
+official 325 times 11:35–14:02 over 19.99 km) exposed a model gap: lap time is an additive
+`base − PERF_SCALE×composite`, a *fixed seconds* shave regardless of track length, so on a
+~12-min climb a stock-vs-fully-built 325 differed by ~2 s and a stock sedan clocked the
+*modified* car's time. Elevation also didn't affect pace at all (only fuel/heat). Fix: a
+**gradient model** (`game/simulation._gradient_penalty`) adds per-lap time for a net climb,
+eased by the car's power-to-weight (`effective.acceleration`, which already *is* normalized
+P/W). It's gated to net-climb layouts (`NET_CLIMB_LAYOUTS = point_to_point/hillclimb/sprint`);
+loops (circuit/oval/road_course/rallycross) climb and descend equally over a lap, so they get
+a derived `Track.climb_gradient_pct = 0` and **no** penalty — the balance baseline (maple) and
+every loop guard are untouched. Intrinsic anchors (`GRADIENT_CLIMB_REF_ACCEL = 50`, the design
+midpoint; `GRADIENT_PENALTY_SCALE = 0.385`, clamp band) keep it de-pinned. The penalty is
+added after the `MIN_LAP_FRACTION` floor and scales with interval length, so the
+segment↔aggregate integral invariant holds.
+
+Result on the new **`granite_peak_hillclimb`** track (a de-branded, physically-faithful Pikes
+layout in the catalog with a 1-lap `granite_peak_climb` event): stock `bavaria_325s` laps
+**14:01** (the stock-ish 1992 time), a full street build **13:12**, +driver another ~6 s —
+the differentiation the flat model couldn't express. The 11:35 modified-special time is
+correctly *beyond* our street-parts catalog and documented rather than faked. `alpine_hillclimb`
+(a real 9 % point-to-point) is now realistically slow too. Touched: `constants.py`,
+`game/models.py` (`Track.climb_gradient_pct`), `game/loader.py`, `game/simulation.py`,
+`data/tracks/granite_peak_hillclimb.json`, `data/events/granite_peak_climb.json`,
+`editor/_verify.py` (de-branded `build_granite_peak`), new `tests/test_gradient_model.py`.
+
+---
+
 ## Suggested order
 Phase 2 → Phase 3 → small cleanups → Phase 4. Each its own commit, baseline re-pinned in
 the same commit, full suite green before moving on (so any fault stays bisectable).

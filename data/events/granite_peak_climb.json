@@ -1,0 +1,22 @@
+{
+  "id": "granite_peak_climb",
+  "name": "Granite Peak Hillclimb",
+  "track_id": "granite_peak_hillclimb",
+  "car_class_limit": "C",
+  "entry_fee": 600,
+  "prize_money": [
+    5000,
+    3000,
+    1800,
+    900,
+    450,
+    200,
+    0,
+    0
+  ],
+  "opponent_count": 7,
+  "restrictions": {
+    "max_class_rating": 549
+  },
+  "laps": 1
+}

@@ -27,6 +27,10 @@ from constants import (
     ENGINE_TEMP_PENALTY_MAX,
     FUEL_ECONOMY_FLOOR_L_PER_KM,
     FUEL_L_PER_KM_UNIT,
+    GRADIENT_CLIMB_FACTOR_CEIL,
+    GRADIENT_CLIMB_FACTOR_FLOOR,
+    GRADIENT_CLIMB_REF_ACCEL,
+    GRADIENT_PENALTY_SCALE,
     MILEAGE_KM_MULTIPLIER,
     MIN_LAP_FRACTION,
     PIT_ENGINE_COOL_C,
@@ -113,7 +117,26 @@ def lap_time_over_interval(
         ) * length
 
     core = max(core, track.base_lap_time * length * MIN_LAP_FRACTION)
+    # The climb penalty is added after the floor (a steep grade adds time, never removes it)
+    # and scales with the interval length, so the segment-resolved and aggregate paths agree.
+    core += _gradient_penalty(track, effective) * length
     return core + (_state_penalty(state) + _lap_variance(driver, rng)) * length
+
+
+def _gradient_penalty(track: Track, effective: EffectiveCarStats) -> float:
+    """Seconds a full lap costs to net elevation gain, eased by the car's power-to-weight.
+
+    0 for loop layouts (track.climb_gradient_pct == 0). effective.acceleration is normalized
+    power-to-weight, so a strong, light car loses less time to the climb; the clamp keeps the
+    factor bounded for an 8 hp microcar and a hypercar alike (see constants)."""
+    if track.climb_gradient_pct <= 0.0:
+        return 0.0
+    accel = max(effective.acceleration, 1.0)
+    climb_factor = min(
+        GRADIENT_CLIMB_FACTOR_CEIL,
+        max(GRADIENT_CLIMB_FACTOR_FLOOR, GRADIENT_CLIMB_REF_ACCEL / accel),
+    )
+    return GRADIENT_PENALTY_SCALE * track.climb_gradient_pct * track.length_km * climb_factor
 
 
 def _segments_in_interval(

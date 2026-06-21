@@ -52,6 +52,26 @@ SEGMENT_TAG_SPEED: dict[str, float] = {
     "wide_track": 1.25,
     "exposed": 1.05,
 }
+
+# --- Hillclimb gradient -----------------------------------------------------
+# A net climb costs time the flat geometry doesn't capture, and the cost shrinks with the
+# car's power-to-weight (a strong, light car climbs faster). effective.acceleration already
+# *is* normalized power-to-weight (see effective_stats), so it modulates the penalty. Only
+# tracks that do not return to start have a real net climb; loops (circuit/oval/road_course/
+# rallycross) climb and descend equally over a lap, so they get no penalty regardless of
+# their stored elevation_change_m (which for a loop is undulation, not net gain).
+#   penalty(lap) = GRADIENT_PENALTY_SCALE x climb_gradient_pct x length_km x climb_factor
+#   climb_factor = clamp(GRADIENT_CLIMB_REF_ACCEL / accel, FLOOR, CEIL)
+# GRADIENT_CLIMB_REF_ACCEL is the intrinsic design midpoint (50/100), not a catalog mean, so
+# the reference car gets climb_factor ~1.0 and the band stays bounded for both a 8 hp microcar
+# and a hypercar. Calibrated so a stock 1980s sports sedan climbs a 20 km / 7 % grade in ~14
+# min while street upgrades meaningfully claw time back.
+NET_CLIMB_LAYOUTS = {"point_to_point", "hillclimb", "sprint"}
+GRADIENT_PENALTY_SCALE = 0.385    # s per (%-grade x km), before the power-to-weight factor
+GRADIENT_CLIMB_REF_ACCEL = 50.0   # design-midpoint acceleration (power-to-weight) anchor
+GRADIENT_CLIMB_FACTOR_FLOOR = 0.45
+GRADIENT_CLIMB_FACTOR_CEIL = 2.60
+
 DRIVER_PACE_SCALE = 0.08
 DRIVER_XP_PER_RACE = 10
 DRIVER_XP_PER_STAT_POINT = 50

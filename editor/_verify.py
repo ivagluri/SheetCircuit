@@ -1,8 +1,9 @@
 """Verification harness (not part of the app UI).
 
-Recreates a Pikes Peak track and a Bugatti Veyron *only* through the editor's
-field specs + coercion path — proving every knob those facsimiles need is
-reachable from the editor — then confirms both load through the real game loader.
+Recreates the Granite Peak hillclimb (a real mountain-climb *layout*, generic names)
+and a Bugatti Veyron *only* through the editor's field specs + coercion path — proving
+every knob those facsimiles need is reachable from the editor — then confirms both load
+through the real game loader.
 
 Run:  python3 -m editor._verify
 """
@@ -53,11 +54,13 @@ def _segment(edits):
     return seg
 
 
-def build_pikes():
+def build_granite_peak():
+    # A long, high-elevation hillclimb facsimile: the real Pikes Peak *physical* layout
+    # (public; only the branded feature names are protected) with generic segment names.
     draft = copy.deepcopy(TRACK_SCHEMA.template)
     _apply(draft, TRACK_SECTIONS, {
-        ("id",): "pikes_peak_hillclimb",
-        ("name",): "Pikes Peak International Hill Climb",
+        ("id",): "granite_peak_hillclimb",
+        ("name",): "Granite Peak Hillclimb",
         ("layout_type",): "hillclimb",
         ("length_km",): "19.99",
         ("pit_lane_loss_s",): "0",
@@ -68,14 +71,14 @@ def build_pikes():
         ("overtake_difficulty",): "0.9",
     })
     draft["segments"] = [
-        _segment({"name": "The Gateway", "length_pct": "0.10", "tags": "short_straight wide_track", "surface": "tarmac", "condition": "dry"}),
-        _segment({"name": "Engineers Section", "length_pct": "0.16", "tags": "technical_section slow_corner", "surface": "tarmac", "condition": "dry"}),
-        _segment({"name": "The W's", "length_pct": "0.14", "tags": "tight_chicane hard_braking_zone", "surface": "tarmac", "condition": "dry"}),
-        _segment({"name": "Picnic Ground Straight", "length_pct": "0.10", "tags": "long_straight exposed", "surface": "tarmac", "condition": "dry"}),
-        _segment({"name": "Glen Cove Switchbacks", "length_pct": "0.14", "tags": "technical_section slow_corner", "surface": "tarmac", "condition": "damp"}),
-        _segment({"name": "Devils Playground", "length_pct": "0.10", "tags": "bumpy_surface narrow_track", "surface": "gravel", "condition": "damp"}),
-        _segment({"name": "Bottomless Pit", "length_pct": "0.12", "tags": "high_speed_corner exposed", "surface": "tarmac", "condition": "wet"}),
-        _segment({"name": "Summit Run to 14,115ft", "length_pct": "0.14", "tags": "hard_braking_zone slow_corner curb_riding", "surface": "tarmac", "condition": "wet"}),
+        _segment({"name": "Forest Gateway", "length_pct": "0.10", "tags": "short_straight wide_track", "surface": "tarmac", "condition": "dry"}),
+        _segment({"name": "Lower Forest Switchbacks", "length_pct": "0.16", "tags": "technical_section slow_corner", "surface": "tarmac", "condition": "dry"}),
+        _segment({"name": "Tight Esses", "length_pct": "0.14", "tags": "tight_chicane hard_braking_zone", "surface": "tarmac", "condition": "dry"}),
+        _segment({"name": "Halfway Straight", "length_pct": "0.10", "tags": "long_straight exposed", "surface": "tarmac", "condition": "dry"}),
+        _segment({"name": "Mid-Mountain Switchbacks", "length_pct": "0.14", "tags": "technical_section slow_corner", "surface": "tarmac", "condition": "damp"}),
+        _segment({"name": "Boulder Field", "length_pct": "0.10", "tags": "bumpy_surface narrow_track", "surface": "gravel", "condition": "damp"}),
+        _segment({"name": "Cliffside Sweeper", "length_pct": "0.12", "tags": "high_speed_corner exposed", "surface": "tarmac", "condition": "wet"}),
+        _segment({"name": "Summit Switchbacks", "length_pct": "0.14", "tags": "hard_braking_zone slow_corner curb_riding", "surface": "tarmac", "condition": "wet"}),
     ]
     return draft
 
@@ -149,9 +152,9 @@ def build_veyron():
 
 
 def main() -> None:
-    track_draft = build_pikes()
+    track_draft = build_granite_peak()
     ok, msg = validate(TRACK_SCHEMA, track_draft)
-    assert ok, f"Pikes track invalid: {msg}"
+    assert ok, f"Granite Peak track invalid: {msg}"
     track = track_from_dict(copy.deepcopy(track_draft))
     print(f"TRACK  {track.name}")
     print(f"  length={track.length_km}km elev={track.elevation_change_m}m "

@@ -14,6 +14,7 @@ from constants import (
     ELEVATION_FUEL_PER_M,
     ELEVATION_HEAT_PER_M,
     ELEVATION_REF_M,
+    NET_CLIMB_LAYOUTS,
     OVERTAKE_DIFFICULTY_TAG_DELTA,
     PERF_SCALE,
     REFERENCE_COMPOSITE,
@@ -332,6 +333,15 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
         profile.engine_heat_rate *= elev_heat
         profile.fuel_burn_rate *= elev_fuel
 
+    # Net climb grade for the hillclimb time penalty. Only point-to-point/hillclimb traversals
+    # have a real net gain; a loop climbs and descends equally over a lap, so its stored
+    # elevation_change_m is undulation, not net climb -> 0 grade, no penalty (see simulation).
+    length_km = data["length_km"]
+    if data["layout_type"] in NET_CLIMB_LAYOUTS and length_km > 0:
+        climb_gradient_pct = elevation / (length_km * 1000.0) * 100.0
+    else:
+        climb_gradient_pct = 0.0
+
     return Track(
         id=data["id"],
         name=data["name"],
@@ -355,6 +365,7 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
         tire_wear_rate=rates["tire_wear"],
         fuel_burn_rate=rates["fuel_burn"],
         engine_heat_rate=rates["engine_heat"],
+        climb_gradient_pct=climb_gradient_pct,
         segment_profiles=profiles,
     )
 

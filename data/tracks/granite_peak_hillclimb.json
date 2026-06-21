@@ -1,0 +1,95 @@
+{
+  "id": "granite_peak_hillclimb",
+  "name": "Granite Peak Hillclimb",
+  "layout_type": "hillclimb",
+  "length_km": 19.99,
+  "pit_lane_loss_s": 0.0,
+  "overtake_difficulty": 0.9,
+  "elevation_change_m": 1440,
+  "surface": "tarmac",
+  "default_condition": "dry",
+  "weather_variability": 0.55,
+  "segments": [
+    {
+      "name": "Forest Gateway",
+      "length_pct": 0.1,
+      "tags": [
+        "short_straight",
+        "wide_track"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Lower Forest Switchbacks",
+      "length_pct": 0.16,
+      "tags": [
+        "technical_section",
+        "slow_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Tight Esses",
+      "length_pct": 0.14,
+      "tags": [
+        "tight_chicane",
+        "hard_braking_zone"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Halfway Straight",
+      "length_pct": 0.1,
+      "tags": [
+        "long_straight",
+        "exposed"
+      ],
+      "surface": "tarmac",
+      "condition": "dry"
+    },
+    {
+      "name": "Mid-Mountain Switchbacks",
+      "length_pct": 0.14,
+      "tags": [
+        "technical_section",
+        "slow_corner"
+      ],
+      "surface": "tarmac",
+      "condition": "damp"
+    },
+    {
+      "name": "Boulder Field",
+      "length_pct": 0.1,
+      "tags": [
+        "bumpy_surface",
+        "narrow_track"
+      ],
+      "surface": "gravel",
+      "condition": "damp"
+    },
+    {
+      "name": "Cliffside Sweeper",
+      "length_pct": 0.12,
+      "tags": [
+        "high_speed_corner",
+        "exposed"
+      ],
+      "surface": "tarmac",
+      "condition": "wet"
+    },
+    {
+      "name": "Summit Switchbacks",
+      "length_pct": 0.14,
+      "tags": [
+        "hard_braking_zone",
+        "slow_corner",
+        "curb_riding"
+      ],
+      "surface": "tarmac",
+      "condition": "wet"
+    }
+  ]
+}

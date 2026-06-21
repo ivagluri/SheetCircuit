@@ -217,6 +217,9 @@ class Track:
     tire_wear_rate: float = 0.0
     fuel_burn_rate: float = 0.0
     engine_heat_rate: float = 0.0
+    # Net climb grade (%) for the per-car hillclimb time penalty. Derived at load and 0.0 for
+    # loop layouts (which return to start), so it never penalises a circuit. See loader.
+    climb_gradient_pct: float = 0.0
     segment_profiles: list[SegmentProfile] = field(default_factory=list)
 
 
