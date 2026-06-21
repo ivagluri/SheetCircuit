@@ -198,16 +198,13 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
         race_cars.append(opponent_state)
 
     race_format = resolve_race(event, track)
-    if race_format.laps is None:
-        raise SimulationError("Duration-based races are not yet supported")
-    total_laps = race_format.laps
 
     lap_times: dict[str, list[float]] = {state.label: [] for state in race_cars}
     race_log: list[str] = []
-    # Predicate-shaped loop so a duration/enduro stop condition (elapsed >= duration_s,
-    # then finish the lead lap) can slot in beside the fixed-lap target later.
+    # Lockstep loop shared by lap and duration races: every car runs the same whole laps, so
+    # a duration race (Regime A) ends on a clean lap boundary once the leader passes the cap.
     completed_laps = 0
-    while completed_laps < total_laps:
+    while not _race_finished(race_cars, race_format, completed_laps):
         for state in race_cars:
             car = player_car if state.is_player else cars[state.car_id]
             driver = player_driver if state.is_player else drivers[state.driver_id]
@@ -225,6 +222,7 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
         completed_laps += 1
 
     _rank(race_cars)
+    total_laps = completed_laps
     player_state = next(state for state in race_cars if state.is_player)
     prize_money = _prize_for_position(event, player_state.position)
     game_state.money += prize_money
@@ -351,6 +349,20 @@ def _initial_state(car_id: str, driver_id: str, label: str, is_player: bool) -> 
         total_time=0.0,
         event_log=[],
     )
+
+
+def _race_finished(states: list[RaceCarState], race_format: "RaceFormat", completed_laps: int) -> bool:
+    """Lockstep stop condition shared by the batch and interactive loops.
+
+    Lap/distance races stop at the fixed lap target. A duration race (Regime A) runs whole
+    laps until the leader's elapsed time crosses the cap, then finishes that lead lap -- the
+    field is synchronized, so everyone completes the same number of laps. At least one lap
+    always runs, even if the cap is shorter than a single lap.
+    """
+    if race_format.laps is not None:
+        return completed_laps >= race_format.laps
+    leader_time = min((state.total_time for state in states), default=0.0)
+    return completed_laps >= 1 and leader_time >= (race_format.duration_s or 0.0)
 
 
 def _rank(states: list[RaceCarState]) -> None:

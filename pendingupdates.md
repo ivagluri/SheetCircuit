@@ -7,8 +7,9 @@ starter-by-criteria, `f4e745e`); Phase 2 (re-anchor orphan-stat references to in
 design anchors, `e796a2b`); Phase 3 (car class derived at runtime from a drag/slalom/hybrid
 reference suite + the on-track gulf widened, `5b23a58`/`6118935`, with the F1/F2 class
 explainers `084eba0`). Phase 4 is reassessed and underway: **4.1** (geometry-derived
-`base_lap_time`) is done; **4.2–4.4** (run duration races, presentation speed,
-duration-aware UI) remain. This document is self-contained so it can be ported to an issue
+`base_lap_time`) and **4.2** (run duration races on the lockstep engine) are done; **4.3**
+(presentation speed / fast-forward) and **4.4** (duration-aware race UI + creator copy)
+remain. This document is self-contained so it can be ported to an issue
 tracker or another repo.
 
 Conventions used below:
@@ -208,14 +209,19 @@ and the creator schema (`editor/fields.py`); the creator preview shows the deriv
 `test_supercar_tracks.py` benchmark into per-track realism bands; new
 `tests/test_lap_time_realism.py`.
 
-**4.2 — Run duration races (lockstep time-cap, Regime A).** Lift both guards; add one
-`_race_finished(states, race_format)` predicate (laps → lap count; duration → leader
-`total_time >= duration_s`, then finish the lead lap) used by the batch loop and the
-interactive `is_finished`. Field stays synchronized ⇒ `_rank` and the time-delta
-`gap_to_leader` are unchanged. `RaceResult.total_laps` / `RaceSession.total_laps` become the
-completed lap count. Validate a thirsty car (`escarpa_pikes`) is forced to pit over a long
-event (Phase 1 attrition already drives this). Touch: `game/simulation.py`,
-`game/race_session.py`, new `tests/test_duration_race.py`.
+**4.2 — Run duration races (lockstep time-cap, Regime A) (done).** Both guards lifted; one
+`_race_finished(states, race_format, completed_laps)` predicate (laps → lap count; duration →
+leader `min(total_time) >= duration_s`, then finish the lead lap, min one lap) drives the
+batch loop and the interactive `is_finished`. Field stays synchronized ⇒ `_rank` and the
+time-delta `gap_to_leader` are unchanged. `RaceSession` gained a `duration_s` field;
+`RaceSession.total_laps`/`RaceResult.total_laps` are now the completed lap count for duration
+races. The catalog's `beater_enduro` is now a real 1200 s duration event (was 6 laps). New
+`tests/test_duration_race.py` proves it runs to completion, that watch-live and
+instant-resolve give the identical result, that a longer cap runs more laps, and that the
+thirsty `escarpa_pikes` is drained dry over a long enduro but not a short sprint. (In-race
+display still reads "Lap X/Y" for duration races — 4.4 swaps it for elapsed/target time.)
+Touched: `game/models.py`, `game/simulation.py`, `game/race_session.py`,
+`data/events/beater_enduro.json`.
 
 **4.3 — Presentation speed (watchability).** Decoupled from the sim (zero outcome effect).
 Instant-resolve and "end" exist; add a "skip to next lap" / fast-forward control to the race

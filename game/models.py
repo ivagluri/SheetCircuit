@@ -359,6 +359,10 @@ class RaceSession:
     parts: list[Part] = field(default_factory=list)
     ticks_per_lap: int = 1
     current_sub_tick: int = 0
+    # Set for duration (Regime A) races: the time cap the leader must cross before the
+    # lockstep field finishes the lead lap. None for lap/distance races, where total_laps is
+    # the fixed target. For duration races total_laps instead tracks the completed lap count.
+    duration_s: float | None = None
 
 
 @dataclass

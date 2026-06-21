@@ -73,14 +73,15 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
         states.append(opponent_state)
 
     race_format = resolve_race(event, track)
-    if race_format.laps is None:
-        raise SimulationError("Duration-based races are not yet supported")
     ticks_per_lap = max(4, min(16, round(track.base_lap_time / RACE_TICKS_PER_LAP_DIVISOR)))
     return RaceSession(
         event_id=event.id,
         track_id=track.id,
         current_lap=0,
-        total_laps=race_format.laps,
+        # Duration races have no fixed target; total_laps tracks the completed-lap count
+        # and grows as the race runs (see simulate_tick), so it starts at 0.
+        total_laps=race_format.laps or 0,
+        duration_s=race_format.duration_s,
         cars=states,
         player_car_id=car_id,
         is_finished=False,
@@ -202,7 +203,15 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
     session.current_sub_tick = (session.current_sub_tick + 1) % session.ticks_per_lap
     if is_lap_end:
         session.current_lap += 1
-    session.is_finished = session.current_lap >= session.total_laps or len(active) <= 1
+    if session.duration_s is not None:
+        # Duration race (Regime A lockstep): finish at a lap boundary once the leader passes
+        # the time cap. total_laps tracks the completed laps for display/result.
+        leader_time = min((state.total_time for state in active), default=0.0)
+        time_up = is_lap_end and session.current_lap >= 1 and leader_time >= session.duration_s
+        session.is_finished = time_up or len(active) <= 1
+        session.total_laps = session.current_lap
+    else:
+        session.is_finished = session.current_lap >= session.total_laps or len(active) <= 1
 
     if is_lap_end and not lap_log:
         lap_log.append(f"Lap {session.current_lap} completed.")
