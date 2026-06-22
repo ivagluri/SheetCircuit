@@ -590,8 +590,13 @@ def _tune_picker(state: GameState) -> None:
 
 def _prompt_field_value(field) -> object | None:
     if field.options:
-        rows = [[index, option.label, option.value] for index, option in enumerate(field.options, start=1)]
-        terminal.table(f"{field.label} Options", ["#", "Option", "Value"], rows)
+        has_desc = any(option.description for option in field.options)
+        if has_desc:
+            rows = [[index, option.label, option.description] for index, option in enumerate(field.options, start=1)]
+            terminal.table(f"{field.label} Options", ["#", "Option", "Effect"], rows)
+        else:
+            rows = [[index, option.label, option.value] for index, option in enumerate(field.options, start=1)]
+            terminal.table(f"{field.label} Options", ["#", "Option", "Value"], rows)
         raw = terminal.prompt("Option").strip()
         if raw == "" or raw.lower() in {"q", "quit", "cancel"}:
             return None

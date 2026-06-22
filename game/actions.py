@@ -615,7 +615,10 @@ def _field_data(name: str, current: Any) -> FieldData:
             label=_field_label(name),
             current=current,
             value_type="choice",
-            options=[OptionData(value=value, label=_engine_map_label(value)) for value in sorted(ENGINE_MAP_POWER)],
+            options=[
+                OptionData(value=value, label=_engine_map_label(value), description=_engine_map_desc(value))
+                for value in sorted(ENGINE_MAP_POWER)
+            ],
         )
     minimum, maximum = TUNE_FIELD_RANGES[name]
     value_type = "integer" if isinstance(current, int) else "number"
@@ -668,6 +671,18 @@ def _engine_map_label(value: str) -> str:
         "safe": "Safe",
     }
     return labels.get(value, value.replace("_", " ").title())
+
+
+def _engine_map_desc(value: str) -> str:
+    # Plain-language summary of each map's power / fuel / heat trade-off (see ENGINE_MAP_*).
+    descriptions = {
+        "fuel_save": "Lowest power, best fuel economy, runs coolest.",
+        "safe": "A little less power; easier on fuel and temps.",
+        "balanced": "Stock map — no power, fuel, or heat trade-offs.",
+        "hot": "More power, but burns more fuel and runs hotter.",
+        "qualifying": "Most power for short stints; very thirsty and very hot.",
+    }
+    return descriptions.get(value, "")
 
 
 def _allowed_text(field: FieldData) -> str:

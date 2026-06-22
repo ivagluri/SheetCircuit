@@ -2,6 +2,8 @@
 
 Concise code map for future coding agents. The game is Python stdlib-first, with optional `rich` terminal rendering. Core rule: engine code lives in `game/`; UI code lives in `interfaces/`.
 
+Project docs: `CHANGELOG.md` = shipped history (what landed, by commit); `pendingupdates.md` = forward-looking roadmap (next work + deferred backlog). Both are self-contained/portable.
+
 ## Run And Test
 
 - Start game: `python3 main.py`
@@ -327,6 +329,8 @@ tune_fields_screen(state, car_id)
 ```
 
 This returns `FieldData` with labels, current value, ranges, and option lists. Do not make players memorize internal values. `tune_fields_for_car()` exposes **every** editable `TuneSetup` field, grouped for display by `_TUNE_FIELD_GROUPS` (Tyres/Drivetrain/Brakes/Suspension/Aero) with one continuous numbering; every knob now influences `compute_effective_stats`.
+
+Choice fields (`value_type="choice"`) carry an `OptionData.description`; the CLI picker renders it as an **Effect** column so the player sees what each option does. `engine_map` uses this — `actions._engine_map_desc` summarises each map's power/fuel/heat trade-off (`ENGINE_MAP_POWER`/`FUEL`/`HEAT`). Reuse this pattern for any new enum field instead of hardcoding prose.
 
 ## Data Loading
 
