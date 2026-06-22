@@ -365,11 +365,13 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
 - New race command: update `COMMAND_MODIFIERS` (6-column tuple), `race_command_options()`, cooling sets if it cools, tests. Engine maps are NOT commands — they live in `tune.engine_map`.
 - New sortable field/screen: update the per-screen options in `game/sorting.py`, tests.
 - Balance lap times: update constants first, then formulas in `effective_stats.py` or `simulation.py`.
-  Pace today is an *absolute* subtraction (`base_lap_time − PERF_SCALE·composite`) with a fixed
-  `+PERF_SCALE·REFERENCE_COMPOSITE` offset baked into `base_lap_time`; **planned rework** makes the
-  perf/driver/command effects *proportional* (a % of the lap, consistent across track lengths) and
-  drops the offset so `base_lap_time` is the honest reference-car geometry lap. The cornering-vs-
-  climb split stays (`_climb_adjustment` is real physical seconds; keep it absolute).
+  Pace is **proportional**: `lap = base_lap_time × _pace_multiplier(composite, pace_factor, driver_pace)`
+  where the multiplier is `1 − PERF_FRACTION·(composite·pace_factor − REFERENCE_COMPOSITE) − DRIVER_PACE_FRACTION·driver_pace`.
+  A design-midpoint car laps at exactly `base_lap_time` (which is now the honest reference-car
+  geometry lap — no additive offset); a capability/driver edge is a consistent *percentage* on any
+  track length. `_climb_adjustment` stays **absolute** real seconds (gravity), re-split from pace via
+  `GRADIENT_PW_GAIN` when pace went proportional. Fix unrealistic outliers by tuning that track's
+  `SEGMENT_TAG_SPEED` or a car's stats — never by bending `PERF_FRACTION` away from honest.
 - Balance opponents: tune `RIVAL_MATCH_*`, `EVENT_PACE_FLOOR_PERCENTILE`, and other `RIVAL_*` constants first, then event restrictions/data or `opponents.py`.
 - Add web UI: create new interface/API layer that calls `game.actions`; avoid importing `interfaces.cli`.
 - Add save fields: update dataclasses, loader/save roundtrip tests, schema if breaking.

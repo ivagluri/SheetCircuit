@@ -82,12 +82,11 @@ class LapTimeRealismTests(unittest.TestCase):
             TrackSegment(name="a", length_pct=0.5, tags=["wide_track"], surface="tarmac", condition="dry"),
             TrackSegment(name="b", length_pct=0.5, tags=["hard_braking_zone"], surface="tarmac", condition="dry"),
         ]
+        # base_lap_time IS the reference lap now (no additive offset): a design-midpoint car at
+        # normal pace laps at exactly base_lap_time (pace multiplier 1.0), so it runs at the
+        # reference speed directly.
         base = derive_base_lap_time(segs, length_km)
-        # base = ref_lap + PERF_SCALE * REFERENCE_COMPOSITE, so a midpoint car laps at ref_lap.
-        from constants import PERF_SCALE
-
-        ref_lap = base - PERF_SCALE * REFERENCE_COMPOSITE
-        ref_speed = length_km / ref_lap * 3600.0
+        ref_speed = length_km / base * 3600.0
         # speed_factor for (wide_track 1.25 + hard_braking 0.70)/2 = 0.975, so ~BASE * 0.975.
         self.assertAlmostEqual(ref_speed, BASE_REFERENCE_SPEED * 0.975, delta=1.0)
 

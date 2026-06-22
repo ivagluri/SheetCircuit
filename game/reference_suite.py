@@ -8,7 +8,7 @@ go stale (the same de-pin principle the orphan-stat references follow).
 
 The fixtures' geometry (length, derived base lap time) is irrelevant here -- class reads
 the capability *composite* (a base_lap_time-independent weighted sum of the car's effective
-axes for that archetype's tag mix), so the race-pace tuning (PERF_SCALE etc.) does not
+axes for that archetype's tag mix), so the race-pace tuning (PERF_FRACTION etc.) does not
 move the tiers.
 """
 from __future__ import annotations

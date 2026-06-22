@@ -25,14 +25,16 @@ PERCENT_MAX = 100.0
 PERCENT_LOW_FUEL_WARNING = 20.0
 PERCENT_WORN_TIRE_WARNING = 30.0
 
-# How many seconds a unit of capability composite shaves off a lap. Raised from the
-# original 0.25 to widen the on-track gulf: a performance advantage now moves lap time
-# more, so a power car genuinely pulls away on a straight (a hypercar laps a pure drag
-# ~50% quicker than a microcar, vs ~33% before) while equal-capability cars stay even.
+# How much a capability edge changes lap time, as a FRACTION of the lap per composite point
+# away from REFERENCE_COMPOSITE. Proportional, not a fixed-second shave: a performance edge is
+# the same *percentage* on a 90s sprint and a 700s climb (the honest model -- a better car
+# pulls away more over more track), where the old absolute `PERF_SCALE*composite` shave gave a
+# track-length-independent ~18s that was ~20% of a sprint but ~3% of a climb. Outliers are
+# corrected by tuning that track's SEGMENT_TAG_SPEED / a car's stats, never by bending this.
 # The class brackets are unaffected -- they read the base_lap_time-independent composite.
-PERF_SCALE = 0.36
+PERF_FRACTION = 0.0024
 # A lap (or interval) can never drop below this fraction of its base time, so a very
-# high-composite custom car cannot drive the clock toward zero at the higher PERF_SCALE.
+# high-composite custom car cannot drive the clock toward zero.
 MIN_LAP_FRACTION = 0.30
 
 # --- Derived base lap time (Phase 4.1) -------------------------------------
@@ -47,10 +49,11 @@ MIN_LAP_FRACTION = 0.30
 #   * SEGMENT_TAG_SPEED -- a dimensionless speed factor per segment tag (straights fast,
 #     chicanes slow), consistent with SEGMENT_TAG_WEIGHTS. A segment's factor is the mean
 #     of its tags'; the lap's speed_factor is the length-weighted mean across segments.
-# ref_lap = length_km / (BASE_REFERENCE_SPEED x speed_factor); base_lap_time then adds
-# PERF_SCALE x REFERENCE_COMPOSITE so the design-midpoint car laps exactly at the reference
-# speed and weaker/stronger cars fall slower/faster. The additive constant rescales absolute
-# lap times without changing who wins, and it auto-updates for custom/creator tracks.
+# base_lap_time = ref_lap = length_km / (BASE_REFERENCE_SPEED x speed_factor): the honest lap a
+# design-midpoint car (composite == REFERENCE_COMPOSITE) runs on this geometry. No additive
+# offset -- pace is proportional (PERF_FRACTION), so a midpoint car laps at exactly base_lap_time
+# (multiplier 1.0) and weaker/stronger cars fall a consistent % slower/faster. Auto-updates for
+# custom/creator tracks.
 BASE_REFERENCE_SPEED = 125.0   # km/h on neutral geometry, mid-spec car
 REFERENCE_COMPOSITE = 50.0     # design midpoint composite, intrinsic (not a catalog mean)
 SEGMENT_TAG_SPEED: dict[str, float] = {
@@ -84,10 +87,16 @@ SEGMENT_TAG_SPEED: dict[str, float] = {
 # lap-time floor catches anything degenerate. Gated to net-climb layouts; loops return to
 # start, so their stored elevation_change_m is undulation, not net gain (climb_gradient_pct 0).
 NET_CLIMB_LAYOUTS = {"point_to_point", "hillclimb", "sprint"}
-GRADIENT_PW_GAIN = 1.05    # seconds per (%-grade x km) per natural-log unit of the hp/kg ratio
+# Re-anchored to the real paved Pikes times AFTER pace became proportional (PERF_FRACTION):
+# composite now also speeds a supercar over a long climb, so the climb term carries less of the
+# spread. GAIN 0.60 lands a showroom 911-analog ~9:46 (real 9:53) and an econobox ~14:00, spread
+# ~4.2 min -- both real anchors held, just split differently between pace and climb.
+GRADIENT_PW_GAIN = 0.60    # seconds per (%-grade x km) per natural-log unit of the hp/kg ratio
 GRADIENT_PW_REF = 0.217    # hp/kg at which the climb is time-neutral (from the real paved anchors)
 
-DRIVER_PACE_SCALE = 0.08
+# Driver pace as a FRACTION of the lap per pace point (proportional, like PERF_FRACTION). Keeps
+# the same driver:car influence ratio as the old absolute scales (0.08/0.36).
+DRIVER_PACE_FRACTION = PERF_FRACTION * (0.08 / 0.36)
 DRIVER_XP_PER_RACE = 10
 DRIVER_XP_PER_STAT_POINT = 50
 DRIVER_STAT_CAP = 99

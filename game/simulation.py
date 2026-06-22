@@ -15,7 +15,7 @@ from constants import (
     COMMAND_TIRE_WEAR_INDEX,
     ENGINE_COOLING_COMMANDS,
     TYRE_COOLING_COMMANDS,
-    DRIVER_PACE_SCALE,
+    DRIVER_PACE_FRACTION,
     DRIVER_ENERGY_DRAIN_PER_S,
     DRIVER_FOCUS_DRAIN_PER_S,
     DRIVER_STRESS_BUILD_PER_S,
@@ -37,8 +37,9 @@ from constants import (
     PIT_TIRE_RESTORE_PCT,
     PIT_TIRE_TEMP_C,
     PERCENT_MAX,
-    PERF_SCALE,
+    PERF_FRACTION,
     RANDOM_VARIANCE_SCALE,
+    REFERENCE_COMPOSITE,
     TIRE_CRITICAL_C,
     TIRE_COOL_PER_S,
     TIRE_HEAT_PER_KM,
@@ -76,6 +77,17 @@ def calculate_lap_time(
     )
 
 
+def _pace_multiplier(composite: float, pace_factor: float, driver_pace: float) -> float:
+    """Proportional pace scalar on the geometry lap (base_lap_time).
+
+    1.0 for a design-midpoint car (composite == REFERENCE_COMPOSITE) at normal pace, so it laps
+    at exactly base_lap_time; a capability or driver-pace edge makes it a consistent *fraction*
+    faster on any track length (the honest model). Command pace_factor amplifies the capability
+    edge the same way the old absolute formula did (`composite * pace_factor`).
+    """
+    return 1.0 - PERF_FRACTION * (composite * pace_factor - REFERENCE_COMPOSITE) - DRIVER_PACE_FRACTION * driver_pace
+
+
 def lap_time_over_interval(
     effective: EffectiveCarStats,
     track: Track,
@@ -100,20 +112,11 @@ def lap_time_over_interval(
         for profile, overlap in _segments_in_interval(track.segment_profiles, start, length):
             composite = _segment_composite(effective, profile)
             driver_pace = _blended_pace(driver, profile.wet_weight)
-            time_rate = (
-                track.base_lap_time
-                - PERF_SCALE * composite * pace_factor
-                - driver_pace * DRIVER_PACE_SCALE
-            )
-            core += time_rate * overlap
+            core += track.base_lap_time * _pace_multiplier(composite, pace_factor, driver_pace) * overlap
     else:
         composite = _track_composite(effective, track)
-        driver_pace_bonus = driver.pace * DRIVER_PACE_SCALE if driver is not None else 0.0
-        core = (
-            track.base_lap_time
-            - PERF_SCALE * composite * pace_factor
-            - driver_pace_bonus
-        ) * length
+        driver_pace = driver.pace if driver is not None else 0.0
+        core = track.base_lap_time * _pace_multiplier(composite, pace_factor, driver_pace) * length
 
     # The climb adjustment (power-to-weight driven) is applied before re-flooring, and scales
     # with the interval length so the segment-resolved and aggregate paths agree.

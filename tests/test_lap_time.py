@@ -92,12 +92,13 @@ class LapTimeTests(unittest.TestCase):
         self.assertLess(car.condition.overall_condition, start_condition)
 
     def test_k660_maple_reference_lap_time(self) -> None:
+        # Re-pinned to ~82s after the proportional-pace rework (no +18s base_lap_time offset).
         track = self.tracks["maple_short"]
         effective = compute_effective_stats(self.cars["kanto_k660"], self.parts)
         lap_time = calculate_lap_time(effective, track)
 
-        self.assertGreaterEqual(lap_time, 84.0)
-        self.assertLessEqual(lap_time, 90.0)
+        self.assertGreaterEqual(lap_time, 79.0)
+        self.assertLessEqual(lap_time, 85.0)
 
     def test_hot_map_improves_lap_but_increases_engine_heat(self) -> None:
         track = self.tracks["maple_short"]

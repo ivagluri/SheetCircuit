@@ -1,11 +1,11 @@
 """Hillclimb climb model: a net climb's pace is driven by real power-to-weight.
 
-Lap time is otherwise an additive `base - PERF_SCALE*composite` shave that compresses to
-near-nothing over a long lap, so it can't tell a shitbox from a supercar on a 20 km climb.
-The climb model adds a time adjustment that's monotonic in the car's own hp/kg, anchored to
-REAL paved Pikes Peak stock times (econobox ~14:00, 911 Turbo S 9:53) -- never to our
-catalog, so a custom car gets a real climb time from its own specs. Gated to net-climb
-layouts; loops return to start and get no adjustment.
+Pace is proportional (a fraction of the lap per composite point), so capability already
+spreads cars over a long lap; on top of that the climb model adds the real GRAVITATIONAL time
+penalty, monotonic in the car's own hp/kg, anchored to REAL paved Pikes Peak stock times
+(econobox ~14:00, 911 Turbo S 9:53) -- never to our catalog, so a custom car gets a real climb
+time from its own specs. The two contributions were re-split when pace went proportional (see
+GRADIENT_PW_GAIN). Gated to net-climb layouts; loops return to start and get no adjustment.
 """
 
 from __future__ import annotations

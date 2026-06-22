@@ -55,15 +55,17 @@ class SegmentResolutionTests(unittest.TestCase):
         pieces = sum(lap_time_over_interval(self.eff, track, start=i / n, length=1.0 / n) for i in range(n))
         self.assertAlmostEqual(full, pieces, places=6)
 
-    def test_dry_tarmac_matches_legacy_aggregate_formula(self) -> None:
-        # Integral-preserving design: a dry tarmac lap equals base_lap_time minus the
-        # aggregate-weighted car bonus (the pre-segment formula), so balance is intact.
-        from constants import PERF_SCALE
+    def test_dry_tarmac_matches_aggregate_formula(self) -> None:
+        # Integral-preserving design: because pace is a LINEAR function of composite, the
+        # segment-resolved lap equals base_lap_time x the aggregate-composite pace multiplier
+        # (the profile-less formula), so composition shapes within-lap pace without drift.
+        from constants import PERF_FRACTION, REFERENCE_COMPOSITE
         from game.simulation import _track_composite
 
         track = self.tracks["maple_short"]
-        legacy = track.base_lap_time - PERF_SCALE * _track_composite(self.eff, track)
-        self.assertAlmostEqual(calculate_lap_time(self.eff, track), legacy, places=6)
+        composite = _track_composite(self.eff, track)
+        aggregate = track.base_lap_time * (1.0 - PERF_FRACTION * (composite - REFERENCE_COMPOSITE))
+        self.assertAlmostEqual(calculate_lap_time(self.eff, track), aggregate, places=6)
 
     def test_segment_position_shapes_pace_within_lap(self) -> None:
         # A power straight up front vs slow corners at the back: equal-length slices

@@ -40,10 +40,10 @@ class CarCatalogTests(unittest.TestCase):
     def test_s_class_focus_cars_are_competitive(self) -> None:
         s_cars = [car for car in self.cars if derived_class(car, self.parts) == "S"]
 
-        # The Phase 3b gulf widening (PERF_SCALE 0.36) lets a capability edge open a bigger
-        # lap-time gap, so the intra-S spread grew to ~2.9s (~4% of a ~75s lap). The S cars
-        # stay competitive within a class, so the guard is widened to 3.1s. If it creeps
-        # past that, PERF_SCALE or the orphan-stat magnitudes are too hot. Net-climb tracks
+        # Proportional pace (PERF_FRACTION) lets a capability edge open a bigger lap-time gap,
+        # so the intra-S spread is ~a few % of the lap. The S cars stay competitive within a
+        # class, so the guard is widened to 3.1s. If it creeps
+        # past that, PERF_FRACTION or the orphan-stat magnitudes are too hot. Net-climb tracks
         # are excluded: a hillclimb is a power-to-weight time-attack, not wheel-to-wheel
         # racing, so same-class cars rightly spread out by tens of seconds there.
         for track in self.tracks:

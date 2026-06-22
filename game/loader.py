@@ -16,8 +16,6 @@ from constants import (
     ELEVATION_REF_M,
     NET_CLIMB_LAYOUTS,
     OVERTAKE_DIFFICULTY_TAG_DELTA,
-    PERF_SCALE,
-    REFERENCE_COMPOSITE,
     SEGMENT_TAG_RATES,
     SEGMENT_TAG_SPEED,
     SEGMENT_TAG_WEIGHTS,
@@ -283,14 +281,14 @@ def derive_base_lap_time(segments: list[TrackSegment], length_km: float) -> floa
 
     A length-weighted speed factor over the segment tag mix sets the track's reference
     speed (``BASE_REFERENCE_SPEED x speed_factor``); the reference lap is distance / speed.
-    Adding ``PERF_SCALE x REFERENCE_COMPOSITE`` centres a design-midpoint car at that speed
-    (see constants), so weaker cars lap slower and stronger ones faster. Never stored ->
-    custom/creator tracks get a sane base for free. See constants.SEGMENT_TAG_SPEED.
+    This IS base_lap_time -- the honest lap a design-midpoint car runs on this geometry; pace
+    is proportional (PERF_FRACTION), so that car laps at exactly this and weaker/stronger cars
+    fall a consistent % off it. Never stored -> custom/creator tracks get a sane base for free.
+    See constants.SEGMENT_TAG_SPEED.
     """
     speed_factor = sum(seg.length_pct * _segment_speed_factor(seg) for seg in segments)
     speed_factor = max(speed_factor, 1e-6)
-    ref_lap = length_km / (BASE_REFERENCE_SPEED * speed_factor) * 3600.0
-    return ref_lap + PERF_SCALE * REFERENCE_COMPOSITE
+    return length_km / (BASE_REFERENCE_SPEED * speed_factor) * 3600.0
 
 
 def _elevation_factor(elevation_m: float, per_m: float) -> float:

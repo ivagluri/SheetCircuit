@@ -37,10 +37,12 @@ class BalanceBaselineTests(unittest.TestCase):
         self.tracks = {track.id: track for track in load_tracks()}
 
     def test_reference_lap_stays_in_band(self) -> None:
+        # Re-pinned after the proportional-pace rework: dropping the +18s base_lap_time offset
+        # and making perf a fraction of the lap moves the kei's maple reference lap to ~82s.
         effective = compute_effective_stats(self.cars["kanto_k660"], self.parts)
         lap = calculate_lap_time(effective, self.tracks["maple_short"])
-        self.assertGreaterEqual(lap, 84.0)
-        self.assertLessEqual(lap, 90.0)
+        self.assertGreaterEqual(lap, 79.0)
+        self.assertLessEqual(lap, 85.0)
 
     def test_race_outcomes_stay_near_baseline(self) -> None:
         for seed, baseline in PLAYER_TOTAL_BASELINE.items():
