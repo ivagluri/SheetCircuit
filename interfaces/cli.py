@@ -3,9 +3,8 @@ from __future__ import annotations
 import select
 import shlex
 import sys
-import time
 
-_RACE_SPEED_FACTOR = 13.3   # display each lap this many times faster than real-time
+from constants import PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ
 # Presentation fast-forward multipliers cycled with F in the race loop. Pure render speed:
 # they change only the per-tick wall-clock pause, never the simulated result.
 _RACE_SPEEDS = (1.0, 2.0, 4.0, 8.0)
@@ -316,7 +315,7 @@ def _screen_selection(state: GameState, screen: str, raw: str):
     if screen == "events":
         events = _sorted_events()
         event = _select_from_collection(events, raw, lambda item: item.id)
-        return event_detail_screen(event.id) if event is not None else None
+        return event_detail_screen(event.id, state) if event is not None else None
     if screen == "garage":
         car = _select_from_collection(_sorted_garage(state), raw, lambda item: item.identity.id)
         return car_detail_screen(state, car.identity.id) if car is not None else None
@@ -726,8 +725,9 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
     race_error = ""
     show_help = False
     interactive = sys.stdin.isatty() and sys.stdout.isatty()
-    track = session.track
-    base_tick_sleep = (track.base_lap_time / _RACE_SPEED_FACTOR / session.ticks_per_lap) if track else 0.4
+    # Constant per-update pause: tick count already scales with the car's watched length
+    # (see ticks_per_lap_for), so total watched = ticks / TICK_RATE_HZ tracks the real race.
+    base_tick_sleep = 1.0 / TICK_RATE_HZ
     speed_mult = 1.0  # presentation speed; F cycles it, never touches the result
 
     _render_race_screen(state, session, None, "")

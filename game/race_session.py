@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import random
 from copy import deepcopy
 
@@ -18,10 +19,13 @@ from constants import (
     MISTAKE_TIME_MEDIUM,
     MISTAKE_TIME_SMALL,
     MILEAGE_KM_MULTIPLIER,
+    MAX_TICKS_PER_LAP,
+    MIN_TICKS_PER_LAP,
     PERCENT_MAX,
-    RACE_TICKS_PER_LAP_DIVISOR,
+    PRESENTATION_SPEED_FACTOR,
+    RIVAL_LAP_JITTER_S,
     RIVAL_REACTIVE_GAP_S,
-    RIVAL_TICK_VARIANCE_S,
+    TICK_RATE_HZ,
     WEAR_PER_RACE_BASE,
 )
 from game.effective_stats import compute_effective_stats
@@ -41,6 +45,19 @@ from game.simulation import (
     lap_time_over_interval,
 )
 from game.telemetry import failure_chance, mistake_chance, record_telemetry, warning_messages
+
+
+def ticks_per_lap_for(lap_time_s: float) -> int:
+    """Sub-ticks for a lap whose real (canonical) time is ``lap_time_s``, tied to watched time.
+
+    watched = lap_time_s / PRESENTATION_SPEED_FACTOR; ticks = watched * TICK_RATE_HZ. This keeps
+    the per-update pause a constant 1/TICK_RATE_HZ (no dead air) while the total watched length
+    tracks the car's actual pace, and a true realtime race (factor 1.0) gets proportionally more
+    ticks. Safe because the sim is resolution-invariant: tick count does not move the result.
+    """
+    watched_s = lap_time_s / PRESENTATION_SPEED_FACTOR
+    ticks = round(watched_s * TICK_RATE_HZ)
+    return max(MIN_TICKS_PER_LAP, min(MAX_TICKS_PER_LAP, ticks))
 
 
 def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: str, seed: int = 1) -> RaceSession:
@@ -73,7 +90,12 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
         states.append(opponent_state)
 
     race_format = resolve_race(event, track)
-    ticks_per_lap = max(4, min(16, round(track.base_lap_time / RACE_TICKS_PER_LAP_DIVISOR)))
+    # Density follows the *player's* nominal lap pace, not the neutral track reference, so the
+    # watched length matches the "your car vs this event" estimate (a slow car genuinely takes
+    # longer to run). Deterministic (no wear, no variance) so it is stable across seeds.
+    player_effective = compute_effective_stats(cars[car_id], parts)
+    nominal_lap_s = lap_time_over_interval(player_effective, track, player_driver, start=0.0, length=1.0)
+    ticks_per_lap = ticks_per_lap_for(nominal_lap_s)
     return RaceSession(
         event_id=event.id,
         track_id=track.id,
@@ -143,8 +165,9 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
             start=seg_start, length=seg_length,
         )
         if not state.is_player:
-            # Per-tick jitter keeps the rival pack shuffling in close battles.
-            tick_time += rng.uniform(-RIVAL_TICK_VARIANCE_S, RIVAL_TICK_VARIANCE_S)
+            # Jitter keeps the rival pack shuffling in close battles. Scaled by sqrt(slice) so the
+            # accumulated per-lap shuffle is the same at any tick count (resolution-invariant).
+            tick_time += rng.uniform(-RIVAL_LAP_JITTER_S, RIVAL_LAP_JITTER_S) * math.sqrt(seg_length)
         extra_penalty = 0.0
 
         # Mistakes and failures can strike on any tick, scaled to the slice of track

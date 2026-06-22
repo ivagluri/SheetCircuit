@@ -47,7 +47,13 @@ game/
                      "orphan-stat reference points" block in constants).
   opponents.py       Event entry validation and event-pace-aware AI grid generation.
   simulation.py      Lap-time formula and non-interactive full race simulation.
+                     Resolution-invariant: noise (driver variance, rival jitter) scales by
+                     sqrt(slice) so any tick count yields the same per-lap spread; the live
+                     engine matches the one-shot instant sim (the anchor for all balance).
   race_session.py    Interactive RaceSession lifecycle and tick simulation.
+                     ticks_per_lap_for(lap_s) sets tick density from *watched* wall-clock
+                     (lap_s / PRESENTATION_SPEED_FACTOR * TICK_RATE_HZ), using the player's
+                     nominal lap pace -> a slow car genuinely takes longer to watch.
   telemetry.py       Telemetry history, warnings, mistake/failure probabilities.
   sorting.py         SortSpec parsing and per-screen list sorting (class/PR/type-aware).
 
@@ -85,7 +91,8 @@ market_car_detail_screen(car_id)
 car_extended_screen(state, car_id)         # full spec sheet (garage)
 market_car_extended_screen(car_id)         # full spec sheet (market)
 driver_detail_screen(driver_id)
-event_detail_screen(event_id)
+event_detail_screen(event_id, state=None)  # adds an "Est. Time" row (play/real) when state given
+estimate_race_times(car, driver, event, track, parts=None) -> (canonical_s, play_s)
 race_entry_screen(state, step="events")    # guided race picker (events/cars/drivers)
 tune_fields_screen(state, car_id)
 race_screen(session, tick=None, error="")
@@ -202,6 +209,22 @@ resolved by `loader.resolve_race`), not the track; the track defines one lap of
 geometry. Attrition is physical: fuel is litres vs the tank, tyres are a distance-based
 life, engine heat and driver fatigue accrue over time (see `_apply_lap_wear`).
 
+### Time Scale / Presentation
+
+Three layers are kept strictly independent (see `constants.py` "Presentation / time-scale"):
+
+```text
+canonical clock  base_lap_time / per-car lap time -- real in-world seconds (drives physics)
+sim resolution   ticks_per_lap -- integration granularity; outcome-invariant (sqrt(slice) noise)
+presentation     PRESENTATION_SPEED_FACTOR (watched = canonical / factor; 1.0 == realtime)
+```
+
+`ticks_per_lap_for()` ties density to *watched* time, so the per-update pause is a constant
+`1/TICK_RATE_HZ` on every track (no dead air) and realtime gets proportionally more ticks. The
+sim is honest; only the presentation factor compresses it. There is deliberately **no per-track
+target time** -- the same track yields different times per car, so `estimate_race_times` reports
+the car-specific figure (and the editor preview shows the fastest->slowest spread).
+
 Non-interactive full race:
 
 ```text
@@ -266,8 +289,8 @@ Field generation is event-set difficulty plus dynamic pace matching (see
 Liveliness comes from two engine-side touches in `simulate_tick`:
 
 ```text
-per-tick rival jitter   (RIVAL_TICK_VARIANCE_S)  -> pack shuffles
-reactive push           (RIVAL_REACTIVE_GAP_S)   -> rivals race you back
+rival jitter   (RIVAL_LAP_JITTER_S, sqrt(slice)-scaled)  -> pack shuffles (tick-count invariant)
+reactive push  (RIVAL_REACTIVE_GAP_S)                    -> rivals race you back
 ```
 
 `start_race_action` uses a random seed by default (pass an explicit seed for
@@ -342,6 +365,11 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
 - New race command: update `COMMAND_MODIFIERS` (6-column tuple), `race_command_options()`, cooling sets if it cools, tests. Engine maps are NOT commands — they live in `tune.engine_map`.
 - New sortable field/screen: update the per-screen options in `game/sorting.py`, tests.
 - Balance lap times: update constants first, then formulas in `effective_stats.py` or `simulation.py`.
+  Pace today is an *absolute* subtraction (`base_lap_time − PERF_SCALE·composite`) with a fixed
+  `+PERF_SCALE·REFERENCE_COMPOSITE` offset baked into `base_lap_time`; **planned rework** makes the
+  perf/driver/command effects *proportional* (a % of the lap, consistent across track lengths) and
+  drops the offset so `base_lap_time` is the honest reference-car geometry lap. The cornering-vs-
+  climb split stays (`_climb_adjustment` is real physical seconds; keep it absolute).
 - Balance opponents: tune `RIVAL_MATCH_*`, `EVENT_PACE_FLOOR_PERCENTILE`, and other `RIVAL_*` constants first, then event restrictions/data or `opponents.py`.
 - Add web UI: create new interface/API layer that calls `game.actions`; avoid importing `interfaces.cli`.
 - Add save fields: update dataclasses, loader/save roundtrip tests, schema if breaking.
@@ -364,4 +392,6 @@ test_opponents.py          Event restrictions, pace floors, and opponent generat
 test_car_catalog.py        Catalog class distribution and S-class competitiveness.
 test_actions.py            UI-neutral action/screen layer.
 test_cli.py                Terminal menu/screen behavior.
+test_presentation_timing.py Resolution-invariance of lap noise, watched-time tick density,
+                            and the pre-race play/real estimate.
 ```

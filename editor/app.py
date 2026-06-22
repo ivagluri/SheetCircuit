@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from constants import PRESENTATION_SPEED_FACTOR
+from game.actions import format_race_clock
 from game.effective_stats import class_breakdown, class_rating, derived_class, performance_type, compute_effective_stats
 from game.loader import (
     DATA_ROOT,
@@ -22,11 +24,15 @@ from game.loader import (
     derive_base_lap_time,
     derive_weights,
     event_from_dict,
+    load_cars,
+    load_drivers,
+    load_parts,
     load_tracks,
     resolve_race,
     track_from_dict,
 )
 from game.models import TrackSegment
+from game.simulation import calculate_lap_time
 from interfaces.terminal import terminal
 
 from editor.fields import (
@@ -226,6 +232,35 @@ def save_draft(schema: Schema, draft: dict) -> Path:
 
 
 # --- live previews ----------------------------------------------------------
+def _real_play_span(track, laps: int) -> str | None:
+    """A 'real / play' time line for ``laps`` laps, shown as the spread across the catalog.
+
+    A track has no single time -- a fast car and a slow car run it very differently -- so the
+    creator shows the fastest..slowest range rather than a misleading target. Reuses the same
+    deterministic lap-time math the game and pre-race estimate use; play = real / factor.
+    """
+    cars = load_cars()
+    if not cars:
+        return None
+    parts = load_parts()
+    drivers = load_drivers()
+    driver = drivers[0] if drivers else None
+    laps = max(1, laps)
+    times = [calculate_lap_time(compute_effective_stats(c, parts), track, driver, None, None) * laps for c in cars]
+    fast, slow = min(times), max(times)
+
+    def fmt_span(lo: float, hi: float) -> str:
+        if abs(hi - lo) < 1.0:
+            return format_race_clock(hi)
+        return f"{format_race_clock(lo)}–{format_race_clock(hi)}"
+
+    factor = PRESENTATION_SPEED_FACTOR or 1.0
+    return (
+        f"time (fastest→slowest car): ~{fmt_span(fast, slow)} race"
+        f"  ·  ~{fmt_span(fast / factor, slow / factor)} to play"
+    )
+
+
 def car_preview(draft: dict) -> list[str]:
     try:
         car = car_from_dict(copy.deepcopy(draft))
@@ -261,6 +296,9 @@ def track_preview(draft: dict) -> list[str]:
             f"one lap: {length_km:g} km, derived base_lap_time {base:.1f}s "
             f"(~{ref_kmh:.0f} km/h reference pace)   (race length is set per-event)"
         )
+        span = _real_play_span(track_from_dict(copy.deepcopy(draft)), laps=1)
+        if span is not None:
+            lines.append(span)
         weights = derive_weights(seg_objs)
         emphasis = ", ".join(
             f"{dim} {val:.0%}" for dim, val in sorted(weights.items(), key=lambda kv: -kv[1]) if val > 0.0
@@ -287,11 +325,16 @@ def event_preview(draft: dict) -> list[str]:
     else:
         race = f"duration: {fmt.duration_s / 3600:.1f} h (not raceable yet)"
     restr = ", ".join(f"{k}={v}" for k, v in (payload.get("restrictions") or {}).items()) or "none"
-    return [
+    lines = [
         f"[bold]{event.name or '(unnamed)'}[/bold] on [cyan]{track.name}[/cyan]",
         race,
         f"class ≤ {event.car_class_limit}   field {event.opponent_count}   fee ${event.entry_fee}   restrictions: {restr}",
     ]
+    if fmt.laps is not None:
+        span = _real_play_span(track, laps=fmt.laps)
+        if span is not None:
+            lines.append(span)
+    return lines
 
 
 # ===========================================================================

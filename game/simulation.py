@@ -119,7 +119,10 @@ def lap_time_over_interval(
     # with the interval length so the segment-resolved and aggregate paths agree.
     core += _climb_adjustment(track, effective) * length
     core = max(core, track.base_lap_time * length * MIN_LAP_FRACTION)
-    return core + (_state_penalty(state) + _lap_variance(driver, rng)) * length
+    # State penalty is a deterministic drag -> scales linearly with the slice. Driver variance is
+    # additive noise -> scales with sqrt(slice) so the per-lap spread is identical whether a lap is
+    # one tick or a thousand (resolution-invariant; at length=1 this is the instant-sim draw).
+    return core + _state_penalty(state) * length + _lap_variance(driver, rng) * math.sqrt(length)
 
 
 def _climb_adjustment(track: Track, effective: EffectiveCarStats) -> float:

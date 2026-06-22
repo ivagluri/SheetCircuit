@@ -5,14 +5,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
+from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
 from game.effective_stats import class_breakdown, class_rating, compute_effective_stats, derived_class, performance_type
 from game.game_state import GameState
-from game.loader import load_drivers, load_events, load_tracks, resolve_race
+from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.market import list_market_cars
 from game.models import RaceSession, RaceTickResult
 from game.race_session import apply_player_command, enter_event, finish_event
+from game.simulation import calculate_lap_time
 from game.save_load import load_game, save_game
 from game.sorting import SortSpec, sort_items, sort_label
 from game.tuning import update_tune_fields
@@ -497,7 +498,7 @@ def driver_detail_screen(driver_id: str) -> ScreenData:
     )
 
 
-def event_detail_screen(event_id: str) -> ScreenData:
+def event_detail_screen(event_id: str, state: GameState | None = None) -> ScreenData:
     event = next((event for event in load_events() if event.id == event_id), None)
     if event is None:
         raise ValueError(f"Unknown event: {event_id}")
@@ -508,6 +509,22 @@ def event_detail_screen(event_id: str) -> ScreenData:
         race_desc = f"{race_format.laps} laps ({race_format.laps * track.length_km:.1f} km)"
     else:
         race_desc = f"{race_format.duration_s / 3600:.1f} h (time)"
+    rows = [
+        ["ID", event.id],
+        ["Class Limit", event.car_class_limit],
+        ["Entry Fee", f"${event.entry_fee}"],
+        ["Race", race_desc],
+        ["Lap Length", f"{track.length_km} km"],
+        ["Opponents", event.opponent_count],
+        ["Prizes", ", ".join(f"${prize}" for prize in event.prize_money)],
+    ]
+    if state is not None:
+        entry = _estimate_entry(state, event, track)
+        if entry is not None:
+            car, driver, eligible = entry
+            canonical_s, play_s = estimate_race_times(car, driver, event, track)
+            note = "" if eligible else " (best car, not eligible)"
+            rows.append(["Est. Time", f"~{format_race_clock(play_s)} to play / ~{format_race_clock(canonical_s)} race{note}"])
     return ScreenData(
         name="event_detail",
         title=event.name,
@@ -516,15 +533,7 @@ def event_detail_screen(event_id: str) -> ScreenData:
             TableData(
                 "Event",
                 ["Field", "Value"],
-                [
-                    ["ID", event.id],
-                    ["Class Limit", event.car_class_limit],
-                    ["Entry Fee", f"${event.entry_fee}"],
-                    ["Race", race_desc],
-                    ["Lap Length", f"{track.length_km} km"],
-                    ["Opponents", event.opponent_count],
-                    ["Prizes", ", ".join(f"${prize}" for prize in event.prize_money)],
-                ],
+                rows,
             ),
             TableData(
                 "Restrictions",
@@ -680,6 +689,61 @@ def format_race_clock(seconds: float) -> str:
     if hours:
         return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes}:{secs:02d}"
+
+
+def estimate_race_times(car, driver, event, track, parts=None) -> tuple[float, float]:
+    """Nominal (canonical_seconds, play_seconds) for ``car``/``driver`` on this event.
+
+    Canonical is the real race clock: deterministic lap time (no wear, no random variance) times
+    the lap count, or the duration cap for time races. Play is what the player actually watches,
+    canonical compressed by PRESENTATION_SPEED_FACTOR. The car's pace shapes the canonical figure,
+    so a faster car shows a shorter race -- "your car vs this event", not a fixed track number.
+    """
+    parts = load_parts() if parts is None else parts
+    race_format = resolve_race(event, track)
+    if race_format.laps is not None:
+        effective = compute_effective_stats(car, parts)
+        lap_time = calculate_lap_time(effective, track, driver, state=None, rng=None)
+        canonical_s = lap_time * race_format.laps
+    else:
+        canonical_s = float(race_format.duration_s)
+    play_s = canonical_s / PRESENTATION_SPEED_FACTOR if PRESENTATION_SPEED_FACTOR else canonical_s
+    return canonical_s, play_s
+
+
+def _estimate_entry(state: GameState, event, track):
+    """Pick a representative (car, driver) to estimate an event's times for the player.
+
+    Prefers the player's best-rated garage car that is actually eligible for the event; falls back
+    to their best car overall, then to the sample catalog. Returns (car, driver, eligible) or None
+    when nothing is available to estimate with.
+    """
+    from game.opponents import validate_event_entry
+
+    parts = load_parts()
+    garage = list(state.garage)
+    if garage:
+        ranked = sorted(garage, key=lambda car: class_rating(compute_effective_stats(car, parts)), reverse=True)
+        eligible = None
+        for car in ranked:
+            try:
+                validate_event_entry(car, event, parts)
+            except Exception:
+                continue
+            eligible = car
+            break
+        car = eligible or ranked[0]
+        is_eligible = eligible is not None
+    else:
+        catalog = load_cars()
+        if not catalog:
+            return None
+        car = max(catalog, key=lambda c: class_rating(compute_effective_stats(c, parts)))
+        is_eligible = False
+    drivers = state.hired_drivers or load_drivers()
+    if not drivers:
+        return None
+    return car, drivers[0], is_eligible
 
 
 def race_clock_elapsed(session: "RaceSession") -> float:

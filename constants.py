@@ -2,8 +2,23 @@
 
 SCHEMA_VERSION = 1
 STARTING_MONEY = 8000
-RACE_TICKS_PER_LAP_DIVISOR = 8.0   # base_lap_time / this = sub-ticks per lap
 STARTING_WEEK = 1
+
+# --- Presentation / time-scale ----------------------------------------------
+# Three independent layers (see memory: time-scale-model):
+#   * canonical clock  -- base_lap_time, the real seconds a lap takes (intrinsic to geometry)
+#   * presentation     -- PRESENTATION_SPEED_FACTOR compresses canonical -> watched wall-clock
+#   * sim resolution   -- ticks_per_lap, how finely a lap is integrated
+# No track-specific wall-clock target is anchored anywhere: a race's watched length is purely
+# base_lap_time / PRESENTATION_SPEED_FACTOR, and the result is resolution-invariant (the live
+# engine matches the one-shot instant sim at any tick count), so tick count is free to float.
+PRESENTATION_SPEED_FACTOR = 13.3   # watched wall-clock = canonical lap time / this (1.0 == realtime)
+# Sim ticks per second of *watched* wall-clock. With density tied to watched time the per-update
+# pause is a constant 1/this on every track, so a 50s sprint and a 12-minute realtime climb both
+# refresh at the same felt cadence -- no dead air, no 3-ticks-per-minute realtime.
+TICK_RATE_HZ = 2.0
+MIN_TICKS_PER_LAP = 8
+MAX_TICKS_PER_LAP = 2400
 TRACK_LENGTH_TOLERANCE = 0.001
 PERCENT_MIN = 0.0
 PERCENT_MAX = 100.0
@@ -239,7 +254,11 @@ RIVAL_MATCH_LAP_BAND_FRAC = 0.025
 RIVAL_MATCH_EXPANSION_FACTOR = 2.0
 RIVAL_MATCH_MIN_UNIQUE = 3
 RIVAL_MATCH_POOL_FACTOR = 2.0
-RIVAL_TICK_VARIANCE_S = 0.06     # per-TICK random jitter on each rival's pace (live shuffling)
+# Per-LAP rival pace jitter amplitude (uniform +/-): a live-only shuffle so the rival pack
+# reshuffles in close battles. Applied per tick scaled by sqrt(slice) so the accumulated
+# per-lap spread (std ~= amp/sqrt(3) ~= 0.14s) is identical at any tick count. Cosmetic; the
+# instant sim carries none, so this is not anchored to it.
+RIVAL_LAP_JITTER_S = 0.25
 RIVAL_REACTIVE_GAP_S = 1.0       # opponents push only in an immediate battle within this gap (interactive)
 RACE_DISTANCE_LAP_PROGRESS = 1.0
 LOW_FEEDBACK_THRESHOLD = 50
