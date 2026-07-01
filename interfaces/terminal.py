@@ -73,9 +73,9 @@ class Terminal:
 
     def table_columns(
         self,
-        left_tables: Sequence[tuple[str, Sequence[str], Sequence[Sequence[object]]]],
-        right_table: tuple[str, Sequence[str], Sequence[Sequence[object]]],
+        *groups: Sequence[tuple[str, Sequence[str], Sequence[Sequence[object]]]],
     ) -> None:
+        """Render groups of tables side by side; each group stacks its tables vertically."""
         if (
             self._console is not None
             and Columns is not None
@@ -83,37 +83,48 @@ class Terminal:
             and Table is not None
             and box is not None
         ):
-            left = Group(*(self._rich_table(title, headers, rows) for title, headers, rows in left_tables))
-            right = self._rich_table(*right_table)
-            self._console.print(Columns([left, right], expand=True, equal=False))
+            # no_wrap: side-by-side panels must keep a constant height, so a cell that
+            # can't fit truncates with an ellipsis instead of wrapping onto extra lines.
+            rendered = [
+                Group(*(self._rich_table(title, headers, rows, no_wrap=True) for title, headers, rows in group))
+                for group in groups
+            ]
+            # Left-packed (no expand): a column growing wider (e.g. a long race-log line)
+            # only extends its own right edge instead of re-spacing the whole row.
+            self._console.print(Columns(rendered, expand=False, equal=False))
             return
 
-        left_lines: list[str] = []
-        for title, headers, rows in left_tables:
-            if left_lines:
-                left_lines.append("")
-            left_lines.extend(self._plain_table_lines(title, headers, rows))
-        right_lines = self._plain_table_lines(*right_table)
-        left_width = max((len(line) for line in left_lines), default=0)
+        group_lines: list[list[str]] = []
+        for group in groups:
+            lines: list[str] = []
+            for title, headers, rows in group:
+                if lines:
+                    lines.append("")
+                lines.extend(self._plain_table_lines(title, headers, rows))
+            group_lines.append(lines)
+        widths = [max((len(line) for line in lines), default=0) for lines in group_lines]
         terminal_width = shutil.get_terminal_size((120, 40)).columns
         gap = 4
-        if left_width + gap + max((len(line) for line in right_lines), default=0) > terminal_width:
-            print("\n".join(left_lines))
-            print()
-            print("\n".join(right_lines))
+        if sum(widths) + gap * (len(group_lines) - 1) > terminal_width:
+            print("\n\n".join("\n".join(lines) for lines in group_lines))
             return
-        height = max(len(left_lines), len(right_lines))
+        height = max(len(lines) for lines in group_lines)
         combined = []
         for index in range(height):
-            left = left_lines[index] if index < len(left_lines) else ""
-            right = right_lines[index] if index < len(right_lines) else ""
-            combined.append(left.ljust(left_width) + (" " * gap) + right)
+            cells = [
+                (lines[index] if index < len(lines) else "").ljust(widths[column])
+                for column, lines in enumerate(group_lines)
+            ]
+            combined.append((" " * gap).join(cells).rstrip())
         print("\n".join(combined))
 
-    def _rich_table(self, title: str, headers: Sequence[str], rows: Sequence[Sequence[object]]):
+    def _rich_table(self, title: str, headers: Sequence[str], rows: Sequence[Sequence[object]], no_wrap: bool = False):
         table = Table(title=title, box=box.SIMPLE_HEAVY)
         for header in headers:
-            table.add_column(header)
+            if no_wrap:
+                table.add_column(header, no_wrap=True, overflow="ellipsis")
+            else:
+                table.add_column(header)
         for row in rows:
             table.add_row(*(str(value) for value in row))
         return table

@@ -216,8 +216,30 @@ class ActionLayerTests(unittest.TestCase):
 
         self.assertEqual(race_log.headers, ["Lap", "Event"])
         self.assertEqual(len(race_log.rows), 10)
-        self.assertEqual(race_log.rows[0], [6, "event 6"])
-        self.assertEqual(race_log.rows[-1], [15, "event 15"])
+        # Event cells are space-padded to a constant width so the panel never resizes mid-race.
+        self.assertEqual(race_log.rows[0][0], 6)
+        self.assertEqual(race_log.rows[0][1].rstrip(), "event 6")
+        self.assertEqual(race_log.rows[-1][0], 15)
+        self.assertEqual(race_log.rows[-1][1].rstrip(), "event 15")
+        self.assertEqual(len({len(row[1]) for row in race_log.rows}), 1)
+
+    def test_track_strip_gives_unequal_times_distinct_rows(self) -> None:
+        # Cosmetic contract: two dots share a strip row only on a true dead heat, so the
+        # field never reads as an equal-times procession.
+        cars = {car.identity.id: car for car in load_cars()}
+        state = GameState(garage=[deepcopy(cars["kanto_k660"])])
+        started = start_race_action(state, "sunday_cup", "kanto_k660", "driver_novak", seed=3)
+        tick = None
+        for _ in range(10):
+            tick = advance_race_action(started.session, "push").tick
+        times = [car.total_time for car in started.session.cars]
+        self.assertEqual(len(set(times)), len(times))  # jitter makes a fluke tie ~impossible
+
+        strip = next(table for table in race_screen(started.session, tick).tables if table.title == "Track")
+        # rows[0] is the finish line and the last two are the lane tags and legend.
+        for row in strip.rows[1:-2]:
+            dots = row[0].count("●") + row[0].count("○")
+            self.assertLessEqual(dots, 1, f"unequal times share a strip row: {row[0]!r}")
 
     def test_fast_forward_to_lap_end_matches_ticking_by_hand(self) -> None:
         # Presentation fast-forward must have zero effect on the result: skipping to the lap

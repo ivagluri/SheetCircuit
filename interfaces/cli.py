@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import select
 import shlex
+import shutil
 import sys
 
 from constants import PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ
@@ -784,7 +785,10 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
         race_error = ""
 
         if show_help:
+            # Hold the race so help is readable; the sim only advances when we tick it,
+            # and the next tick's redraw restores the pinned race layout.
             _show_race_help()
+            terminal.pause("Press Enter to resume the race")
             show_help = False
 
         _print_lap_bar(session, current_command, pending_command, speed_mult)
@@ -825,24 +829,46 @@ def _print_lap_bar(session, current_command: str, pending_command: str | None, s
     sys.stdout.flush()
 
 
+def _race_log_event_budget(session) -> int:
+    """Race-log Event width that keeps the three-column race layout inside the terminal.
+
+    Panel widths are deterministic (rich SIMPLE_HEAVY tables): the strip is the lane grid + 4,
+    standings are the longest car label + 43, and the log adds 10 around the Event column, plus
+    ~5 for inter-column gaps. Everything but the Event text is fixed, so it takes the remainder.
+    Below the floor the log wraps under the other panels — still pinned, just taller.
+    """
+    width = shutil.get_terminal_size((120, 40)).columns
+    strip_w = 2 * len(session.cars) + 3
+    label_w = max((len(car.label) for car in session.cars), default=10)
+    middle_w = max(label_w + 43, 43)
+    return max(16, min(48, width - strip_w - middle_w - 10 - 5))
+
+
 def _render_race_screen(state: GameState, session, result=None, error: str = "") -> None:
-    screen = race_screen(session, result, error)
+    screen = race_screen(session, result, error, log_event_chars=_race_log_event_budget(session))
     terminal.clear()
     terminal.header(screen.title, screen.subtitle)
     terminal.print(status_bar(state.money, state.week, len(state.garage), "race"))
     terminal.menu(_option_bar(screen.actions) + "  help")
     for message in screen.messages:
         terminal.print(message)
+    # Pinned three-column layout: track strip | standings + player status | race log. Every
+    # panel is constant-height (see race_screen), so nothing shifts or scrolls between ticks.
+    side_titles = {"Track", "Race Log"}
+    strip = next((table for table in screen.tables if table.title == "Track"), None)
     race_log = next((table for table in screen.tables if table.title == "Race Log"), None)
-    main_tables = [table for table in screen.tables if table.title != "Race Log"]
+    main_tables = [table for table in screen.tables if table.title not in side_titles]
+    groups = [[table] for table in (strip,) if table is not None]
+    groups.append(main_tables)
     if race_log is not None:
-        terminal.table_columns(
-            [(table.title, table.headers, table.rows) for table in main_tables],
-            (race_log.title, race_log.headers, race_log.rows),
-        )
+        groups.append([race_log])
+    if len(groups) == 1:
+        for table in main_tables:
+            terminal.table(table.title, table.headers, table.rows)
         return
-    for table in main_tables:
-        terminal.table(table.title, table.headers, table.rows)
+    terminal.table_columns(
+        *[[(table.title, table.headers, table.rows) for table in group] for group in groups]
+    )
 
 
 def _parse_value(value: str) -> object:

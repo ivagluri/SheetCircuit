@@ -97,7 +97,10 @@ event_detail_screen(event_id, state=None)  # adds an "Est. Time" row (play/real)
 estimate_race_times(car, driver, event, track, parts=None) -> (canonical_s, play_s)
 race_entry_screen(state, step="events")    # guided race picker (events/cars/drivers)
 tune_fields_screen(state, car_id)
-race_screen(session, tick=None, error="")
+race_screen(session, tick=None, error="",  # pinned constant-size panels incl. "Track" strip
+            log_event_chars=None)          # (vertical dot mini-map; magnified gaps, no two rows
+                                           # share unless times tie). log_event_chars = Event
+                                           # column width budget from the UI's terminal size.
 race_command_options()
 
 List screens accept an optional SortSpec (see game/sorting.py).

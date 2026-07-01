@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
+from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
 from game.effective_stats import class_breakdown, class_rating, compute_effective_stats, derived_class, performance_type
 from game.game_state import GameState
@@ -767,34 +767,144 @@ def race_clock_elapsed(session: "RaceSession") -> float:
 
 
 _RACE_LOG_VISIBLE_EVENTS = 10
+# Fallback Event-column width when the caller passes no terminal-size budget; capping it keeps
+# the pinned race layout from outgrowing the terminal and wrapping.
+_RACE_LOG_EVENT_CHARS = 38
+_RACE_STRIP_ROWS = 14
 
 
-def race_screen(session: RaceSession, tick: RaceTickResult | None = None, error: str = "") -> ScreenData:
-    player = next(car for car in session.cars if car.is_player)
-    messages = []
-    if error:
-        messages.append(f"Race command error: {error}")
-    if tick is None:
-        messages.append("Awaiting race command.")
-    tables = []
+def _clip(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def _nominal_lap_seconds(session: RaceSession) -> float:
+    """Recover the player's nominal lap pace from the tick density set at race start.
+
+    enter_event picks ticks_per_lap = nominal_lap_s / PRESENTATION_SPEED_FACTOR * TICK_RATE_HZ,
+    so inverting it avoids recomputing effective stats every render (exact up to clamping).
+    """
+    return max(1.0, session.ticks_per_lap * PRESENTATION_SPEED_FACTOR / TICK_RATE_HZ)
+
+
+def _lane_tags(cars) -> list[str]:
+    tags = []
+    rival = 0
+    for car in cars:
+        if car.is_player:
+            tags.append("Y")
+        else:
+            rival += 1
+            tags.append(str(rival) if rival < 10 else chr(ord("a") + rival - 10))
+    return tags
+
+
+# Real gaps are tiny next to a lap (4 s on an 80 s lap is under one strip row), so the strip
+# magnifies them for the eye; the passes in _strip_cells then guarantee unequal times never
+# share a row and a slower car never shows above a faster one.
+_RACE_STRIP_GAP_ZOOM = 4.0
+
+
+def _strip_cells(session: RaceSession) -> list[int | None]:
+    """Strip row per grid slot (0 = start line, rows-1 = flag); None for a DNF lane.
+
+    Each car's gap to the leader converts to a magnified lap-fraction deficit behind the shared
+    lap position, clamped at the start line rather than wrapped (a wrapped straggler would read
+    as leading). Two passes resolve collisions while keeping the standings order: bottom-up,
+    each strictly-faster car is raised at least one row above the slower one below it (true
+    dead heats share a row); top-down, the chain is capped back under the flag.
+    """
+    lap_frac = session.current_sub_tick / session.ticks_per_lap if session.ticks_per_lap else 0.0
+    nominal = _nominal_lap_seconds(session)
+    cells: list[int | None] = [None] * len(session.cars)
+    active = [(index, car) for index, car in enumerate(session.cars) if not car.is_dnf]
+    if not active:
+        return cells
+    leader_time = min(car.total_time for _, car in active)
+    ordered = sorted(active, key=lambda item: item[1].total_time, reverse=True)  # slowest first
+    raised: list[int] = []
+    ties: list[bool] = []  # ties[i]: ordered[i] dead-heats ordered[i - 1] (the car below it)
+    prev_cell: int | None = None
+    prev_time: float | None = None
+    for _, car in ordered:
+        deficit = (car.total_time - leader_time) / nominal * _RACE_STRIP_GAP_ZOOM
+        cell = int(max(lap_frac - deficit, 0.0) * _RACE_STRIP_ROWS)
+        tie = prev_time is not None and car.total_time == prev_time
+        if prev_cell is not None:
+            cell = prev_cell if tie else max(cell, prev_cell + 1)
+        raised.append(cell)
+        ties.append(tie)
+        prev_cell, prev_time = cell, car.total_time
+    limit = _RACE_STRIP_ROWS - 1
+    for pos in reversed(range(len(ordered))):
+        raised[pos] = min(raised[pos], limit)
+        limit = raised[pos] if pos > 0 and ties[pos] else raised[pos] - 1
+    for (index, _), cell in zip(ordered, raised):
+        cells[index] = max(cell, 0)  # >rows-sized grids saturate at the start line
+    return cells
+
+
+def _race_track_strip(session: RaceSession) -> TableData:
+    """Vertical mini-map of the field: one lane per grid slot, dots climb to the flag each lap.
+
+    The lockstep sim keeps every car at the same track position within a tick, so lanes separate
+    by *time* via _strip_cells (magnified gaps, collision cascade). Lanes stay in grid order so
+    they never shuffle; standings are the authority on positions and true gaps.
+    """
+    lanes = session.cars
+    grid = [["·"] * len(lanes) for _ in range(_RACE_STRIP_ROWS)]
+    for index, (car, cell) in enumerate(zip(lanes, _strip_cells(session))):
+        if cell is None:
+            grid[_RACE_STRIP_ROWS - 1][index] = "x"
+            continue
+        grid[_RACE_STRIP_ROWS - 1 - cell][index] = "●" if car.is_player else "○"
+    width = 2 * len(lanes) - 1
+    rows = [["═" * width]]
+    rows.extend([" ".join(row)] for row in grid)
+    rows.append([" ".join(_lane_tags(lanes))])
+    rows.append(["● you ○ rival"])
+    return TableData("Track", [""], rows)
+
+
+def _standings_table(session: RaceSession, tick: RaceTickResult | None) -> TableData:
+    """Standings pinned to a constant height: running cars ranked, DNFs listed below them."""
     if tick is not None:
-        tables.append(
-            TableData(
-                "Standings",
-                ["P", "Car", "Gap", "Last", "Tires", "Fuel"],
-                [
-                    [
-                        car.position,
-                        car.label,
-                        f"+{car.gap_to_leader:.3f}",
-                        f"{car.last_lap_time or 0.0:.3f}",
-                        f"{car.tire_pct:.0f}%",
-                        f"{car.fuel_pct:.0f}%",
-                    ]
-                    for car in tick.standings
-                ],
-            )
-        )
+        running = list(tick.standings)
+    else:
+        running = sorted((car for car in session.cars if not car.is_dnf), key=lambda car: car.total_time)
+    rows = [
+        [
+            car.position if tick is not None else index,
+            car.label,
+            f"{car.gap_to_leader:+7.3f}",
+            f"{car.last_lap_time or 0.0:7.3f}",
+            f"{car.tire_pct:3.0f}%",
+            f"{car.fuel_pct:3.0f}%",
+        ]
+        for index, car in enumerate(running, start=1)
+    ]
+    rows.extend(["-", car.label, "DNF", "-", "-", "-"] for car in session.cars if car.is_dnf)
+    return TableData("Standings", ["P", "Car", "Gap", "Last", "Tires", "Fuel"], rows)
+
+
+def race_screen(
+    session: RaceSession,
+    tick: RaceTickResult | None = None,
+    error: str = "",
+    log_event_chars: int | None = None,
+) -> ScreenData:
+    # Every element renders every tick at a constant size (standings, log, and the one-line
+    # status below are padded/pinned), so the redrawn screen never jumps or scrolls. The log's
+    # Event column is space-padded to log_event_chars (the UI passes a terminal-width budget)
+    # so the panel is full width from tick 0 instead of widening when the first event lands.
+    player = next(car for car in session.cars if car.is_player)
+    if error:
+        status = f"Race command error: {error}"
+    elif tick is None:
+        status = "Awaiting race command."
+    else:
+        status = ""
+    messages = [status]
+    tables = [_standings_table(session, tick)]
     tables.append(
         TableData(
             "Player Status",
@@ -809,9 +919,14 @@ def race_screen(session: RaceSession, tick: RaceTickResult | None = None, error:
             ],
         )
     )
-    if session.race_log:
-        rows = [[lap, message] for lap, message in session.race_log[-_RACE_LOG_VISIBLE_EVENTS:]]
-        tables.append(TableData("Race Log", ["Lap", "Event"], rows))
+    tables.append(_race_track_strip(session))
+    event_chars = log_event_chars or _RACE_LOG_EVENT_CHARS
+    log_rows: list[list[Any]] = [
+        [lap, _clip(message, event_chars).ljust(event_chars)]
+        for lap, message in session.race_log[-_RACE_LOG_VISIBLE_EVENTS:]
+    ]
+    log_rows.extend([["", " " * event_chars]] * (_RACE_LOG_VISIBLE_EVENTS - len(log_rows)))
+    tables.append(TableData("Race Log", ["Lap", "Event"], log_rows))
     if session.duration_s is not None:
         # Duration race: the canonical clock is the readout, not a lap target. Lap count is
         # still shown (it climbs as the field circulates) but elapsed/target time leads.
