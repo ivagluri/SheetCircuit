@@ -151,6 +151,21 @@ def _tune(name, label, help=""):
 
 
 CAR_SECTIONS: list[Section] = [
+    Section("Basics", [
+        # The headline knobs most users actually reach for. These specs reuse the same
+        # draft paths as the detailed sections below, so edits here and there are the same
+        # values — this section is just a friendlier front door, shown first.
+        _f(("powertrain", "power_hp"), "power_hp", "int", "peak power; drives top speed & power axes", 0, None),
+        _f(("powertrain", "torque_nm"), "torque_nm", "int", "torque; ratio vs hp shapes acceleration", 0, None),
+        _f(("powertrain", "aspiration"), "aspiration", "enum", "NA / turbo / supercharged / ...", choices=ASPIRATIONS, free=True),
+        _f(("chassis", "weight_kg"), "weight_kg", "int", "lighter = quicker everywhere", 200, None),
+        _f(("chassis", "weight_distribution_front"), "weight_distribution_front", "float", "front mass fraction; 0.52 ideal", 0.30, 0.70),
+        _f(("drivetrain",), "drivetrain", "enum", "AWD gains low-grip traction in the sim", choices=DRIVETRAINS),
+        _f(("tires", "tire_compound"), "tire_compound", "enum", "grippier = quicker, wears faster", choices=TIRE_COMPOUNDS, free=True),
+        _f(("aero", "downforce"), "downforce", "int", "grip in high-speed corners", *_R100),
+        _f(("aero", "drag"), "drag", "int", "hurts top speed", *_R100),
+        _f(("value",), "value ($)", "int", "market price", 0, None),
+    ]),
     Section("Identity", [
         _f(("id",), "id (filename slug)", "str", "lowercase_with_underscores; used for the JSON filename"),
         _f(("name",), "name", "str", "display name, e.g. '2005 Bugatti Veyron'"),
@@ -261,6 +276,75 @@ CAR_SECTIONS: list[Section] = [
 ]
 
 CAR_SCHEMA = Schema("car", CAR_TEMPLATE, CAR_SECTIONS)
+
+
+# --- Starting templates ------------------------------------------------------
+# Intrinsic archetypes a new car can start from — NOT derived from the sample
+# catalog (see the project's de-pin philosophy). Each ``overrides`` is a partial,
+# template-shaped dict laid over CAR_TEMPLATE; the balanced default is the bare
+# template itself. Every archetype must round-trip through car_from_dict (tested).
+CAR_ARCHETYPES: list[tuple[str, str, dict[str, Any]]] = [
+    (
+        "Basic (balanced)",
+        "well-rounded starting point; plugs into most builds averagely",
+        {},
+    ),
+    (
+        "Lightweight momentum",
+        "light & nimble; modest power, carries speed through corners",
+        {
+            "drivetrain": "RWD",
+            "layout": "front_mid",
+            "tags": ["lightweight", "momentum_car"],
+            "powertrain": {"power_hp": 200, "torque_nm": 230},
+            "chassis": {"weight_kg": 980, "rotation": 70},
+            "tires": {"tire_compound": "semi_slick", "base_grip": 72},
+            "suspension": {"handling": 74, "mechanical_grip": 72},
+            "value": 42000,
+        },
+    ),
+    (
+        "Muscle / power",
+        "big engine, heavy; straight-line punch over finesse",
+        {
+            "drivetrain": "RWD",
+            "layout": "front_engine",
+            "tags": ["muscle"],
+            "powertrain": {"power_hp": 480, "torque_nm": 640, "aspiration": "NA"},
+            "chassis": {"weight_kg": 1580, "rotation": 50},
+            "tires": {"tire_compound": "sport", "tire_width_rear": 285},
+            "suspension": {"handling": 52, "mechanical_grip": 55},
+            "value": 68000,
+        },
+    ),
+    (
+        "Balanced GT",
+        "all-weather grand tourer; AWD grip with a touch more aero",
+        {
+            "drivetrain": "AWD",
+            "layout": "front_mid",
+            "tags": ["gt"],
+            "powertrain": {"power_hp": 380, "torque_nm": 460, "aspiration": "turbo"},
+            "chassis": {"weight_kg": 1460},
+            "aero": {"downforce": 45, "drag": 45, "aero_efficiency": 55},
+            "value": 74000,
+        },
+    ),
+    (
+        "Aero / downforce",
+        "track-day car; high downforce trades top speed for cornering",
+        {
+            "drivetrain": "RWD",
+            "layout": "rear_mid",
+            "tags": ["track_day", "aero"],
+            "powertrain": {"power_hp": 420, "torque_nm": 440},
+            "chassis": {"weight_kg": 1140, "rotation": 66},
+            "tires": {"tire_compound": "slick", "base_grip": 76},
+            "aero": {"downforce": 74, "drag": 60, "aero_efficiency": 60, "high_speed_stability": 72},
+            "value": 88000,
+        },
+    ),
+]
 
 
 # ---------------------------------------------------------------------------

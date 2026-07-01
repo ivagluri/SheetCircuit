@@ -36,7 +36,9 @@ from game.simulation import calculate_lap_time
 from interfaces.terminal import terminal
 
 from editor.fields import (
+    CAR_ARCHETYPES,
     CAR_SCHEMA,
+    CAR_TEMPLATE,
     EVENT_SCHEMA,
     SEGMENT_FIELDS,
     SEGMENT_TEMPLATE,
@@ -47,6 +49,7 @@ from editor.fields import (
     TRACK_SCHEMA,
     TRACK_SECTIONS,
 )
+from editor.sample_tracks import SAMPLE_TRACKS
 
 
 def event_draft_to_json(draft: dict) -> dict:
@@ -338,9 +341,27 @@ def event_preview(draft: dict) -> list[str]:
 
 
 # ===========================================================================
+# Real catalog tracks that fill out the "your track + 2" compare view: a hillclimb, a
+# tight circuit, and a fast sprint, so the spread reveals a car's tradeoff profile.
+SIM_COMPARE_TRACK_IDS = ["granite_peak_hillclimb", "red_valley_club", "cresta_speed_run"]
+
+# The [M] key cycles the lap-time panel through these views.
+SIM_MODE_NAMES = ["your track", "your track + 2", "sample extremes"]
+
+
 class CreatorApp:
     def __init__(self) -> None:
         self.term = terminal
+        # Live-sim state for the car editor. The sim is a pure, fast function, so the
+        # lap-time readout is just recomputed on every redraw — no background process.
+        self.sim_tracks = {t.id: t for t in load_tracks()}
+        self.sim_parts = load_parts()
+        self.sim_track_id = (
+            "granite_peak_hillclimb"
+            if "granite_peak_hillclimb" in self.sim_tracks
+            else (next(iter(self.sim_tracks), ""))
+        )
+        self.sim_mode = 0  # index into SIM_MODE_NAMES; cycled by [M]
 
     # -- low-level prompts --------------------------------------------------
     def ask(self, label: str) -> str:
@@ -354,6 +375,63 @@ class CreatorApp:
 
     def pause(self) -> None:
         self.term.pause()
+
+    # -- live lap-time readout ---------------------------------------------
+    def _sim_lines(self, draft: dict) -> list[str]:
+        """Estimated lap time(s) for the current car draft on the anchor track(s).
+
+        Deterministic, driver-agnostic (driver=None) so the number reflects the car
+        alone and moves only when a knob does. Recomputed on every render because the
+        lap-time kernel is a microsecond pure function.
+        """
+        if not self.sim_tracks:
+            return []
+        try:
+            car = car_from_dict(copy.deepcopy(draft))
+        except (DataLoadError, KeyError, TypeError, ValueError):
+            return []  # car_preview already surfaces why the draft is incomplete
+        eff = compute_effective_stats(car, self.sim_parts)
+        lines: list[str] = []
+        for track in self._sim_track_set():
+            lap = calculate_lap_time(eff, track, None, None, None)
+            lines.append(f"[cyan]{track.name}[/cyan]  est. lap  [bold]{format_race_clock(lap)}[/bold]")
+        if lines:
+            lines[-1] += (
+                f"    (view: {SIM_MODE_NAMES[self.sim_mode]}  ·  [M] cycle  ·  [G] track)"
+            )
+        return lines
+
+    def _sim_track_set(self) -> list:
+        """The Track(s) the readout times, per the current [M] view mode."""
+        anchor = self.sim_tracks.get(self.sim_track_id)
+        if self.sim_mode == 2:
+            return list(SAMPLE_TRACKS)  # synthetic extremes
+        result = [anchor] if anchor else []
+        if self.sim_mode == 1:  # your track + 2 contrasting catalog tracks
+            for tid in SIM_COMPARE_TRACK_IDS:
+                if len(result) >= 3:
+                    break
+                if tid == self.sim_track_id:
+                    continue
+                track = self.sim_tracks.get(tid)
+                if track is not None:
+                    result.append(track)
+        return result
+
+    def pick_sim_track(self) -> None:
+        tracks = list(self.sim_tracks.values())
+        if not tracks:
+            return
+        self.term.table(
+            "Sim anchor track",
+            ["#", "track", "layout", "km"],
+            [[i + 1, t.name, t.layout_type, f"{t.length_km:g}"] for i, t in enumerate(tracks)],
+        )
+        raw = self.ask("Track # (Enter to keep)")
+        if raw.isdigit():
+            idx = int(raw) - 1
+            if 0 <= idx < len(tracks):
+                self.sim_track_id = tracks[idx].id
 
     # -- entry --------------------------------------------------------------
     def run(self) -> None:
@@ -375,7 +453,7 @@ class CreatorApp:
             if choice in ("q", "quit", ""):
                 return
             if choice == "c":
-                self.edit(CAR_SCHEMA, copy.deepcopy(CAR_SCHEMA.template))
+                self.new_car()
             elif choice == "t":
                 self.edit(TRACK_SCHEMA, copy.deepcopy(TRACK_SCHEMA.template))
             elif choice == "v":
@@ -386,6 +464,52 @@ class CreatorApp:
                 self.open_existing(TRACK_SCHEMA, "tracks")
             elif choice == "f":
                 self.open_existing(EVENT_SCHEMA, "events")
+
+    def new_car(self) -> None:
+        """Start a new car from an intrinsic archetype or by cloning a catalog car."""
+        self.term.clear()
+        self.term.header("New car", "Pick a starting template, then tweak the big knobs.")
+        rows = [[str(i + 1), name, help] for i, (name, help, _) in enumerate(CAR_ARCHETYPES)]
+        rows.append(["C", "Clone existing car", "start from a copy of a catalog car"])
+        self.term.table("Templates", ["#", "template", "notes"], rows)
+        raw = self.ask("Choice (Enter to cancel)").strip().lower()
+        if raw in ("", "b", "q"):
+            return
+        if raw == "c":
+            draft = self._clone_car_draft()
+            if draft is not None:
+                self.edit(CAR_SCHEMA, draft)
+            return
+        if raw.isdigit():
+            idx = int(raw) - 1
+            if 0 <= idx < len(CAR_ARCHETYPES):
+                _name, _help, overrides = CAR_ARCHETYPES[idx]
+                self.edit(CAR_SCHEMA, _deep_merge(CAR_TEMPLATE, overrides))
+
+    def _clone_car_draft(self) -> dict | None:
+        """Prompt for a catalog car and return a template-shaped draft with a blank id."""
+        files = sorted((DATA_ROOT / "cars").glob("*.json"))
+        if not files:
+            self.note("No cars to clone.")
+            self.pause()
+            return None
+        self.term.table(
+            "Clone which car", ["#", "file"], [[i + 1, p.name] for i, p in enumerate(files)]
+        )
+        raw = self.ask("Clone # (Enter to cancel)")
+        if not raw.isdigit():
+            return None
+        idx = int(raw) - 1
+        if not (0 <= idx < len(files)):
+            return None
+        loaded = json.loads(files[idx].read_text(encoding="utf-8"))
+        if isinstance(loaded, list):
+            self.note("That file bundles multiple records; can't clone it here.")
+            self.pause()
+            return None
+        draft = _deep_merge(CAR_SCHEMA.template, loaded)
+        _set(draft, CAR_SCHEMA.id_path, "")  # force a new id before it can be saved
+        return draft
 
     def open_existing(self, schema: Schema, subdir: str) -> None:
         files = sorted((DATA_ROOT / subdir).glob("*.json"))
@@ -418,6 +542,9 @@ class CreatorApp:
     def edit(self, schema: Schema, draft: dict) -> None:
         sections = list(schema.sections)
         is_track = schema.kind == "track"
+        # Snapshot the draft so we can warn on exit if it has unsaved edits; refreshed
+        # after every successful write so a saved draft reads as clean again.
+        saved = copy.deepcopy(draft)
         while True:
             self.term.clear()
             label = _get(draft, schema.id_path) or "(unnamed)"
@@ -433,13 +560,38 @@ class CreatorApp:
             preview = {"track": track_preview, "event": event_preview}.get(schema.kind, car_preview)(draft)
             for line in preview:
                 self.note(line)
-            self.term.menu("number = edit section   [W] write/save   [B] back")
+            is_car = schema.kind == "car"
+            if is_car:
+                for line in self._sim_lines(draft):
+                    self.note(line)
+            menu = "number = edit section   [W] write/save   [B] back"
+            if is_car:
+                menu += "   [G] sim track   [M] cycle view"
+            self.term.menu(menu)
             raw = self.ask("Choice").strip()
             low = raw.lower()
             if low in ("b", "q", ""):
-                return
+                if draft == saved:
+                    return
+                choice = self.ask(
+                    "Unsaved changes — [s] save  [d] discard & exit  [any] keep editing"
+                ).strip().lower()
+                if choice == "s":
+                    if self._save(schema, draft):
+                        return  # written; nothing left to lose
+                    continue  # save cancelled/failed — stay in the editor
+                if choice == "d":
+                    return
+                continue  # keep editing
             if low == "w":
-                self._save(schema, draft)
+                if self._save(schema, draft):
+                    saved = copy.deepcopy(draft)
+                continue
+            if is_car and low == "g":
+                self.pick_sim_track()
+                continue
+            if is_car and low == "m":
+                self.sim_mode = (self.sim_mode + 1) % len(SIM_MODE_NAMES)
                 continue
             if is_track and low == "s":
                 self.edit_segments(draft)
@@ -449,12 +601,13 @@ class CreatorApp:
                 if 0 <= idx < len(sections):
                     self.edit_section(schema, draft, sections[idx])
 
-    def _save(self, schema: Schema, draft: dict) -> None:
+    def _save(self, schema: Schema, draft: dict) -> bool:
+        """Validate and write the draft. Returns True only if a file was written."""
         ok, message = validate(schema, draft)
         if not ok:
             self.note(f"[red]Cannot save:[/red] {message}")
             self.pause()
-            return
+            return False
         while True:
             target = DATA_ROOT / _SUBDIR[schema.kind] / f"{_get(draft, schema.id_path)}.json"
             if target.exists():
@@ -463,14 +616,14 @@ class CreatorApp:
                 ).strip().lower()
                 if choice == "d":
                     if not self._save_as(schema, draft):
-                        return
+                        return False
                     continue  # re-check the new id for conflicts
                 if choice != "y":
-                    return
+                    return False
             path = save_draft(schema, draft)
             self.note(f"[green]Saved[/green] {path}")
             self.pause()
-            return
+            return True
 
     def _save_as(self, schema: Schema, draft: dict) -> bool:
         """Prompt for a fresh id so the draft is written to a new file. Returns
@@ -498,6 +651,9 @@ class CreatorApp:
                     spec.help,
                 ])
             self.term.table(section.title, ["#", "field", "value", "domain", "help"], rows)
+            if schema.kind == "car":
+                for line in self._sim_lines(draft):
+                    self.note(line)
             self.term.menu("number = edit field   [B] back")
             raw = self.ask("Field").strip()
             if raw.lower() in ("b", "q", ""):
