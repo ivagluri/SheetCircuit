@@ -38,18 +38,27 @@ requirements.txt`.
 
 ## Create your own content
 
-`python3 creator.py` opens a standalone text-mode editor (requires `rich`)
-that surfaces every car, track, and event knob in grouped sections, shows a
-live PR / lap-profile / race readout as you edit, validates against the game
-loader, and writes JSON straight into `data/`. The game and the web build pick
-new content up automatically.
+`python3 creator.py` opens a standalone text-mode editor that surfaces every
+car, track, and event knob in grouped sections, shows a live PR / lap-profile /
+race readout as you edit, validates against the game loader, and writes JSON
+straight into `data/`. The game and the web build pick new content up
+automatically.
+
+The creator also runs in the browser (`web/creator.html`, linked from the game
+page). Since a web page can't write into the repo, saving **downloads** the
+validated `<id>.json` — drop it into `data/` and open a PR to contribute it.
+Everything you save or import is also kept in your browser's storage, so your
+work-in-progress collection survives reloads and shows up in the open/clone
+pickers; the "Session files" panel manages those copies, and "Import JSON"
+brings a downloaded file back in.
 
 ## Hosting the web version
 
 `python3 tools/build_web.py` bundles the Python sources and all of `data/`
 into a single static `web/sheetcircuit.html` that runs the real, unmodified
 game code in the browser via [Pyodide](https://pyodide.org). Host it anywhere
-static files go — or just send someone the file.
+static files go — or just send someone the file. `--target creator` builds the
+browser creator (`web/creator.html`) the same way.
 
 For GitHub Pages, `.github/workflows/pages.yml` runs the test suite, rebuilds
 the bundle, and deploys it on every push to `main`. One-time setup:

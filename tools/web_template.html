@@ -79,6 +79,8 @@
     font: inherit;
   }
   #cmd:focus { outline: 1px solid var(--accent); }
+  #creator-link { color: var(--dim); text-decoration: none; white-space: nowrap; align-self: center; }
+  #creator-link:hover { color: var(--accent); }
   #error {
     background: #3a1518;
     color: #ffb4b4;
@@ -109,6 +111,7 @@
     <button id="send">Enter</button>
     <button id="dl-save" title="Download the current save as a JSON file">Save&nbsp;file</button>
     <label class="btn" title="Load a downloaded save file">Load&nbsp;file<input type="file" id="ul-save" accept=".json,application/json" hidden></label>
+    <a id="creator-link" href="creator.html" title="Build your own cars, tracks, and events">creator&nbsp;&rarr;</a>
   </div>
 </div>
 <script type="application/json" id="sc-files">__SHEETCIRCUIT_FILES__</script>
