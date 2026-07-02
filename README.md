@@ -1,33 +1,65 @@
 # SheetCircuit
-text based racing management simulation
-Inspired by the great "Basketball Simulator" and racing games, trying to vibe code my way to a frankenhybrid of the two.
 
-## Running
+A text-based racing management sim. Build a garage, hire drivers, tune your
+cars, and race them in live, tick-by-tick events — all rendered as tables and
+text, in the terminal or right in your browser. Inspired by classic basketball
+sim games and gran-turismo-style careers.
 
-- Game: `python3 main.py`
-- Track & car creator: `python3 creator.py`
-- Web version: open `web/sheetcircuit.html` in a browser (build it with `python3 tools/build_web.py`)
+## Play
 
-## Web version
+**In the browser** — open `web/sheetcircuit.html`. It's a single self-contained
+file: no install, no server, no account. The first load fetches the Python
+runtime (~7 MB, cached afterwards); after that everything runs locally in the
+tab. Progress saves to your browser, and you can download/upload your save as
+a JSON file to move it between devices.
 
-`tools/build_web.py` bundles the whole game — Python sources and every JSON under
-`data/` — into a single static `web/sheetcircuit.html`. The page runs the real,
-unmodified game code in the browser via [Pyodide](https://pyodide.org) (fetched
-from its CDN on first load, ~7 MB, cached afterwards), so there is no server, no
-backend, and nothing to install: double-click the file or drop it on any static
-host (GitHub Pages etc.). Saves go to browser localStorage, with download/upload
-of the save JSON as a portable fallback. Rebuild after changing game code or data.
+**In the terminal** — `python3 main.py` (Python 3.10+, no dependencies
+required). For color tables, optionally `python3 -m pip install -r
+requirements.txt`.
 
-### GitHub Pages
+## The game
 
-`.github/workflows/pages.yml` rebuilds the web version and deploys it to GitHub
-Pages on every push to `main` (it runs the test suite first). One-time setup:
-repository **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-After that the game is live at `https://<user>.github.io/SheetCircuit/`; the
-workflow can also be run manually from the Actions tab.
+- Start with a beater and **$8,000**; buy, sell, repair, and race your way up
+  through a market of 27 cars — from a 32 hp microcar to Le Mans prototypes.
+- Every car's **class and PR (performance rating)** are computed, not stored:
+  each car is run on fixed drag, slalom, and hybrid reference tracks, so
+  home-built cars are rated exactly like stock ones.
+- **Hire drivers** with different pace, consistency, and feedback skills; they
+  earn XP as they race for you.
+- **Tune** 22 setup fields per car — tire pressures, gearing, diff, brake bias,
+  ride height, camber, engine maps, and more — and it all feeds the simulation.
+- **Race live**: pick an event, car, and driver, then manage the race tick by
+  tick with pace commands (push, save tyres, save fuel, cool down, pit…) while
+  tires wear, fuel burns, and engines heat up. Fast-forward laps, change
+  presentation speed, or sim to the end at any point.
+- 11 events across 9 tracks — sprints, ovals, hillclimbs, rallies, top-speed
+  runs, and duration enduros. Tracks are pure geometry; race length lives on
+  the event, so one track can host both a sprint and an enduro.
 
-The creator is a standalone, text-mode editor (rich-only) that surfaces every car,
-track, and **event** knob in grouped sections, shows a live PR / lap-profile / race
-readout, validates against the game loader, and writes JSON straight into `data/`.
-Tracks are pure geometry (one lap); race length lives on the event (laps, distance, or
-duration), so one track can host both a sprint and an enduro.
+## Create your own content
+
+`python3 creator.py` opens a standalone text-mode editor (requires `rich`)
+that surfaces every car, track, and event knob in grouped sections, shows a
+live PR / lap-profile / race readout as you edit, validates against the game
+loader, and writes JSON straight into `data/`. The game and the web build pick
+new content up automatically.
+
+## Hosting the web version
+
+`python3 tools/build_web.py` bundles the Python sources and all of `data/`
+into a single static `web/sheetcircuit.html` that runs the real, unmodified
+game code in the browser via [Pyodide](https://pyodide.org). Host it anywhere
+static files go — or just send someone the file.
+
+For GitHub Pages, `.github/workflows/pages.yml` runs the test suite, rebuilds
+the bundle, and deploys it on every push to `main`. One-time setup:
+**Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
+## Development
+
+- Run the tests: `python3 -m unittest discover -s tests`
+- Game logic lives in `game/` (pure standard library), interfaces in
+  `interfaces/` (terminal CLI and the browser adapter), and all content is
+  data-driven JSON under `data/`.
+- Rebuild the web bundle after changing game code or data:
+  `python3 tools/build_web.py`.
