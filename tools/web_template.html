@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SheetCircuit</title>
+<style>
+  :root {
+    --bg: #101216;
+    --panel: #191d24;
+    --fg: #d6d9de;
+    --dim: #8a919c;
+    --accent: #5cc8ff;
+    --btn: #232935;
+    --btn-hover: #2f3848;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "SF Mono", "Cascadia Mono", "JetBrains Mono", Consolas, Menlo, monospace;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  #boot {
+    margin: auto;
+    text-align: center;
+    color: var(--dim);
+    padding: 2em;
+    line-height: 1.8;
+  }
+  #boot .title { color: var(--accent); font-size: 18px; }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 8px;
+    gap: 8px;
+  }
+  #screen {
+    flex: 1;
+    margin: 0;
+    padding: 12px;
+    background: var(--panel);
+    border: 1px solid #2a303b;
+    border-radius: 6px;
+    overflow: auto;
+    white-space: pre;
+    line-height: 1.35;
+  }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btnrow[hidden] { display: none; }
+  button, label.btn {
+    background: var(--btn);
+    color: var(--fg);
+    border: 1px solid #333c4c;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font: inherit;
+    cursor: pointer;
+  }
+  button:hover, label.btn:hover { background: var(--btn-hover); }
+  button b { color: var(--accent); }
+  #inputrow { display: flex; gap: 8px; align-items: center; }
+  #prompt-label { color: var(--dim); white-space: nowrap; }
+  #cmd {
+    flex: 1;
+    background: var(--panel);
+    color: var(--fg);
+    border: 1px solid #333c4c;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font: inherit;
+  }
+  #cmd:focus { outline: 1px solid var(--accent); }
+  #error {
+    background: #3a1518;
+    color: #ffb4b4;
+    border: 1px solid #7c2b31;
+    border-radius: 4px;
+    padding: 8px 12px;
+    white-space: pre-wrap;
+    max-height: 10em;
+    overflow: auto;
+  }
+  #error[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div id="boot">
+  <div class="title">SheetCircuit</div>
+  <div>Loading the Python runtime (~7&nbsp;MB, cached after the first visit)…</div>
+  <div id="boot-status">starting…</div>
+</div>
+<div id="app" hidden>
+  <div id="menu-buttons" class="btnrow"></div>
+  <pre id="screen"></pre>
+  <div id="race-buttons" class="btnrow" hidden></div>
+  <div id="error" hidden></div>
+  <div id="inputrow">
+    <span id="prompt-label">Choice:</span>
+    <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="send">Enter</button>
+    <button id="dl-save" title="Download the current save as a JSON file">Save&nbsp;file</button>
+    <label class="btn" title="Load a downloaded save file">Load&nbsp;file<input type="file" id="ul-save" accept=".json,application/json" hidden></label>
+  </div>
+</div>
+<script type="application/json" id="sc-files">__SHEETCIRCUIT_FILES__</script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+"use strict";
+const SAVE_KEY = "sheetcircuit.save";
+const COLUMNS = 140;
+let game = null;
+let meta = {};
+let timer = null;
+
+const el = (id) => document.getElementById(id);
+const show = (text) => { el("screen").textContent = text; };
+const bootStatus = (text) => { el("boot-status").textContent = text; };
+
+const MENU_BUTTONS = [
+  ["g", "Garage"], ["e", "Events"], ["d", "Drivers"], ["m", "Market"],
+  ["r", "Race"], ["x", "Sell"], ["t", "Tune"], ["p", "Repair"],
+  ["s", "Save"], ["l", "Load"], ["h", "Help"],
+];
+// Full command values, not hotkeys: unambiguous no matter what mode the input is in.
+const RACE_BUTTONS = [
+  ["normal", "Normal"], ["push", "Push"], ["go_all_out", "All out"],
+  ["save_tyres", "Save tyres"], ["save_fuel", "Save fuel"], ["cool_down", "Cool down"],
+  ["pit", "Pit"], ["n", "Next lap"], ["f", "Faster"], ["x", "End race"], ["?", "Help"],
+];
+
+function buildButtons(rowId, defs) {
+  const row = el(rowId);
+  for (const [cmd, label] of defs) {
+    const btn = document.createElement("button");
+    btn.innerHTML = label.toLowerCase().startsWith(cmd)
+      ? "<b>" + label[0] + "</b>" + label.slice(1)
+      : label;
+    btn.addEventListener("click", () => submit(cmd));
+    row.appendChild(btn);
+  }
+}
+
+function showError(err) {
+  const box = el("error");
+  box.textContent = String(err);
+  box.hidden = false;
+}
+
+function refreshMeta() {
+  meta = JSON.parse(game.ui_meta());
+  if (meta.js_request === "save") {
+    localStorage.setItem(SAVE_KEY, game.export_save());
+    show(game.confirm_save());
+    meta = JSON.parse(game.ui_meta());
+  } else if (meta.js_request === "load") {
+    show(game.import_save(localStorage.getItem(SAVE_KEY) || ""));
+    meta = JSON.parse(game.ui_meta());
+  }
+  el("prompt-label").textContent = meta.prompt_label + ":";
+  el("race-buttons").hidden = !meta.in_race;
+  el("menu-buttons").hidden = meta.in_race;
+  syncTimer();
+}
+
+function syncTimer() {
+  if (timer) { clearInterval(timer); timer = null; }
+  if (meta.in_race && !meta.race_paused) {
+    timer = setInterval(tick, 1000 / meta.tick_hz / meta.speed_mult);
+  }
+}
+
+function tick() {
+  try {
+    show(game.race_tick());
+    refreshMeta();
+  } catch (err) {
+    if (timer) { clearInterval(timer); timer = null; }
+    showError(err);
+  }
+}
+
+function submit(text) {
+  if (!game) return;
+  el("error").hidden = true;
+  try {
+    show(game.handle_input(text));
+    refreshMeta();
+  } catch (err) {
+    showError(err);
+  }
+  el("cmd").value = "";
+  el("cmd").focus();
+}
+
+async function boot() {
+  try {
+    bootStatus("fetching Python runtime…");
+    const pyodide = await loadPyodide();
+    bootStatus("installing game files…");
+    const files = JSON.parse(el("sc-files").textContent);
+    for (const [path, text] of Object.entries(files)) {
+      const full = "/app/" + path;
+      pyodide.FS.mkdirTree(full.slice(0, full.lastIndexOf("/")));
+      pyodide.FS.writeFile(full, text);
+    }
+    bootStatus("starting game…");
+    pyodide.runPython(
+      'import os, sys\n' +
+      'os.environ["COLUMNS"] = "' + COLUMNS + '"\n' +
+      'sys.path.insert(0, "/app")\n' +
+      'import interfaces.web as web\n' +
+      'web.install_stdin_guard()\n' +
+      'game = web.WebGame()\n'
+    );
+    game = pyodide.globals.get("game");
+    buildButtons("menu-buttons", MENU_BUTTONS);
+    buildButtons("race-buttons", RACE_BUTTONS);
+    show(game.render());
+    refreshMeta();
+    el("boot").hidden = true;
+    el("app").hidden = false;
+    el("cmd").focus();
+  } catch (err) {
+    bootStatus("failed to start: " + err + "\n(the first load needs an internet connection for the Python runtime)");
+    throw err;
+  }
+}
+
+el("send").addEventListener("click", () => submit(el("cmd").value.trim()));
+el("cmd").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") submit(el("cmd").value.trim());
+});
+el("dl-save").addEventListener("click", () => {
+  if (!game) return;
+  const blob = new Blob([game.export_save()], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "sheetcircuit-save.json";
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+el("ul-save").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file || !game) return;
+  show(game.import_save(await file.text()));
+  refreshMeta();
+  event.target.value = "";
+});
+
+boot();
+</script>
+</body>
+</html>
