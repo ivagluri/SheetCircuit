@@ -170,7 +170,7 @@ function refreshMeta() {
   }
   el("prompt-label").textContent = meta.prompt_label + ":";
   el("race-buttons").hidden = !meta.in_race;
-  el("menu-buttons").hidden = meta.in_race;
+  el("menu-buttons").hidden = meta.in_race || meta.mode === "race_result";
   syncTimer();
 }
 

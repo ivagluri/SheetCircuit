@@ -339,6 +339,15 @@ class WebRaceTests(TestCase):
         self.assertEqual(meta(game)["mode"], MODE_MENU)
         self.assertEqual(meta(game)["screen"], "garage")
 
+    def test_race_result_view_is_compact(self) -> None:
+        game = make_game(seed=7)
+        self.enter_first_event(game)
+        out = run_race_to_finish(game)
+        self.assertNotIn("[G]arage", out)
+        self.assertIn("Team Progress", out)
+        self.assertIn("Car Condition", out)
+        self.assertLessEqual(len(out.splitlines()), 45)
+
     def test_race_end_command_simulates_to_completion(self) -> None:
         game = make_game(seed=7)
         self.enter_first_event(game)

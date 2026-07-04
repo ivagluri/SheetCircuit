@@ -835,8 +835,8 @@ class WebGame:
     def _finish_race(self) -> None:
         finished = finish_race_action(self.state, self.session)
         terminal.header(finished.screen.title, finished.screen.subtitle)
-        self._print_status_menu("post race")
-        cli._render_action_screen(finished.screen)
+        terminal.print(cli._post_race_status_bar(self.state))
+        cli._render_post_race_screen(finished.screen)
         if self._race_error:
             terminal.print(self._race_error)
         terminal.print("Enter to continue.")

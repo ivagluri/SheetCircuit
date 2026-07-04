@@ -51,7 +51,7 @@ from game.market import list_market_cars
 from game.sorting import SortSpec, is_sortable_screen, parse_sort_spec, sort_fields, sort_items, sort_label
 from game.simulation import SimulationError
 from game.tuning import TuningError
-from interfaces.menu import menu_bar, menu_command, status_bar
+from interfaces.menu import menu_bar, menu_command, status_bar, team_xp_status
 from interfaces.render_text import (
     driver_rows,
     event_rows,
@@ -920,9 +920,8 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
     finished = finish_race_action(state, session)
     terminal.clear()
     terminal.header(finished.screen.title, finished.screen.subtitle)
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "post race", state.team_xp))
-    terminal.menu(menu_bar())
-    _render_action_screen(finished.screen)
+    terminal.print(_post_race_status_bar(state))
+    _render_post_race_screen(finished.screen)
     terminal.pause()
 
 
@@ -995,6 +994,103 @@ def _render_race_screen(state: GameState, session, result=None, error: str = "")
     terminal.table_columns(
         *[[(table.title, table.headers, table.rows) for table in group] for group in groups]
     )
+
+
+def _render_post_race_screen(screen) -> None:
+    for message in screen.messages:
+        terminal.print(message)
+
+    by_title = {table.title: table for table in screen.tables}
+    standings = by_title.get("Final Standings")
+    if standings is not None:
+        terminal.table(standings.title, standings.headers, standings.rows)
+
+    compact = {title: _compact_post_race_table(table) for title, table in by_title.items()}
+    layout = [
+        ("Rewards", "Team Progress"),
+        ("Event Progress", "Driver Progress"),
+        ("Car Condition",),
+    ]
+    groups = [[compact[title] for title in titles if title in compact] for titles in layout]
+    groups = [group for group in groups if group]
+    if not groups:
+        return
+    terminal.table_columns(
+        *[[(table.title, table.headers, table.rows) for table in group] for group in groups]
+    )
+
+
+def _compact_post_race_table(table):
+    rows = [list(row) for row in table.rows]
+    if table.title == "Rewards":
+        labels = {
+            "First Win Bonus": "First Win",
+            "Event Kind Multiplier": "Kind x",
+            "Repeat Multiplier": "Repeat x",
+        }
+        rows = [[labels.get(str(row[0]), row[0]), row[1]] for row in rows]
+        return type(table)(table.title, ["Reward", "Value"], rows)
+    if table.title == "Team Progress":
+        labels = {"Team Level": "Level", "Team XP": "XP", "Next Level": "Next"}
+        compact_rows = []
+        for row in rows:
+            label = labels.get(str(row[0]), row[0])
+            before = _short_level(str(row[1]))
+            after = _short_level(str(row[2]))
+            if str(row[0]) == "Next Level":
+                if after == "Max level":
+                    compact_rows.append([label, after])
+                elif " XP needed" in after and after.startswith("L"):
+                    level, needed = after.split(":", 1)
+                    needed = needed.strip().replace(" XP needed", " XP")
+                    compact_rows.append([label, f"{needed} to {level}"])
+                else:
+                    compact_rows.append([label, after])
+            else:
+                compact_rows.append([label, f"{before} -> {after}"])
+        return type(table)(table.title, ["Metric", "Change"], compact_rows)
+    if table.title == "Event Progress":
+        labels = {"Best Result": "Best", "Best Time": "Time"}
+        rows = [[labels.get(str(row[0]), row[0]), row[2]] for row in rows]
+        return type(table)(table.title, ["Metric", "Now"], rows)
+    if table.title == "Driver Progress":
+        compact_rows = []
+        for row in rows:
+            value = str(row[1])
+            if " XP (total: " in value and " +" in value:
+                driver, xp = value.rsplit(" +", 1)
+                gained, total = xp.split(" XP (total: ", 1)
+                compact_rows.append([_clip_text(driver, 12), f"+{gained} ({total.rstrip(')')})"])
+            else:
+                compact_rows.append([row[0], _clip_text(value, 22)])
+        return type(table)(table.title, ["Driver", "XP"], compact_rows)
+    if table.title == "Car Condition":
+        labels = {"Gearbox": "Gear", "Suspension": "Susp"}
+        compact_rows = []
+        for row in rows:
+            label = labels.get(str(row[0]), row[0])
+            if str(row[0]) == "Mileage":
+                mileage = str(row[2]).replace(" km", "")
+                delta = str(row[3]).replace(" km", "")
+                compact_rows.append([label, f"{mileage} ({delta})"])
+            else:
+                compact_rows.append([label, f"{row[2]} ({row[3]})"])
+        return type(table)(table.title, ["Area", "Now"], compact_rows)
+    return table
+
+
+def _post_race_status_bar(state: GameState) -> str:
+    return f"Money: ${state.money:,}  Week: {state.week}  Garage: {len(state.garage)}  {team_xp_status(state.team_xp)}"
+
+
+def _short_level(value: str) -> str:
+    return value.replace("Lv ", "L")
+
+
+def _clip_text(value: str, width: int) -> str:
+    if len(value) <= width:
+        return value
+    return value[: max(0, width - 3)] + "..."
 
 
 def _parse_value(value: str) -> object:
