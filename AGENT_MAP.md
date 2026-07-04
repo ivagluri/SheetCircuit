@@ -82,8 +82,22 @@ interfaces/
                      Level/XP display via `team_xp_status()`.
   render_text.py     Legacy/simple row render helpers.
 
+compendium/
+  model.py           Entry/Section/Chapter dataclasses (the doc data model).
+  content_*.py       Per-domain content: cars/tracks/events harvest ranges &
+                     choices from editor.fields + constants (only prose is
+                     hand-written); drivers hand-built from the Driver dataclass;
+                     content_intro is the index framing. See ## Compendium.
+  registry.py        Assembles CHAPTERS / ENTRIES_BY_ID / TUNE_LOOKUP; imports no
+                     game-UI code so game.actions can import it without a cycle.
+  render_html.py     Pure-stdlib static-page renderer (used by tools/build_web).
+
 tools/
   probe_progression.py  Dependency-free Team XP payout and pacing probe.
+  build_web.py          Bundles the game/creator (embedded Python + Pyodide) and
+                        renders the static compendium page. SOURCE_GLOBS must
+                        embed everything the bundle imports (incl. compendium/*.py
+                        and editor/fields.py) — guarded by an isolation-import test.
 ```
 
 ## UI-Neutral Service Layer
@@ -476,10 +490,50 @@ exercising all 12 tags and the full surface/condition range; `maple_short.json`,
 
 Adding data should usually mean adding JSON files under `data/`, not editing registries.
 
+## Compendium
+
+The `compendium/` package is the **single source of truth** for player-facing
+reference documentation of every editable/tunable parameter (cars, drivers,
+tracks, events). Two renderers consume the one assembled registry so they cannot
+drift: the in-game manpages-style screens and the standalone static page.
+
+- **Data model** (`model.py`): `Chapter` → `Section` → `Entry`. `Entry.id` is a
+  globally-unique domain-prefixed dotted path (`car.tune.final_drive`,
+  `track.segment.tags`, `track.tag.long_straight`, `driver.pace`).
+- **Content** (`content_*.py`): ranges/choices/`editable_in` are **harvested
+  programmatically** from `editor.fields` schemas + `constants` (never retyped);
+  only labels/units/ideals/effect summaries/prose are hand-authored. Prose is
+  intentionally sparse — the `effect_summary` one-liner carries most fields.
+  Drivers are hand-built (no schema). Segment tags are one `Entry` each, their
+  effects derived from `SEGMENT_TAG_SPEED/_WEIGHTS/_RATES`.
+- **Registry** (`registry.py`): builds `CHAPTERS`, `ENTRIES_BY_ID`, and
+  `TUNE_LOOKUP` (bare tune-field name → `Entry`, via deterministic dotted-id
+  construction). Imports **no** `game.actions` — that module imports the registry,
+  so a dependency the other way would be circular.
+- **In-game** (`game/actions.py`): `compendium_screen(path, query)` builds the
+  index/chapter/section/field-detail `ScreenData`; navigation state rides in the
+  screen token (`compendium`, `compendium:cars/Tune`, `compendium?<id>`) so the
+  terminal and Pyodide web build share one render path. `compendium_nav()` maps an
+  input to the next token (used by `cli.run_menu_choice` and `web._menu_input`).
+  Reachable via the `C` hotkey and `compendium <field>` direct-jump. Per-field help
+  also surfaces in the tune editor (`FieldData.help` from `TUNE_LOOKUP`, shown when
+  a field is opened — NOT as a table column, which breaks the pinned layout), the
+  driver detail Help column, and creator field notes (`registry.entry_for`). The
+  terminal creator has an `[R]` launcher into the same drill-down.
+- **Static page** (`render_html.py` → `tools/compendium_template.html` →
+  `web/compendium.html`): a `globs is None` target in `build_web.py` (pre-rendered
+  HTML, no Pyodide payload); every row carries `data-text` for the vanilla-JS
+  filter box; cross-linked from the game and creator pages.
+- **Tripwires** (`tests/test_compendium.py`): every `editor.fields` schema field,
+  every `Driver` field, every `_TUNE_FIELD_GROUPS` name, and every `SEGMENT_TAG`
+  must resolve to an entry, and harvested ranges must match source of truth. **Add a
+  documented knob and you MUST add a compendium entry or these fail.**
+
 ## Common Change Targets
 
 - New car/driver/event/part/track: add JSON under `data/`, update tests if needed.
-- New tune field: update `TuneSetup`, seed JSON, `TUNE_FIELD_RANGES`, `_TUNE_FIELD_GROUPS`/`_TUNE_FIELD_LABELS` in actions.py, and fold it into `compute_effective_stats` (centered factor, ideal in constants), tests.
+- New tune field: update `TuneSetup`, seed JSON, `TUNE_FIELD_RANGES`, `_TUNE_FIELD_GROUPS`/`_TUNE_FIELD_LABELS` in actions.py, fold it into `compute_effective_stats` (centered factor, ideal in constants), and add a `compendium/content_cars.py` entry (the completeness test fails otherwise), tests.
+- New schema field (car/track/event) or segment tag: add the field to `editor.fields` (or the tag to `SEGMENT_TAG_*`), then a matching `compendium/content_*.py` entry — `tests/test_compendium.py` fails until documented. See ## Compendium.
 - New race command: update `COMMAND_MODIFIERS` (6-column tuple), `race_command_options()`, cooling sets if it cools, tests. Engine maps are NOT commands — they live in `tune.engine_map`.
 - New sortable field/screen: update the per-screen options in `game/sorting.py`, tests.
 - Balance lap times: update constants first, then formulas in `effective_stats.py` or `simulation.py`.
@@ -520,6 +574,8 @@ test_opponents.py          Event restrictions, pace floors, and opponent generat
 test_car_catalog.py        Catalog class distribution and S-class competitiveness.
 test_actions.py            UI-neutral action/screen layer.
 test_cli.py                Terminal menu/screen behavior.
+test_compendium.py         Doc registry completeness/consistency tripwires.
+test_build_web.py          Static compendium render + bundle isolation-import guard.
 test_presentation_timing.py Resolution-invariance of lap noise, watched-time tick density,
                             and the pre-race play/real estimate.
 ```
