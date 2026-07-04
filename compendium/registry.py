@@ -14,12 +14,24 @@ Exposes:
 from __future__ import annotations
 
 from constants import CAR_MOD_FIELD_SECTIONS
-from compendium import content_cars, content_events, content_tracks
+from compendium import (
+    content_cars,
+    content_drivers,
+    content_events,
+    content_intro,
+    content_tracks,
+)
 from compendium.content_cars import TUNE_SECTION_KEYS
 from compendium.model import Chapter, Entry
 
+# Index-page framing (see content_intro).
+TITLE: str = content_intro.TITLE
+INTRO: str = content_intro.INTRO
+HOW_TO_READ: str = content_intro.HOW_TO_READ
+
 CHAPTERS: tuple[Chapter, ...] = (
     content_cars.build_chapter(),
+    content_drivers.build_chapter(),
     content_tracks.build_chapter(),
     content_events.build_chapter(),
 )

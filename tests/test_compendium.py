@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import unittest
 
+from dataclasses import fields as dataclass_fields
+
 from constants import CAR_MOD_FIELD_RANGES, TUNE_FIELD_RANGES
 from editor.fields import CAR_SECTIONS, EVENT_SECTIONS, SEGMENT_FIELDS, TRACK_SECTIONS
 from game.actions import _TUNE_FIELD_GROUPS
+from game.models import Driver
 from compendium import registry
 
 
@@ -40,6 +43,11 @@ class CompendiumCompletenessTests(unittest.TestCase):
                 entry_id = "event." + ".".join(spec.path)
                 self.assertIn(entry_id, registry.ENTRIES_BY_ID, entry_id)
 
+    def test_every_driver_field_has_entry(self) -> None:
+        for field in dataclass_fields(Driver):
+            entry_id = "driver." + field.name
+            self.assertIn(entry_id, registry.ENTRIES_BY_ID, entry_id)
+
     def test_tune_lookup_matches_ingame_tune_fields(self) -> None:
         names = [name for _title, group in _TUNE_FIELD_GROUPS for name in group]
         # no duplicate field names across the tune-menu groups
@@ -57,6 +65,33 @@ class CompendiumCompletenessTests(unittest.TestCase):
             self.assertEqual(registry.TUNE_LOOKUP[name].value_range, expected, name)
         for name, expected in CAR_MOD_FIELD_RANGES.items():
             self.assertEqual(registry.TUNE_LOOKUP[name].value_range, expected, name)
+
+
+class DomainContentTests(unittest.TestCase):
+    """Every section in a fully-authored chapter has an intro, and every entry
+    a one-line effect summary. Called per-domain as each Phase 3 sub-phase lands
+    its content; prose is intentionally sparse so it is NOT asserted here."""
+
+    def _assert_chapter_documented(self, chapter_id: str) -> None:
+        chapter = next(c for c in registry.CHAPTERS if c.id == chapter_id)
+        self.assertTrue(chapter.intro.strip(), f"{chapter_id} chapter missing intro")
+        for section in chapter.sections:
+            self.assertTrue(section.intro.strip(), f"{chapter_id}/{section.title} missing intro")
+            self.assertTrue(section.entries, f"{chapter_id}/{section.title} has no entries")
+            for entry in section.entries:
+                self.assertTrue(entry.effect_summary.strip(), f"{entry.id} missing effect_summary")
+
+    def test_cars_fully_documented(self) -> None:
+        self._assert_chapter_documented("cars")
+
+    def test_drivers_fully_documented(self) -> None:
+        self._assert_chapter_documented("drivers")
+
+    def test_tracks_fully_documented(self) -> None:
+        self._assert_chapter_documented("tracks")
+
+    def test_events_fully_documented(self) -> None:
+        self._assert_chapter_documented("events")
 
 
 if __name__ == "__main__":

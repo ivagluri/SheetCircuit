@@ -6,9 +6,10 @@ dedicated list screen, not as flat fields) into a synthesised "Segments"
 section. Segment entry ids are prefixed ``track.segment.`` so they never
 collide with same-named top-level fields (e.g. ``surface``).
 
-A "what the loader derives for you" section (base lap time, aggregate weights,
-wear/fuel/heat rates, climb gradient) is authored in Phase 3c as ``derived``
-entries — those have no FieldSpec to harvest and are added directly.
+A hand-built "Derived Values" section documents what the loader computes for
+you (base lap time, aggregate weights, wear/fuel/heat rates, climb gradient) so
+authors understand the consequences of their choices without treating those
+outputs as edit points.
 """
 
 from __future__ import annotations
@@ -17,15 +18,107 @@ from typing import Any
 
 from editor.fields import SEGMENT_FIELDS, TRACK_SECTIONS
 from compendium.harvest import entry_from_spec
-from compendium.model import Chapter, Section
+from compendium.model import Chapter, Entry, Section
 
 DOMAIN = "track"
 _EDITABLE = ("creator",)
 _SEGMENT_SECTION = "Segments"
+_DERIVED_SECTION = "Derived Values"
 
-CHAPTER_INTRO: str = ""
-SECTION_INTROS: dict[str, str] = {}
-FIELD_CONTENT: dict[str, dict[str, Any]] = {}
+CHAPTER_INTRO: str = (
+    "A track is a lap built from segments. You set its overall shape — length, layout, "
+    "surface, weather — then divide the lap into segments whose tags describe what each "
+    "part demands of the car. Race length is NOT set here: one track can host a 5-lap "
+    "sprint or a long enduro, and that lives on the event. From your segments the loader "
+    "derives a reference lap time, the performance emphasis, and per-lap wear/fuel/heat; "
+    "those derived values are explained below but are not directly editable. For a worked "
+    "example that exercises every field, tag, surface and condition, see the shipped "
+    "reference track data/tracks/summit_ridge_gp.json (its 'description' field is "
+    "documentation only)."
+)
+
+SECTION_INTROS: dict[str, str] = {
+    "Identity & Layout": (
+        "The track's overall character. Length sets one lap; layout decides whether the "
+        "track loops or runs once; surface, condition and weather set the default grip "
+        "environment that individual segments can override."
+    ),
+    _SEGMENT_SECTION: (
+        "The lap is divided into segments whose length fractions must sum to exactly 1.0. "
+        "Each segment's tags are the real design tool: they decide what that stretch "
+        "demands (power, grip, braking, handling, aero...) and how hard it is on tyres, "
+        "fuel and engine heat. Surface and condition can be set per segment to make part "
+        "of the lap gravel or wet."
+    ),
+    _DERIVED_SECTION: (
+        "What the loader computes from your design when the track is loaded — never stored "
+        "and never edited directly. They are listed so you can see how your segment choices "
+        "translate into lap time, car emphasis, and consumables."
+    ),
+}
+
+FIELD_CONTENT: dict[str, dict[str, Any]] = {
+    # --- Identity & Layout ---
+    "track.id": {"effect": "Filename slug identifying the track; also how events reference it."},
+    "track.name": {"effect": "Display name shown across menus and results."},
+    "track.layout_type": {"effect": "circuit/oval loop the lap; point_to_point, hillclimb and sprint run once (and use net climb)."},
+    "track.length_km": {"effect": "Length of ONE lap; total race distance is set per-event.", "units": "km"},
+    "track.pit_lane_loss_s": {"effect": "Time lost each time a car pits.", "units": "s"},
+    "track.elevation_change_m": {"effect": "Net elevation change; sustained climb taxes fuel and engine heat.", "units": "m", "source": "constants.py:519 ELEVATION_REF_M"},
+    "track.surface": {"effect": "Default surface; gravel cuts grip and raises tyre wear. Segments can override.", "source": "constants.py:722 SURFACE_MODIFIERS"},
+    "track.default_condition": {"effect": "Default condition; damp/wet cut grip and lean on wet grip and wet skill.", "source": "constants.py:728 CONDITION_MODIFIERS"},
+    "track.weather_variability": {"effect": "0..1 chance the pre-race forecast shifts the track's condition."},
+    "track.overtake_difficulty": {"effect": "0..1 base difficulty of passing; narrow/wide segment tags nudge it.", "source": "constants.py:692 OVERTAKE_DIFFICULTY_TAG_DELTA"},
+    # --- Segments ---
+    "track.segment.name": {"effect": "Label for the segment; flavour only."},
+    "track.segment.length_pct": {"effect": "Fraction of the lap this segment covers; all segments must sum to 1.0.", "units": "fraction"},
+    "track.segment.tags": {
+        "effect": "Multi-select demands (12 tags) that set the segment's performance weights and wear/fuel/heat.",
+        "prose": (
+            "Tags are how a segment expresses what it asks of a car. Straights reward power and top "
+            "speed; slow corners and technical sections reward grip and handling; braking zones reward "
+            "brakes; high-speed corners reward aero. Tags also carry tyre-wear, fuel-burn and engine-heat "
+            "rates, and narrow/wide tags shift how hard the segment is to pass on. Stack several tags to "
+            "describe a complex stretch."
+        ),
+        "source": "constants.py:662 SEGMENT_TAG_WEIGHTS / :677 SEGMENT_TAG_RATES",
+    },
+    "track.segment.surface": {"effect": "Per-segment surface override (tarmac/concrete/gravel)."},
+    "track.segment.condition": {"effect": "Per-segment condition override (dry/damp/wet)."},
+}
+
+# Hand-built derived-value entries (no FieldSpec — these are loader outputs).
+_DERIVED_ENTRIES: tuple[dict[str, Any], ...] = (
+    {"id": "track.derived.base_lap_time", "label": "base_lap_time", "units": "s",
+     "effect": "Reference lap time the loader computes from segment speed factors and lap length; never stored.",
+     "source": "game/loader.py:317 derive_base_lap_time"},
+    {"id": "track.derived.performance_weights", "label": "performance emphasis",
+     "effect": "Aggregate power/accel/top-speed/grip/braking/handling/aero emphasis, summed from segment tags.",
+     "source": "game/loader.py:245 derive_weights"},
+    {"id": "track.derived.consumable_rates", "label": "wear / fuel / heat rates",
+     "effect": "Per-lap tyre-wear, fuel-burn and engine-heat demand from segment tags, scaled by elevation.",
+     "source": "game/loader.py:254 derive_rates; constants.py:677 SEGMENT_TAG_RATES"},
+    {"id": "track.derived.climb_gradient_pct", "label": "climb_gradient_pct", "units": "%",
+     "effect": "Net climb grade adding a time penalty on point_to_point/hillclimb/sprint layouts.",
+     "source": "game/loader.py:372; constants.py:135 NET_CLIMB_LAYOUTS"},
+)
+
+
+def _derived_section() -> Section:
+    entries = tuple(
+        Entry(
+            id=item["id"],
+            domain=DOMAIN,
+            section=_DERIVED_SECTION,
+            label=item["label"],
+            units=item.get("units", ""),
+            effect_summary=item["effect"],
+            editable_in=("derived",),
+            source=item.get("source", ""),
+        )
+        for item in _DERIVED_ENTRIES
+    )
+    return Section(title=_DERIVED_SECTION, intro=SECTION_INTROS[_DERIVED_SECTION], entries=entries)
 
 
 def build_chapter() -> Chapter:
@@ -57,10 +150,7 @@ def build_chapter() -> Chapter:
         for spec in SEGMENT_FIELDS
     )
     sections.append(
-        Section(
-            title=_SEGMENT_SECTION,
-            intro=SECTION_INTROS.get(_SEGMENT_SECTION, ""),
-            entries=segment_entries,
-        )
+        Section(title=_SEGMENT_SECTION, intro=SECTION_INTROS[_SEGMENT_SECTION], entries=segment_entries)
     )
+    sections.append(_derived_section())
     return Chapter(id="tracks", title="Tracks", intro=CHAPTER_INTRO, sections=tuple(sections))
