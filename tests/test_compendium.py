@@ -48,6 +48,12 @@ class CompendiumCompletenessTests(unittest.TestCase):
             entry_id = "driver." + field.name
             self.assertIn(entry_id, registry.ENTRIES_BY_ID, entry_id)
 
+    def test_every_segment_tag_has_entry(self) -> None:
+        from constants import SEGMENT_TAG_WEIGHTS
+
+        for tag in SEGMENT_TAG_WEIGHTS:
+            self.assertIn(f"track.tag.{tag}", registry.ENTRIES_BY_ID, tag)
+
     def test_tune_lookup_matches_ingame_tune_fields(self) -> None:
         names = [name for _title, group in _TUNE_FIELD_GROUPS for name in group]
         # no duplicate field names across the tune-menu groups

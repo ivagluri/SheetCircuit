@@ -16,6 +16,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from constants import (
+    OVERTAKE_DIFFICULTY_TAG_DELTA,
+    SEGMENT_TAG_RATES,
+    SEGMENT_TAG_SPEED,
+    SEGMENT_TAG_WEIGHTS,
+)
 from editor.fields import SEGMENT_FIELDS, TRACK_SECTIONS
 from compendium.harvest import entry_from_spec
 from compendium.model import Chapter, Entry, Section
@@ -23,6 +29,7 @@ from compendium.model import Chapter, Entry, Section
 DOMAIN = "track"
 _EDITABLE = ("creator",)
 _SEGMENT_SECTION = "Segments"
+_TAGS_SECTION = "Segment Tags"
 _DERIVED_SECTION = "Derived Values"
 
 CHAPTER_INTRO: str = (
@@ -48,7 +55,15 @@ SECTION_INTROS: dict[str, str] = {
         "Each segment's tags are the real design tool: they decide what that stretch "
         "demands (power, grip, braking, handling, aero...) and how hard it is on tyres, "
         "fuel and engine heat. Surface and condition can be set per segment to make part "
-        "of the lap gravel or wet."
+        "of the lap gravel or wet. See the Segment Tags section for each tag's effect."
+    ),
+    _TAGS_SECTION: (
+        "The heart of the lap-time model. Each tag sets a baseline speed for the stretch "
+        "(a straight is fast, a chicane is slow) and layers demands onto specific car "
+        "axes — so a track built from long straights rewards a different car than one full "
+        "of slow corners. Tags also drive tyre wear, fuel burn and engine heat. Stack "
+        "several on one segment to describe a complex piece of road. The figures below are "
+        "read straight from the simulation's own tables."
     ),
     _DERIVED_SECTION: (
         "What the loader computes from your design when the track is loaded — never stored "
@@ -73,15 +88,13 @@ FIELD_CONTENT: dict[str, dict[str, Any]] = {
     "track.segment.name": {"effect": "Label for the segment; flavour only."},
     "track.segment.length_pct": {"effect": "Fraction of the lap this segment covers; all segments must sum to 1.0.", "units": "fraction"},
     "track.segment.tags": {
-        "effect": "Multi-select demands (12 tags) that set the segment's performance weights and wear/fuel/heat.",
+        "effect": "Multi-select demands (12 tags) that set the segment's speed, performance weights and wear/fuel/heat.",
         "prose": (
-            "Tags are how a segment expresses what it asks of a car. Straights reward power and top "
-            "speed; slow corners and technical sections reward grip and handling; braking zones reward "
-            "brakes; high-speed corners reward aero. Tags also carry tyre-wear, fuel-burn and engine-heat "
-            "rates, and narrow/wide tags shift how hard the segment is to pass on. Stack several tags to "
-            "describe a complex stretch."
+            "The single most important design choice for a segment. Each tag is broken down individually "
+            "in the Segment Tags section — what it rewards, its baseline speed, and its consumable load. "
+            "Stack several tags to describe a complex stretch of road."
         ),
-        "source": "constants.py:662 SEGMENT_TAG_WEIGHTS / :677 SEGMENT_TAG_RATES",
+        "source": "constants.py:662 SEGMENT_TAG_WEIGHTS / :677 SEGMENT_TAG_RATES / :105 SEGMENT_TAG_SPEED",
     },
     "track.segment.surface": {"effect": "Per-segment surface override (tarmac/concrete/gravel)."},
     "track.segment.condition": {"effect": "Per-segment condition override (dry/damp/wet)."},
@@ -102,6 +115,76 @@ _DERIVED_ENTRIES: tuple[dict[str, Any], ...] = (
      "effect": "Net climb grade adding a time penalty on point_to_point/hillclimb/sprint layouts.",
      "source": "game/loader.py:372; constants.py:135 NET_CLIMB_LAYOUTS"},
 )
+
+
+# --- Segment tags: one entry each, derived from the sim's own tables ---------
+_AXIS_LABEL = {
+    "power": "power",
+    "top_speed": "top speed",
+    "acceleration": "acceleration",
+    "grip": "grip",
+    "braking": "braking",
+    "handling": "handling",
+    "aero": "aero",
+}
+
+# Hand-written "what this stretch of road is" — the human read on each tag.
+_TAG_PROSE: dict[str, str] = {
+    "long_straight": "A flat-out straight: engine power and top speed decide everything, and it drinks fuel and heat while doing it.",
+    "short_straight": "A brief squirt between corners — acceleration off the preceding corner matters more than outright top speed.",
+    "high_speed_corner": "A fast sweeper taken near-flat: aerodynamic downforce keeps the car planted, so aero-heavy cars gain the most.",
+    "slow_corner": "A tight, low-speed corner where mechanical grip and the ability to get back on the power dominate.",
+    "hard_braking_zone": "A heavy stop from speed: braking performance (and brake cooling over a stint) is the limiting factor.",
+    "technical_section": "A flowing, connected sequence that rewards handling and balance over raw power.",
+    "tight_chicane": "A slow, sharp direction change — quick handling response plus strong braking to scrub speed.",
+    "bumpy_surface": "Broken tarmac that upsets the car; compliant handling helps, and the surface chews through tyres.",
+    "curb_riding": "Kerbs to attack or ride out; composure over kerbs keeps the lap tidy.",
+    "narrow_track": "Little room and few passing spots — handling matters and overtaking is harder here (raises the track's overtake difficulty).",
+    "wide_track": "Generous width with room to run side by side, which makes overtaking easier (lowers overtake difficulty).",
+    "exposed": "Open to the elements: a touch aero-sensitive and the most affected when the weather turns.",
+}
+
+
+def _tag_emphasis(tag: str) -> str:
+    weights = SEGMENT_TAG_WEIGHTS[tag]
+    peak = max(weights.values())
+    strong = [axis for axis, weight in weights.items() if weight >= 0.5]
+    chosen = strong or [axis for axis, weight in weights.items() if weight == peak]
+    chosen.sort(key=lambda axis: weights[axis], reverse=True)
+    return ", ".join(_AXIS_LABEL[axis] for axis in chosen)
+
+
+def _tag_effect(tag: str) -> str:
+    speed = SEGMENT_TAG_SPEED[tag]
+    speed_word = "Fast" if speed >= 1.3 else "Slow" if speed <= 0.7 else "Medium-speed"
+    rates = SEGMENT_TAG_RATES[tag]
+    heavy = []
+    if rates["tire_wear"] >= 0.7:
+        heavy.append("hard on tyres")
+    if rates["fuel_burn"] >= 0.7:
+        heavy.append("thirsty")
+    if rates["engine_heat"] >= 0.7:
+        heavy.append("runs hot")
+    consumables = " and ".join(heavy) if heavy else "easy on consumables"
+    return f"{speed_word} (speed ×{speed:g}); rewards {_tag_emphasis(tag)}; {consumables}."
+
+
+def _tags_section() -> Section:
+    entries = tuple(
+        Entry(
+            id=f"{DOMAIN}.tag.{tag}",
+            domain=DOMAIN,
+            section=_TAGS_SECTION,
+            label=tag,
+            effect_summary=_tag_effect(tag),
+            prose=_TAG_PROSE.get(tag, ""),
+            editable_in=_EDITABLE,
+            source="constants.py SEGMENT_TAG_SPEED / _WEIGHTS / _RATES"
+            + (" / OVERTAKE_DIFFICULTY_TAG_DELTA" if tag in OVERTAKE_DIFFICULTY_TAG_DELTA else ""),
+        )
+        for tag in SEGMENT_TAG_WEIGHTS
+    )
+    return Section(title=_TAGS_SECTION, intro=SECTION_INTROS[_TAGS_SECTION], entries=entries)
 
 
 def _derived_section() -> Section:
@@ -152,5 +235,6 @@ def build_chapter() -> Chapter:
     sections.append(
         Section(title=_SEGMENT_SECTION, intro=SECTION_INTROS[_SEGMENT_SECTION], entries=segment_entries)
     )
+    sections.append(_tags_section())
     sections.append(_derived_section())
     return Chapter(id="tracks", title="Tracks", intro=CHAPTER_INTRO, sections=tuple(sections))

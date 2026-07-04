@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,6 +28,43 @@ class CompendiumRenderTests(unittest.TestCase):
         html = render_compendium()
         self.assertIn("Identity &amp; Layout", html)
         self.assertNotIn("Identity & Layout", html)
+
+
+class EmbeddedSourceTests(unittest.TestCase):
+    def test_game_and_creator_bundles_embed_compendium(self) -> None:
+        # game.actions and the editor import compendium.registry at module load,
+        # so the Pyodide bundles must ship the package or they fail to boot.
+        for target in ("game", "creator"):
+            manifest = build_web.collect_files(build_web.TARGETS[target][2])
+            self.assertIn("compendium/registry.py", manifest, target)
+            self.assertIn("compendium/__init__.py", manifest, target)
+
+    def _assert_bundle_imports(self, target: str, modules: str) -> None:
+        """Write the bundle's embedded files to an isolated dir and import its
+        entry modules with nothing else on the path — the real check that the
+        globs are self-sufficient (the repo on sys.path hides missing files)."""
+        manifest = build_web.collect_files(build_web.TARGETS[target][2])
+        with tempfile.TemporaryDirectory() as tmp:
+            for relpath, content in manifest.items():
+                dest = Path(tmp) / relpath
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(content, encoding="utf-8")
+            env = dict(os.environ)
+            env["PYTHONPATH"] = ""  # cwd (tmp) + stdlib only, not the repo
+            result = subprocess.run(
+                [sys.executable, "-c", f"import {modules}"],
+                cwd=tmp,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+        self.assertEqual(result.returncode, 0, f"{target} bundle failed to import:\n{result.stderr}")
+
+    def test_game_bundle_imports_in_isolation(self) -> None:
+        self._assert_bundle_imports("game", "interfaces.cli, interfaces.web, game.actions")
+
+    def test_creator_bundle_imports_in_isolation(self) -> None:
+        self._assert_bundle_imports("creator", "editor.web")
 
 
 class CompendiumBuildTests(unittest.TestCase):

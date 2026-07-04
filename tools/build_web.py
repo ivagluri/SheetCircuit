@@ -30,6 +30,9 @@ SOURCE_GLOBS = [
     "constants.py",
     "game/*.py",
     "interfaces/*.py",
+    "compendium/*.py",  # game.actions imports compendium.registry at load
+    "editor/__init__.py",  # compendium harvests the schemas from editor.fields,
+    "editor/fields.py",     # so the game (not just the creator) needs it embedded
     "data/cars/*.json",
     "data/drivers/*.json",
     "data/events/*.json",
@@ -37,10 +40,10 @@ SOURCE_GLOBS = [
     "data/tracks/*.json",
 ]
 
+# Creator-only editor modules; the shared schema (editor.fields) lives in
+# SOURCE_GLOBS above because the game's compendium depends on it too.
 EDITOR_GLOBS = [
-    "editor/__init__.py",
     "editor/app.py",
-    "editor/fields.py",
     "editor/sample_tracks.py",
     "editor/web.py",
 ]
