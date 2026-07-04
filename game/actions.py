@@ -916,6 +916,7 @@ def race_screen(
                 ["Energy", f"[{_gauge_bar(player.driver_energy)}]  {player.driver_energy:3.0f}%"],
                 ["Focus",  f"[{_gauge_bar(player.driver_focus)}]  {player.driver_focus:3.0f}%"],
                 ["Stress", f"[{_gauge_bar(player.driver_stress)}]  {player.driver_stress:3.0f}%"],
+                ["Weather", session.weather],
             ],
         )
     )
@@ -1022,6 +1023,11 @@ def simulate_to_end_action(session: RaceSession, command: str = "normal") -> Rac
     while not session.is_finished:
         result = advance_race_action(session, command)
         last_tick = result.tick
+        if command == "pit" and last_tick is not None and last_tick.is_lap_end:
+            # Pit is one-shot: re-issuing it every tick would dive into the pits every
+            # lap. After the stop, resume normal running (the CLI resumes the prior
+            # command; the action layer defaults to normal).
+            command = "normal"
     screen = race_screen(session, last_tick)
     return RaceActionResult(session=session, tick=last_tick, screen=screen)
 

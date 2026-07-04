@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections import Counter
 from copy import deepcopy
 import unittest
+from unittest import mock
 
 from game.game_state import GameState
 from game.loader import load_cars
@@ -73,6 +75,10 @@ class RaceTickTests(unittest.TestCase):
     def test_push_heats_engine_more_than_normal(self) -> None:
         normal = self._session()
         hot = self._session()
+        # Heat is a balance against always-on passive cooling; the kei's gentle engine
+        # sits on the operating floor at any pace, so observe the command delta above it.
+        for session in (normal, hot):
+            next(car for car in session.cars if car.is_player).engine_temp = 100.0
 
         simulate_tick(normal)
         apply_player_command(hot, "push")
@@ -115,6 +121,35 @@ class RaceTickTests(unittest.TestCase):
         result = simulate_tick(session)
 
         self.assertNotIn(victim, result.standings)
+
+    def test_race_log_publishes_each_event_at_most_once(self) -> None:
+        # event_log is cumulative; the race log must never re-emit an already-published
+        # entry on later laps (the old [-3:] resampling repeated stale events forever).
+        state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])
+        session = enter_event(state, "sunday_cup", "kanto_k660", "driver_novak", seed=11)
+        while not session.is_finished:
+            apply_player_command(session, "push")
+
+        published = Counter(message for _lap, message in session.race_log)
+        produced = Counter(message for car in session.cars for message in car.event_log)
+        for message, count in published.items():
+            if message.endswith("completed."):  # synthetic "Lap N completed." filler
+                continue
+            self.assertLessEqual(count, produced[message], message)
+
+    def test_mid_lap_crash_message_reaches_race_log(self) -> None:
+        # A car that crashes out mid-lap is skipped on every later tick, so its
+        # messages must be published on the crash tick, not silently dropped.
+        session = self._session()
+        session.ticks_per_lap = 4  # first tick is mid-lap, not a lap end
+        with mock.patch("game.race_session.mistake_chance", return_value=1000.0), \
+                mock.patch("game.race_session._dnf_chance", return_value=2.0):
+            result = apply_player_command(session, "go_all_out")
+
+        player = next(car for car in session.cars if car.is_player)
+        self.assertTrue(player.is_dnf)
+        self.assertFalse(result.is_lap_end)
+        self.assertTrue(any("crashed out" in message for _lap, message in session.race_log))
 
 
 if __name__ == "__main__":

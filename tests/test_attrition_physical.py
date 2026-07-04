@@ -48,8 +48,12 @@ class PhysicalAttritionTests(unittest.TestCase):
         self.assertAlmostEqual(big_used, small_used / 2, places=6)
 
     def test_fatigue_and_engine_heat_scale_with_time_not_distance(self) -> None:
-        short = self._run(self.eff, self.track, 1, seconds=60.0)
-        long = self._run(self.eff, self.track, 1, seconds=180.0)
+        # Engine heat is a balance against always-on passive cooling; use a thermally
+        # demanding car (the V12) whose load out-heats the airflow, so the time
+        # dependence is visible above the operating floor.
+        hot_eff = compute_effective_stats(self.cars["blackpool_twelve"], self.parts)
+        short = self._run(hot_eff, self.track, 1, seconds=60.0)
+        long = self._run(hot_eff, self.track, 1, seconds=180.0)
         # Same distance (1 lap), 3x the time => 3x the stress build.
         self.assertAlmostEqual(long.driver_stress, 3 * short.driver_stress, places=6)
         self.assertGreater(long.engine_temp - 90.0, short.engine_temp - 90.0)

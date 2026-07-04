@@ -22,11 +22,13 @@ from game.game_state import GameState
 from game.loader import load_cars, load_parts, load_tracks
 from game.simulation import calculate_lap_time, simulate_race
 
-# Player (kanto_k660 / driver_novak / sunday_cup) total time, re-pinned after Phase 4.1
-# made base_lap_time geometry-derived (maple's derived base, 96.3s, is a touch above its old
-# hand-set 95s, so the reference race is marginally slower). Folds may nudge these but must
-# stay within tolerance.
-PLAYER_TOTAL_BASELINE = {7: 406.753, 42: 407.856, 9: 406.71}
+# Player (kanto_k660 / driver_novak / sunday_cup) total time, re-pinned with the race-day
+# weather model: seed 7 now rolls a WET race on maple (weather_variability 0.15), so its
+# pin characterizes the wet path; 42 and 9 stay dry and pin the dry model (bit-for-bit
+# unchanged by the attrition/weather rework). Folds may nudge these but must stay within
+# tolerance.
+# (Nudged ~-0.05s when fuel load was wired: burned litres lighten the car.)
+PLAYER_TOTAL_BASELINE = {7: 408.500, 42: 400.299, 9: 399.152}
 TOLERANCE = 0.03  # +/-3%
 
 

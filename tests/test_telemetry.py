@@ -61,6 +61,10 @@ class TelemetryTests(unittest.TestCase):
     def test_fuel_decreases_and_engine_heats_faster_under_push(self) -> None:
         normal = self._session()
         hot = self._session()
+        # Start above the operating floor so the push-vs-normal heat delta is visible
+        # (heat is a balance; the kei's engine sits on the floor at any pace).
+        for session in (normal, hot):
+            next(car for car in session.cars if car.is_player).engine_temp = 100.0
         for _ in range(2):
             simulate_tick(normal)
             apply_player_command(hot, "push")

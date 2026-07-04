@@ -17,17 +17,24 @@ from constants import (
     TYRE_COOLING_COMMANDS,
     DRIVER_PACE_FRACTION,
     DRIVER_ENERGY_DRAIN_PER_S,
+    DRIVER_ENERGY_LOW_PCT,
+    DRIVER_ENERGY_PACE_FRACTION,
     DRIVER_FOCUS_DRAIN_PER_S,
     DRIVER_STRESS_BUILD_PER_S,
     FITNESS_DRAIN_PER_UNIT,
     FITNESS_REF,
     ENGINE_CRITICAL_C,
     ENGINE_COOL_PER_S,
+    ENGINE_COOLING_BOOST,
     ENGINE_HEAT_PER_S,
     ENGINE_OVERHEAT_C,
     ENGINE_TEMP_PENALTY_MAX,
     FUEL_ECONOMY_FLOOR_L_PER_KM,
+    FUEL_EMPTY_PACE_FRACTION,
     FUEL_L_PER_KM_UNIT,
+    FUEL_WEIGHT_PENALTY_PER_L,
+    INITIAL_ENGINE_TEMP_C,
+    INITIAL_TIRE_TEMP_C,
     GRADIENT_PW_GAIN,
     GRADIENT_PW_REF,
     MILEAGE_KM_MULTIPLIER,
@@ -38,20 +45,37 @@ from constants import (
     PIT_TIRE_TEMP_C,
     PERCENT_MAX,
     PERF_FRACTION,
+    RACE_DAMAGE_WEAR_FACTOR,
     RANDOM_VARIANCE_SCALE,
     REFERENCE_COMPOSITE,
+    SUBCONDITION_WEAR_FACTORS,
     TIRE_CRITICAL_C,
     TIRE_COOL_PER_S,
+    TIRE_COOLING_BOOST,
     TIRE_HEAT_PER_KM,
+    TIRE_OPTIMAL_C,
     TIRE_OVERHEAT_C,
     TIRE_TEMP_PENALTY_MAX,
     TYRE_WEAR_PCT_PER_KM,
     TIRE_WEAR_PENALTY_MAX,
     WEAR_PER_RACE_BASE,
+    WEAR_PER_RACE_MAX,
+    WEAR_PER_RACE_MIN,
+    WEAR_REFERENCE_RACE_KM,
+    WEATHER_RNG_OFFSET,
 )
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
-from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
+from game.loader import (
+    apply_race_condition,
+    load_cars,
+    load_drivers,
+    load_events,
+    load_parts,
+    load_tracks,
+    resolve_race,
+    roll_race_condition,
+)
 from game.models import Car, Driver, EffectiveCarStats, Event, RaceCarState, RaceResult, SegmentProfile, Track
 from game.opponents import build_opponent_grid, opponent_entry_labels, validate_event_entry
 
@@ -125,7 +149,7 @@ def lap_time_over_interval(
     # State penalty is a deterministic drag -> scales linearly with the slice. Driver variance is
     # additive noise -> scales with sqrt(slice) so the per-lap spread is identical whether a lap is
     # one tick or a thousand (resolution-invariant; at length=1 this is the instant-sim draw).
-    return core + _state_penalty(state) * length + _lap_variance(driver, rng) * math.sqrt(length)
+    return core + _state_penalty(state, effective, track.base_lap_time) * length + _lap_variance(driver, rng) * math.sqrt(length)
 
 
 def _climb_adjustment(track: Track, effective: EffectiveCarStats) -> float:
@@ -177,14 +201,26 @@ def _blended_pace(driver: Driver | None, wet_weight: float) -> float:
     return driver.pace * (1.0 - wet_weight) + driver.wet_skill * wet_weight
 
 
-def _state_penalty(state: RaceCarState | None) -> float:
+def _state_penalty(state: RaceCarState | None, effective: EffectiveCarStats, base_lap_time: float) -> float:
     if state is None:
         return 0.0
     penalty = (PERCENT_MAX - state.tire_pct) / PERCENT_MAX * TIRE_WEAR_PENALTY_MAX
+    # Fuel load: a full tank is the reference; every litre burned lightens the car and
+    # buys pace, so brimming at a stop costs lap time until it burns off.
+    burned_l = (PERCENT_MAX - state.fuel_pct) / PERCENT_MAX * effective.fuel_capacity_l
+    penalty -= burned_l * FUEL_WEIGHT_PENALTY_PER_L
     if state.tire_temp > TIRE_OVERHEAT_C:
         penalty += _range_penalty(state.tire_temp, TIRE_OVERHEAT_C, TIRE_CRITICAL_C, TIRE_TEMP_PENALTY_MAX)
     if state.engine_temp > ENGINE_OVERHEAT_C:
         penalty += _range_penalty(state.engine_temp, ENGINE_OVERHEAT_C, ENGINE_CRITICAL_C, ENGINE_TEMP_PENALTY_MAX)
+    if state.fuel_pct <= 0.0:
+        # Dry tank: the car limps on fumes. Proportional to the lap so it is equally
+        # devastating on any track length, but the car can still crawl to the pits.
+        penalty += base_lap_time * FUEL_EMPTY_PACE_FRACTION
+    if state.driver_energy < DRIVER_ENERGY_LOW_PCT:
+        # An exhausted driver leaks pace, ramping to the full fraction at zero energy.
+        deficit = 1.0 - state.driver_energy / DRIVER_ENERGY_LOW_PCT
+        penalty += base_lap_time * DRIVER_ENERGY_PACE_FRACTION * deficit
     return penalty
 
 
@@ -206,9 +242,16 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
 
     event = _get(events, event_id, "event")
     track = _get(tracks, event.track_id, "track")
+    # Race-day forecast: rolled on an isolated stream (the main rng's draw sequence is
+    # untouched) and applied to this freshly loaded track copy.
+    weather = roll_race_condition(track, random.Random(seed + WEATHER_RNG_OFFSET))
+    apply_race_condition(track, weather)
     player_car = _find_garage_car(game_state, car_id) or deepcopy(_get(cars, car_id, "car"))
     player_driver = _get(drivers, driver_id, "driver")
     validate_event_entry(player_car, event, parts)
+    # Same economics as the live engine (enter_event), minus the funds gate -- this is
+    # the batch summary, used by tools on throwaway states.
+    game_state.money -= event.entry_fee
     cars[player_car.identity.id] = deepcopy(player_car)
 
     race_cars = [_initial_state(player_car.identity.id, player_driver.id, "YOU", True)]
@@ -226,14 +269,21 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
 
     lap_times: dict[str, list[float]] = {state.label: [] for state in race_cars}
     race_log: list[str] = []
+    if weather != "dry":
+        race_log.append(f"Race runs {weather}.")
     # Lockstep loop shared by lap and duration races: every car runs the same whole laps, so
     # a duration race (Regime A) ends on a clean lap boundary once the leader passes the cap.
     completed_laps = 0
+    # Effective stats are invariant for the whole race (condition and tune don't change
+    # mid-race), so compute them once per entry instead of once per lap per car.
+    effective_by_car = {
+        state.car_id: compute_effective_stats(player_car if state.is_player else cars[state.car_id], parts)
+        for state in race_cars
+    }
     while not _race_finished(race_cars, race_format, completed_laps):
         for state in race_cars:
-            car = player_car if state.is_player else cars[state.car_id]
             driver = player_driver if state.is_player else drivers[state.driver_id]
-            effective = compute_effective_stats(car, parts)
+            effective = effective_by_car[state.car_id]
             lap_time = calculate_lap_time(effective, track, driver, state, rng)
             state.last_lap_time = lap_time
             state.total_time += lap_time
@@ -251,10 +301,11 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
     player_state = next(state for state in race_cars if state.is_player)
     prize_money = _prize_for_position(event, player_state.position)
     game_state.money += prize_money
+    game_state.week += 1
     garage_car = _find_garage_car(game_state, car_id)
     if garage_car is not None:
-        garage_car.condition.mileage += round(track.length_km * total_laps * MILEAGE_KM_MULTIPLIER)
-        garage_car.condition.overall_condition = max(0.0, garage_car.condition.overall_condition - WEAR_PER_RACE_BASE)
+        damage = PERCENT_MAX - player_state.condition_pct
+        apply_post_race_wear(garage_car, track.length_km * total_laps, damage)
 
     return RaceResult(
         event_id=event.id,
@@ -317,7 +368,7 @@ def _apply_lap_wear(
         state.tire_pct = PIT_TIRE_RESTORE_PCT
         state.tire_temp = PIT_TIRE_TEMP_C
         state.fuel_pct = PIT_FUEL_RESTORE_PCT
-        state.engine_temp = max(0.0, state.engine_temp - PIT_ENGINE_COOL_C)
+        state.engine_temp = max(INITIAL_ENGINE_TEMP_C, state.engine_temp - PIT_ENGINE_COOL_C)
         return
     if seconds is None:
         seconds = track.base_lap_time * fraction
@@ -328,12 +379,18 @@ def _apply_lap_wear(
 
     # Tyres: % of a distance-based life. effective.tire_wear_rate is the car's wear
     # susceptibility (compound/resistance/width); the track tag rate adds the local
-    # surface/condition load. Heat builds with work (distance), bleeds off over time.
+    # surface/condition load. Heat builds with work (distance) and fights an always-on
+    # passive airflow cooling (time) -- a heat *balance*: gentle running drifts back
+    # toward the operating floor, attacking out-heats the airflow. The cooling commands
+    # multiply the passive rate. Cooling never pulls a tyre below its operating floor.
     wear_pct = TYRE_WEAR_PCT_PER_KM * effective.tire_wear_rate * tire_wear_rate * distance_km * modifiers[COMMAND_TIRE_WEAR_INDEX]
     state.tire_pct = max(0.0, state.tire_pct - wear_pct)
     heat_gain = TIRE_HEAT_PER_KM * effective.tire_heat_rate * tire_wear_rate * distance_km * modifiers[COMMAND_TIRE_WEAR_INDEX]
-    tire_cooling = TIRE_COOL_PER_S * seconds if command in TYRE_COOLING_COMMANDS else 0.0
-    state.tire_temp = max(0.0, state.tire_temp + heat_gain - tire_cooling)
+    tire_cooling = TIRE_COOL_PER_S * seconds
+    if command in TYRE_COOLING_COMMANDS:
+        tire_cooling *= TIRE_COOLING_BOOST
+    tire_floor = min(state.tire_temp, TIRE_OPTIMAL_C)
+    state.tire_temp = max(tire_floor, state.tire_temp + heat_gain - tire_cooling)
 
     # Fuel: litres over distance, drawn against the tank -> % of capacity. Economy is affine
     # in the car's burn rate (floor + rate x unit) so the catalog stays in a realistic band;
@@ -342,10 +399,14 @@ def _apply_lap_wear(
     litres = economy_l_per_km * fuel_burn_rate * distance_km * modifiers[COMMAND_FUEL_BURN_INDEX]
     state.fuel_pct = max(0.0, state.fuel_pct - litres / max(effective.fuel_capacity_l, 1.0) * PERCENT_MAX)
 
-    # Engine heat: per second of running at load.
+    # Engine heat: per second of running at load, against the same always-on passive
+    # cooling balance (radiator airflow); the floor is normal operating temperature.
     engine_gain = ENGINE_HEAT_PER_S * seconds * engine_heat_rate * effective.engine_heat_rate / PERCENT_MAX * modifiers[COMMAND_ENGINE_HEAT_INDEX]
-    engine_cooling = ENGINE_COOL_PER_S * seconds if command in ENGINE_COOLING_COMMANDS else 0.0
-    state.engine_temp = max(0.0, state.engine_temp + engine_gain - engine_cooling)
+    engine_cooling = ENGINE_COOL_PER_S * seconds
+    if command in ENGINE_COOLING_COMMANDS:
+        engine_cooling *= ENGINE_COOLING_BOOST
+    engine_floor = min(state.engine_temp, INITIAL_ENGINE_TEMP_C)
+    state.engine_temp = max(engine_floor, state.engine_temp + engine_gain - engine_cooling)
 
     # Driver: fatigue is a function of time on track.
     fitness_drain = _fitness_drain_factor(driver_fitness)
@@ -365,10 +426,10 @@ def _initial_state(car_id: str, driver_id: str, label: str, is_player: bool) -> 
         distance=0.0,
         gap_to_leader=0.0,
         tire_pct=PERCENT_MAX,
-        tire_temp=85.0,
+        tire_temp=INITIAL_TIRE_TEMP_C,
         fuel_pct=PERCENT_MAX,
         condition_pct=PERCENT_MAX,
-        engine_temp=90.0,
+        engine_temp=INITIAL_ENGINE_TEMP_C,
         driver_energy=PERCENT_MAX,
         driver_focus=PERCENT_MAX,
         driver_stress=0.0,
@@ -410,6 +471,24 @@ def _prize_for_position(event: Event, position: int) -> int:
     if index >= len(event.prize_money):
         return 0
     return event.prize_money[index]
+
+
+def apply_post_race_wear(garage_car: Car, race_km: float, damage_pct: float = 0.0) -> float:
+    """Wear a garage car after a race, in proportion to the real distance raced.
+
+    Overall wear is distance-scaled (clamped), plus a share of any damage the car took
+    mid-race (``damage_pct`` = points of RaceCarState.condition_pct lost). Sub-systems
+    wear alongside at their own rates, so upkeep is per-system; mileage accrues with the
+    same distance. Returns the overall wear applied."""
+    wear = WEAR_PER_RACE_BASE * race_km / WEAR_REFERENCE_RACE_KM
+    wear = min(WEAR_PER_RACE_MAX, max(WEAR_PER_RACE_MIN, wear))
+    wear += damage_pct * RACE_DAMAGE_WEAR_FACTOR
+    condition = garage_car.condition
+    condition.overall_condition = max(0.0, condition.overall_condition - wear)
+    for field_name, factor in SUBCONDITION_WEAR_FACTORS.items():
+        setattr(condition, field_name, max(0.0, getattr(condition, field_name) - wear * factor))
+    condition.mileage += round(race_km * MILEAGE_KM_MULTIPLIER)
+    return wear
 
 
 def _find_garage_car(game_state: GameState, car_id: str) -> Car | None:

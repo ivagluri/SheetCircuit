@@ -87,7 +87,8 @@ class LapTimeTests(unittest.TestCase):
 
         result = simulate_race(state, "sunday_cup", "kanto_k660", "driver_novak", seed=9)
 
-        self.assertEqual(state.money, 8000 + result.prize_money)
+        # The batch summary charges the entry fee like the live engine (no funds gate).
+        self.assertEqual(state.money, 8000 - 250 + result.prize_money)
         self.assertGreater(car.condition.mileage, start_mileage)
         self.assertLess(car.condition.overall_condition, start_condition)
 

@@ -79,7 +79,8 @@ class EconomyTests(unittest.TestCase):
         state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])
         result = simulate_race(state, "sunday_cup", "kanto_k660", "driver_novak", seed=4)
 
-        self.assertEqual(state.money, 8000 + result.prize_money)
+        # The batch summary charges the entry fee like the live engine.
+        self.assertEqual(state.money, 8000 - 250 + result.prize_money)
 
     def test_market_list_is_non_empty_and_buyable(self) -> None:
         market = list_market_cars()

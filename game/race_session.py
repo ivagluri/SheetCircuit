@@ -6,7 +6,11 @@ from copy import deepcopy
 
 from constants import (
     AI_COMMAND,
+    AI_PIT_FUEL_PCT,
+    AI_PIT_TIRE_PCT,
     COMMAND_MODIFIERS,
+    CONDITION_HIT_FAILURE,
+    CONDITION_HIT_MISTAKE,
     DRIVER_ENERGY_RECOVER_PIT,
     DRIVER_FOCUS_RECOVER_PIT,
     DRIVER_STAT_CAP,
@@ -15,22 +19,38 @@ from constants import (
     DRIVER_XP_PER_STAT_POINT,
     DNF_DRIVER_RELIEF,
     DNF_DRIVER_RELIEF_FLOOR,
+    ENGINE_OVERHEAT_C,
     MISTAKE_DNF_PROB,
     MISTAKE_TIME_MEDIUM,
     MISTAKE_TIME_SMALL,
-    MILEAGE_KM_MULTIPLIER,
     MAX_TICKS_PER_LAP,
     MIN_TICKS_PER_LAP,
+    OVERTAKE_BASE_CHANCE_PER_LAP,
+    OVERTAKE_CONTEST_MAX_S,
+    OVERTAKE_FOLLOW_GAP_S,
+    OVERTAKE_RACECRAFT_PER_POINT,
     PERCENT_MAX,
     PRESENTATION_SPEED_FACTOR,
     RIVAL_LAP_JITTER_S,
     RIVAL_REACTIVE_GAP_S,
+    SALARY_WEEKLY_ENABLED,
+    SALARY_WEEKLY_FRACTION,
     TICK_RATE_HZ,
-    WEAR_PER_RACE_BASE,
+    TIRE_OVERHEAT_C,
+    WEATHER_RNG_OFFSET,
 )
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
-from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
+from game.loader import (
+    apply_race_condition,
+    load_cars,
+    load_drivers,
+    load_events,
+    load_parts,
+    load_tracks,
+    resolve_race,
+    roll_race_condition,
+)
 from game.models import RaceSession, RaceTickResult, TelemetryHistory
 from game.opponents import build_opponent_grid, opponent_entry_labels, validate_event_entry
 from game.simulation import (
@@ -42,9 +62,10 @@ from game.simulation import (
     _prize_for_position,
     _rank,
     _segments_in_interval,
+    apply_post_race_wear,
     lap_time_over_interval,
 )
-from game.telemetry import failure_chance, mistake_chance, record_telemetry, warning_messages
+from game.telemetry import failure_chance, failure_dnf_chance, mistake_chance, record_telemetry, warning_messages
 
 
 def ticks_per_lap_for(lap_time_s: float) -> int:
@@ -68,6 +89,10 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
     parts = load_parts()
     event = _get(events, event_id, "event")
     track = _get(tracks, event.track_id, "track")
+    # Race-day forecast: rolled on an isolated stream (the main rng's draw sequence is
+    # untouched) and applied to this session's freshly loaded track copy.
+    weather = roll_race_condition(track, random.Random(seed + WEATHER_RNG_OFFSET))
+    apply_race_condition(track, weather)
     garage_car = _find_garage_car(game_state, car_id)
     if garage_car is None:
         raise SimulationError(f"Unknown garage car: {car_id}")
@@ -90,11 +115,15 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
         states.append(opponent_state)
 
     race_format = resolve_race(event, track)
+    # Effective stats are invariant for the whole race, so compute them once per entry;
+    # every tick reads this cache instead of recomputing per car.
+    effective_stats = {
+        state.car_id: compute_effective_stats(cars[state.car_id], parts) for state in states
+    }
     # Density follows the *player's* nominal lap pace, not the neutral track reference, so the
     # watched length matches the "your car vs this event" estimate (a slow car genuinely takes
     # longer to run). Deterministic (no wear, no variance) so it is stable across seeds.
-    player_effective = compute_effective_stats(cars[car_id], parts)
-    nominal_lap_s = lap_time_over_interval(player_effective, track, player_driver, start=0.0, length=1.0)
+    nominal_lap_s = lap_time_over_interval(effective_stats[car_id], track, player_driver, start=0.0, length=1.0)
     ticks_per_lap = ticks_per_lap_for(nominal_lap_s)
     return RaceSession(
         event_id=event.id,
@@ -108,8 +137,9 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
         player_car_id=car_id,
         is_finished=False,
         telemetry={state.label: TelemetryHistory() for state in states},
-        race_log=[],
+        race_log=[(1, f"Race runs {weather}.")] if weather != "dry" else [],
         random_seed=seed,
+        weather=weather,
         car_roster=cars,
         driver_roster=drivers,
         track=track,
@@ -117,6 +147,7 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
         parts=parts,
         ticks_per_lap=ticks_per_lap,
         current_sub_tick=0,
+        effective_stats=effective_stats,
     )
 
 
@@ -148,17 +179,27 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         if session.track.segment_profiles
         else []
     )
-    rng = random.Random(session.random_seed + session.current_lap * 100 + session.current_sub_tick)
+    # Stride by more than any possible tick count so (lap, sub_tick) pairs never share
+    # a seed (a stride of 100 collided once ticks_per_lap exceeded it, e.g. realtime).
+    rng = random.Random(
+        session.random_seed + session.current_lap * (MAX_TICKS_PER_LAP + 1) + session.current_sub_tick
+    )
     lap_log: list[str] = []
     player_time = _player_state(session).total_time
 
-    for state in session.cars:
-        if state.is_dnf:
-            continue
+    # Process the field in running order so overtaking can compare each car against the
+    # one directly ahead on the road (already advanced this tick).
+    field_order = sorted(
+        (state for state in session.cars if not state.is_dnf),
+        key=lambda state: state.total_time,
+    )
+    road_ahead: list[tuple[float, object]] = []  # (total_time, driver) of advanced cars
+    for state in field_order:
         command = state.pace_mode if state.is_player else _ai_command(state, player_time)
-        car = _get(session.car_roster, state.car_id, "car")
         driver = _get(session.driver_roster, state.driver_id, "driver")
-        effective = compute_effective_stats(car, session.parts)
+        effective = session.effective_stats.get(state.car_id)
+        if effective is None:  # sessions built without the cache (tests, old saves)
+            effective = compute_effective_stats(_get(session.car_roster, state.car_id, "car"), session.parts)
         tick_time = lap_time_over_interval(
             effective, session.track, driver, state, rng,
             command=command,
@@ -176,21 +217,37 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
             penalty = MISTAKE_TIME_MEDIUM if rng.random() < 0.35 else MISTAKE_TIME_SMALL
             extra_penalty += penalty
             state.event_log.append(f"{state.label} made a mistake and lost {penalty:.1f}s.")
+            if penalty == MISTAKE_TIME_MEDIUM:
+                # A big moment dings the car; damage feeds failure risk and post-race wear.
+                state.condition_pct = max(0.0, state.condition_pct - CONDITION_HIT_MISTAKE)
             if command == "go_all_out" and rng.random() < _dnf_chance(driver):
                 state.is_dnf = True
                 state.event_log.append(f"{state.label} crashed out.")
         if not state.is_dnf and rng.random() < failure_chance(state, effective, driver, command) * seg_length:
-            state.event_log.append(f"{state.label} suffered a mechanical issue.")
-            extra_penalty += MISTAKE_TIME_SMALL
+            if rng.random() < failure_dnf_chance(state):
+                # Terminal failure: an overheated engine makes a mechanical issue far
+                # more likely to end the race (see FAILURE_DNF_* in constants).
+                state.is_dnf = True
+                state.event_log.append(f"{state.label} retired with a mechanical failure.")
+            else:
+                state.event_log.append(f"{state.label} suffered a mechanical issue.")
+                extra_penalty += MISTAKE_TIME_SMALL
+                # Non-terminal issues still damage the car -- issues beget issues
+                # (condition_pct feeds failure_chance) and wear carries past the flag.
+                state.condition_pct = max(0.0, state.condition_pct - CONDITION_HIT_FAILURE)
 
         if is_lap_end and command == "pit":
             extra_penalty += session.track.pit_lane_loss_s
             state.driver_energy = min(PERCENT_MAX, state.driver_energy + DRIVER_ENERGY_RECOVER_PIT)
             state.driver_focus = min(PERCENT_MAX, state.driver_focus + DRIVER_FOCUS_RECOVER_PIT)
             state.driver_stress = max(0.0, state.driver_stress - DRIVER_STRESS_RELIEF_PIT)
+            state.event_log.append(f"{state.label} pitted (+{session.track.pit_lane_loss_s:.0f}s).")
 
         state.total_time += tick_time + extra_penalty
         state.lap_elapsed += tick_time + extra_penalty
+
+        if road_ahead and not state.is_dnf:
+            _contest_overtakes(session.track, rng, state, driver, road_ahead, seg_length)
 
         if command == "pit" and is_lap_end:
             _apply_lap_wear(state, effective, session.track, "pit", driver_fitness=driver.fitness, seconds=tick_time)
@@ -214,11 +271,16 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
             state.lap += 1
             state.distance += session.track.length_km
             state.event_log.extend(warning_messages(state))
-            lap_log.extend(state.event_log[-3:])
+        if is_lap_end or state.is_dnf:
+            # Publish at lap end for running cars, and immediately on DNF -- a crashed
+            # car is skipped on every later tick, so this is its last chance to speak.
+            lap_log.extend(_unpublished_events(state))
+        if not state.is_dnf:
+            road_ahead.append((state.total_time, driver))
 
-    active = _active_standings(session)
+    active = [state for state in session.cars if not state.is_dnf]
     if active:
-        _rank(active)
+        _rank(active)  # sorts and assigns positions/gaps in one pass
     for state in active:
         if is_lap_end:
             record_telemetry(session.telemetry[state.label], state)
@@ -253,10 +315,15 @@ def finish_event(game_state: GameState, session: RaceSession) -> tuple[int, str]
     else:
         prize_money = _prize_for_position(session.event, player.position)
     game_state.money += prize_money
+    game_state.week += 1
+    if SALARY_WEEKLY_ENABLED:
+        game_state.money -= sum(
+            round(driver.salary * SALARY_WEEKLY_FRACTION) for driver in game_state.hired_drivers
+        )
     garage_car = _find_garage_car(game_state, player.car_id)
     if garage_car is not None and session.track is not None:
-        garage_car.condition.mileage += round(session.track.length_km * session.current_lap * MILEAGE_KM_MULTIPLIER)
-        garage_car.condition.overall_condition = max(0.0, garage_car.condition.overall_condition - WEAR_PER_RACE_BASE)
+        damage = PERCENT_MAX - player.condition_pct
+        apply_post_race_wear(garage_car, session.track.length_km * session.current_lap, damage)
     progression_message = ""
     if not player.is_dnf:
         hired_driver = next((d for d in game_state.hired_drivers if d.id == player.driver_id), None)
@@ -284,8 +351,71 @@ def _apply_driver_progression(driver) -> str:
     return "  ".join(messages)
 
 
+def _pass_chance(track, attacker, defender) -> float:
+    """Per-LAP chance sustained pressure converts into a pass, before slice scaling.
+
+    Wide/easy tracks (low overtake_difficulty) let the quicker car through quickly;
+    narrow ones form trains. A racecraft edge (attacker vs defender) tilts the odds."""
+    skill = 1.0 + (attacker.racecraft - defender.racecraft) * OVERTAKE_RACECRAFT_PER_POINT
+    return max(0.0, OVERTAKE_BASE_CHANCE_PER_LAP * (1.0 - track.overtake_difficulty) * skill)
+
+
+def _contest_overtakes(track, rng, state, driver, road_ahead, seg_length: float) -> None:
+    """The car behind cannot simply drive through the cars ahead.
+
+    ``road_ahead`` is the already-advanced field this tick as (total_time, driver)
+    pairs. Walking up the road from the nearest car (largest time), every car this
+    tick would put the follower within the follow gap of (or past) must be dealt
+    with: a seeded roll against _pass_chance (scaled by the tick slice, so pass rates
+    are resolution-invariant) makes the move stick; a failed move holds the follower
+    in dirty air at the follow gap and ends its progress. A car swept past with more
+    margin than the contest window (it pitted, crashed wide, or is crawling on fumes)
+    is not really defending -- that pass is free."""
+    for ahead_time, ahead_driver in sorted(road_ahead, key=lambda pair: pair[0], reverse=True):
+        held = ahead_time + OVERTAKE_FOLLOW_GAP_S
+        margin = held - state.total_time
+        if margin <= 0.0:
+            break  # clear of the nearest car ahead, so clear of everyone beyond it
+        if margin > OVERTAKE_CONTEST_MAX_S:
+            continue  # swept past a crippled car: free, keep driving up the road
+        if rng.random() < _pass_chance(track, driver, ahead_driver) * seg_length:
+            continue  # the move sticks; on to the next car up the road
+        # Slot into the train: if the follow-gap spot is itself inside another settled
+        # car's gap (a queue has formed), stack behind that car instead. One ascending
+        # sweep resolves the chain because the held time only ever moves backward.
+        for settled_time, _settled_driver in sorted(road_ahead, key=lambda pair: pair[0]):
+            if settled_time <= held < settled_time + OVERTAKE_FOLLOW_GAP_S:
+                held = settled_time + OVERTAKE_FOLLOW_GAP_S
+        state.lap_elapsed += held - state.total_time
+        state.total_time = held
+        break
+
+
+def _unpublished_events(state, limit: int = 3) -> list[str]:
+    """Event-log entries not yet surfaced in the session race log (at most ``limit``,
+    keeping the newest). Advances the car's published watermark so nothing repeats."""
+    new_events = state.event_log[state.event_log_published:]
+    state.event_log_published = len(state.event_log)
+    return new_events[-limit:]
+
+
 def _ai_command(state, player_time: float) -> str:
-    """Opponents race the player back: push when locked in a close battle, else hold pace."""
+    """Rule-based rival pit boss: survive first, then race.
+
+    Pit when tyres or fuel won't last, lift to the matching cooling command when a
+    temperature is past its overheat threshold, push when locked in a close battle,
+    otherwise hold pace. Mirrors the tools the player has, so long races no longer
+    systematically cook the AI."""
+    if state.fuel_pct <= AI_PIT_FUEL_PCT or state.tire_pct <= AI_PIT_TIRE_PCT:
+        return "pit"
+    tires_hot = state.tire_temp >= TIRE_OVERHEAT_C
+    engine_hot = state.engine_temp >= ENGINE_OVERHEAT_C
+    if tires_hot and engine_hot:
+        return "cool_down"
+    if tires_hot:
+        return "save_tyres"
+    if engine_hot:
+        return "save_fuel"
     if abs(state.total_time - player_time) <= RIVAL_REACTIVE_GAP_S:
         return "push"
     return AI_COMMAND
