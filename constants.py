@@ -112,6 +112,9 @@ TOP_SPEED_COEFF = 34.0
 TIRE_WEAR_PENALTY_MAX = 8.0
 TIRE_TEMP_PENALTY_MAX = 4.0
 ENGINE_TEMP_PENALTY_MAX = 3.0
+# Fuel load is lap time: a FULL tank is the reference (zero adjustment), and every litre
+# burned makes the car this many seconds per lap faster. Ties pit strategy to physics --
+# brimming the tank at a stop buys range but costs pace until it burns off.
 FUEL_WEIGHT_PENALTY_PER_L = 0.02
 
 # --- Physical attrition ----------------------------------------------------
@@ -133,15 +136,32 @@ FUEL_WEIGHT_PENALTY_PER_L = 0.02
 # multiply the whole economy, so a thirsty track / go-all-out lap burns proportionally more.
 FUEL_ECONOMY_FLOOR_L_PER_KM = 0.137   # ~15 L/100km baseline at the leanest end
 FUEL_L_PER_KM_UNIT = 0.064            # slope: effective.fuel_burn_rate -> litres/km economy
+# Running dry is a real failure state: an empty tank adds this fraction of base_lap_time
+# per lap (the car limps on fumes -- devastating for the result, but it can still crawl
+# to the pit lane and refuel rather than park on the spot).
+FUEL_EMPTY_PACE_FRACTION = 0.35
 TYRE_WEAR_PCT_PER_KM = 1.25        # × eff.tire_wear_rate × track tyre mult -> %/km
+
+# --- Heat balance -----------------------------------------------------------
+# Temperatures are a *balance*, not a one-way clock: heat gain (distance-based work for
+# tyres, time-at-load for the engine) fights an always-on passive cooling (airflow,
+# linear in seconds -- linear so the segment<->aggregate integration invariant stays
+# exact). The passive rates sit near a mid-spec car's normal-pace gain, so at "normal"
+# a gentle car drifts back toward its operating floor while a thermally demanding car
+# (hot V12, heavy muscle) still creeps up and must lift occasionally -- thermal
+# character. push/go_all_out out-heat everyone; the cooling commands multiply the
+# passive rate (TIRE/ENGINE_COOLING_BOOST) and go strongly net-negative. Temps never
+# cool below their operating floor (TIRE_OPTIMAL_C / INITIAL_ENGINE_TEMP_C).
 TIRE_HEAT_PER_KM = 2.5             # tyre temp rises with work (distance × load)
-TIRE_COOL_PER_S = 0.06            # tyre temp bleeds off with airflow (time)
-TIRE_OPTIMAL_C = 85.0
+TIRE_COOL_PER_S = 0.026            # passive airflow cooling, always on (time)
+TIRE_COOLING_BOOST = 3.0           # save_tyres/cool_down/pit multiply passive cooling
+TIRE_OPTIMAL_C = 85.0              # operating floor; passive cooling stops here
 TIRE_OVERHEAT_C = 108.0
 TIRE_CRITICAL_C = 130.0
 
 ENGINE_HEAT_PER_S = 0.06           # engine temp climbs with time at load
-ENGINE_COOL_PER_S = 0.04
+ENGINE_COOL_PER_S = 0.012          # passive cooling, always on (time)
+ENGINE_COOLING_BOOST = 3.5         # save_fuel/cool_down/pit multiply passive cooling
 ENGINE_OVERHEAT_C = 105.0
 ENGINE_CRITICAL_C = 120.0
 
@@ -196,6 +216,11 @@ BASE_FAILURE_RATE = 0.015
 MISTAKE_TIME_SMALL = 0.8
 MISTAKE_TIME_MEDIUM = 2.5
 MISTAKE_DNF_PROB = 0.04
+# A mechanical issue can be terminal: this fraction of failures retire the car outright,
+# rising sharply when the engine is past overheat (the physical pressure that makes heat
+# management and the AI's cooling rules matter). Applies to player and rivals alike.
+FAILURE_DNF_PROB = 0.06
+FAILURE_DNF_TEMP_PROB = 0.30
 # Go All Out can crash a car out. A composed/sympathetic driver trims that risk; this
 # is the hook for future driver skill levels to further mitigate it. The roll is scaled
 # by 1 - (consistency + mechanical_sympathy)/2 * DNF_DRIVER_RELIEF (clamped >= floor).
@@ -207,17 +232,57 @@ MISTAKE_FOCUS_SCALE = 0.0003
 MISTAKE_TIRE_WEAR_SCALE = 0.08
 MISTAKE_TIRE_TEMP_SCALE = 0.04
 MISTAKE_STRESS_SCALE = 0.05
+# Fatigue is added *risk* (zero for a fresh driver, so baseline rates don't shift):
+# an exhausted driver errs like a stressed one.
+MISTAKE_FATIGUE_SCALE = 0.05
 FAILURE_RELIABILITY_SCALE = 0.0008
 FAILURE_CONDITION_SCALE = 0.0005
 FAILURE_ENGINE_TEMP_SCALE = 0.08
 FAILURE_SYMPATHY_SCALE = 0.0003
 
+# --- Mid-race damage / driver energy ----------------------------------------
+# Incidents leave a mark on RaceCarState.condition_pct, which feeds failure_chance
+# (FAILURE_CONDITION_SCALE) -- issues beget issues -- and a share of the damage
+# carries into post-race garage wear (RACE_DAMAGE_WEAR_FACTOR).
+CONDITION_HIT_FAILURE = 5.0    # a (non-terminal) mechanical issue damages the car
+CONDITION_HIT_MISTAKE = 1.5    # a medium mistake (an off-track moment) dings it
+RACE_DAMAGE_WEAR_FACTOR = 0.25 # mid-race damage -> extra overall wear after the race
+# An exhausted driver leaks pace: below the threshold, up to this fraction of the
+# base lap is lost at zero energy (on top of the fatigue mistake risk above).
+DRIVER_ENERGY_LOW_PCT = 30.0
+DRIVER_ENERGY_PACE_FRACTION = 0.04
+
 REPAIR_COST_PER_POINT = 18
 REPAIR_MAX_POINTS = 25
+# Post-race wear scales with real race distance (a hillclimb sprint is gentler than an
+# enduro): overall wear = BASE x race_km / REFERENCE_KM, clamped to [MIN, MAX]. The
+# reference is the starter sprint (~14 km), so short races keep their historical cost.
+# Sub-systems wear alongside overall at their own share, so long-term upkeep is
+# per-system (engines age faster than bodywork).
 WEAR_PER_RACE_BASE = 4.0
+WEAR_REFERENCE_RACE_KM = 15.0
+WEAR_PER_RACE_MIN = 1.5
+WEAR_PER_RACE_MAX = 12.0
+SUBCONDITION_WEAR_FACTORS: dict[str, float] = {
+    "engine_condition": 0.9,
+    "gearbox_condition": 0.5,
+    "suspension_condition": 0.7,
+    "brake_condition": 0.8,
+    "body_condition": 0.3,
+    "tire_condition": 1.2,
+}
 MILEAGE_KM_MULTIPLIER = 1
+# Resale depreciates with condition and mileage: a clean low-miler sells near the full
+# factor, a thrashed high-miler well below it (mileage slides linearly to the floor at
+# SELL_MILEAGE_FULL_KM).
 SELL_VALUE_FACTOR = 0.70
+SELL_CONDITION_WEIGHT = 0.5
+SELL_MILEAGE_FULL_KM = 100000.0
+SELL_MILEAGE_FLOOR = 0.6
+# Each race consumes a week. When weekly salaries are enabled, every hired driver costs
+# this fraction of their (hire-fee) salary per week raced.
 SALARY_WEEKLY_ENABLED = False
+SALARY_WEEKLY_FRACTION = 0.10
 
 INITIAL_TIRE_TEMP_C = 85.0
 INITIAL_ENGINE_TEMP_C = 90.0
@@ -229,8 +294,14 @@ DRIVER_ENERGY_RECOVER_PIT = 3.0
 DRIVER_FOCUS_RECOVER_PIT = 3.0
 DRIVER_STRESS_RELIEF_PIT = 10.0
 AI_COMMAND = "normal"
-# Cooling is targeted to match the command's intent: Save Tyres cools tyres, Save Fuel
-# cools the engine, Cool Down and Pit cool both.
+# Rival pit-boss thresholds (see race_session._ai_command): survive first, then race.
+# Rivals pit when tyres or fuel won't last, and lift to a cooling command when a
+# temperature crosses its overheat threshold.
+AI_PIT_FUEL_PCT = 8.0
+AI_PIT_TIRE_PCT = 30.0
+# Boosted cooling is targeted to match the command's intent: Save Tyres cools tyres,
+# Save Fuel cools the engine, Cool Down and Pit cool both (every command gets the
+# passive baseline; these multiply it by TIRE/ENGINE_COOLING_BOOST).
 TYRE_COOLING_COMMANDS = ("save_tyres", "cool_down", "pit")
 ENGINE_COOLING_COMMANDS = ("save_fuel", "cool_down", "pit")
 
@@ -269,7 +340,6 @@ RIVAL_MATCH_POOL_FACTOR = 2.0
 # instant sim carries none, so this is not anchored to it.
 RIVAL_LAP_JITTER_S = 0.25
 RIVAL_REACTIVE_GAP_S = 1.0       # opponents push only in an immediate battle within this gap (interactive)
-RACE_DISTANCE_LAP_PROGRESS = 1.0
 LOW_FEEDBACK_THRESHOLD = 50
 HIGH_FEEDBACK_THRESHOLD = 75
 
@@ -503,6 +573,19 @@ OVERTAKE_DIFFICULTY_TAG_DELTA: dict[str, float] = {
     "wide_track": -0.15,
 }
 
+# --- Overtaking (live races only, like rival jitter) -------------------------
+# The car behind cannot simply drive through the one ahead: a tick that would put it
+# within the follow gap contests the pass. Chance per LAP of sustained pressure =
+# BASE x (1 - track.overtake_difficulty) x racecraft edge (scaled by the tick slice, so
+# it is resolution-invariant). Only close battles are contested: if the follower would
+# sweep past by more than the contest window (the leader pitted, crashed wide, or is
+# crawling on fumes), the pass is free. The instant sim carries none of this, same as
+# jitter/reactive push.
+OVERTAKE_FOLLOW_GAP_S = 0.4      # dirty-air gap a blocked car is held at
+OVERTAKE_CONTEST_MAX_S = 2.0     # only contest passes with less margin than this
+OVERTAKE_BASE_CHANCE_PER_LAP = 1.4
+OVERTAKE_RACECRAFT_PER_POINT = 0.006  # attacker-vs-defender racecraft edge per point
+
 # Per-segment surface/condition effects, applied locally as a race is run.
 # `grip` multiplies a segment's whole pace contribution (less traction -> slower).
 # `tire_wear` multiplies the segment's tyre-wear rate. tarmac/concrete and `dry`
@@ -521,3 +604,14 @@ CONDITION_MODIFIERS: dict[str, dict[str, float]] = {
     "damp": {"grip": 0.90, "tire_wear": 1.05, "wet_weight": 0.50},
     "wet": {"grip": 0.75, "tire_wear": 1.10, "wet_weight": 1.00},
 }
+
+# --- Race-day weather --------------------------------------------------------
+# One pre-race forecast roll per race (both engines, seeded off the race seed on an
+# isolated stream so the pace/mistake draws are untouched): weather_variability is the
+# chance the race does NOT run in the track's default condition; a change is usually
+# damp, sometimes full wet (WEATHER_WET_SHARE of the change band). The rolled condition
+# only ever *escalates* a segment (an authored-wet segment never dries out). Mid-race
+# weather changes are a future step.
+CONDITION_SEVERITY: dict[str, int] = {"dry": 0, "damp": 1, "wet": 2}
+WEATHER_WET_SHARE = 0.35
+WEATHER_RNG_OFFSET = 7919  # isolates the forecast stream from the race's main rng

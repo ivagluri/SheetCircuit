@@ -9,6 +9,7 @@ from constants import (
     BASE_REFERENCE_SPEED,
     CONDITION_MODIFIERS,
     CONDITION_NEUTRAL,
+    CONDITION_SEVERITY,
     ELEVATION_FACTOR_CEIL,
     ELEVATION_FACTOR_FLOOR,
     ELEVATION_FUEL_PER_M,
@@ -22,6 +23,7 @@ from constants import (
     SURFACE_MODIFIERS,
     SURFACE_NEUTRAL,
     TRACK_LENGTH_TOLERANCE,
+    WEATHER_WET_SHARE,
 )
 from game.models import (
     AeroStats,
@@ -366,6 +368,45 @@ def track_from_dict(data: dict[str, Any], path: Path | None = None) -> Track:
         climb_gradient_pct=climb_gradient_pct,
         segment_profiles=profiles,
     )
+
+
+def roll_race_condition(track: Track, rng) -> str:
+    """One pre-race forecast roll: the chance the race does not run in the track's
+    default condition is ``weather_variability``; a change is usually damp, sometimes
+    full wet. Never de-escalates below the authored default."""
+    if track.weather_variability <= 0.0:
+        return track.default_condition
+    roll = rng.random()
+    if roll >= track.weather_variability:
+        return track.default_condition
+    rolled = "wet" if roll < track.weather_variability * WEATHER_WET_SHARE else "damp"
+    if CONDITION_SEVERITY.get(rolled, 0) <= CONDITION_SEVERITY.get(track.default_condition, 0):
+        return track.default_condition
+    return rolled
+
+
+def apply_race_condition(track: Track, condition: str) -> None:
+    """Escalate a session's (freshly loaded) track to the rolled race condition.
+
+    Each profile whose authored condition is milder is recomposed from surface x new
+    condition (grip, tyre wear, wet blend); the aggregate tyre-wear rate is re-derived
+    from the profiles, so the segment<->aggregate integration invariant stays exact.
+    Escalation only -- an authored-wet segment never dries out."""
+    if condition not in CONDITION_MODIFIERS or not track.segment_profiles:
+        return
+    severity = CONDITION_SEVERITY.get(condition, 0)
+    for profile in track.segment_profiles:
+        if severity <= CONDITION_SEVERITY.get(profile.condition, 0):
+            continue
+        surface = SURFACE_MODIFIERS.get(profile.surface, SURFACE_NEUTRAL)
+        modifiers = CONDITION_MODIFIERS[condition]
+        raw_tire_rate = profile.tire_wear_rate / profile.tire_wear_mult
+        profile.condition = condition
+        profile.grip_mult = surface["grip"] * modifiers["grip"]
+        profile.tire_wear_mult = surface["tire_wear"] * modifiers["tire_wear"]
+        profile.wet_weight = modifiers["wet_weight"]
+        profile.tire_wear_rate = raw_tire_rate * profile.tire_wear_mult
+    track.tire_wear_rate = sum(p.length_pct * p.tire_wear_rate for p in track.segment_profiles)
 
 
 def load_cars(data_root: Path = DATA_ROOT) -> list[Car]:

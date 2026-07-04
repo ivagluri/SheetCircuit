@@ -8,6 +8,8 @@ from constants import (
     ENGINE_CRITICAL_C,
     ENGINE_OVERHEAT_C,
     FAILURE_CONDITION_SCALE,
+    FAILURE_DNF_PROB,
+    FAILURE_DNF_TEMP_PROB,
     FAILURE_ENGINE_TEMP_SCALE,
     FAILURE_RELIABILITY_SCALE,
     FAILURE_SYMPATHY_SCALE,
@@ -15,6 +17,7 @@ from constants import (
     LOW_FEEDBACK_THRESHOLD,
     MISTAKE_AGGRESSION_SCALE,
     MISTAKE_CONSISTENCY_SCALE,
+    MISTAKE_FATIGUE_SCALE,
     MISTAKE_FOCUS_SCALE,
     MISTAKE_STRESS_SCALE,
     MISTAKE_TIRE_TEMP_SCALE,
@@ -58,6 +61,8 @@ def mistake_chance(state: RaceCarState, driver: Driver, command: str = "normal")
     tire_wear_risk = max(0.0, (PERCENT_MAX - state.tire_pct) / PERCENT_MAX) * MISTAKE_TIRE_WEAR_SCALE
     tire_temp_risk = _scaled_above(state.tire_temp, TIRE_OVERHEAT_C, TIRE_CRITICAL_C) * MISTAKE_TIRE_TEMP_SCALE
     stress_risk = state.driver_stress / PERCENT_MAX * MISTAKE_STRESS_SCALE
+    # Fatigue is added risk, zero for a fresh driver, so baseline rates are unshifted.
+    fatigue_risk = (PERCENT_MAX - state.driver_energy) / PERCENT_MAX * MISTAKE_FATIGUE_SCALE
     aggression_risk = driver.aggression * MISTAKE_AGGRESSION_SCALE
     consistency_reduction = driver.consistency * MISTAKE_CONSISTENCY_SCALE
     focus_reduction = state.driver_focus * MISTAKE_FOCUS_SCALE
@@ -67,6 +72,7 @@ def mistake_chance(state: RaceCarState, driver: Driver, command: str = "normal")
         + tire_wear_risk
         + tire_temp_risk
         + stress_risk
+        + fatigue_risk
         - consistency_reduction
         - focus_reduction
     )
@@ -79,6 +85,15 @@ def failure_chance(state: RaceCarState, effective: EffectiveCarStats, driver: Dr
     temp_penalty = _scaled_above(state.engine_temp, ENGINE_OVERHEAT_C, ENGINE_CRITICAL_C) * FAILURE_ENGINE_TEMP_SCALE
     sympathy_reduction = driver.mechanical_sympathy * FAILURE_SYMPATHY_SCALE
     return _probability(BASE_FAILURE_RATE * command_risk + reliability_penalty + condition_penalty + temp_penalty - sympathy_reduction)
+
+
+def failure_dnf_chance(state: RaceCarState) -> float:
+    """Probability that a mechanical issue (already rolled) is terminal.
+
+    A cool engine mostly gets away with a time loss; past overheat the odds of the car
+    retiring climb steeply toward the critical temperature."""
+    heat = _scaled_above(state.engine_temp, ENGINE_OVERHEAT_C, ENGINE_CRITICAL_C)
+    return _probability(FAILURE_DNF_PROB + FAILURE_DNF_TEMP_PROB * heat)
 
 
 def generate_driver_feedback(driver: Driver, history: TelemetryHistory) -> str:

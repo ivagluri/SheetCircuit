@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from constants import PERCENT_MAX, REPAIR_COST_PER_POINT, REPAIR_MAX_POINTS, SELL_VALUE_FACTOR
+from constants import (
+    PERCENT_MAX,
+    REPAIR_COST_PER_POINT,
+    REPAIR_MAX_POINTS,
+    SELL_CONDITION_WEIGHT,
+    SELL_MILEAGE_FLOOR,
+    SELL_MILEAGE_FULL_KM,
+    SELL_VALUE_FACTOR,
+)
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers
 from game.market import list_market_cars
@@ -26,10 +34,22 @@ def buy_car(game_state: GameState, market_car_id: str) -> GameState:
 
 def sell_car(game_state: GameState, car_id: str) -> GameState:
     car = _garage_car(game_state, car_id)
-    sale_price = round(car.value * SELL_VALUE_FACTOR)
+    sale_price = round(car.value * SELL_VALUE_FACTOR * _resale_factor(car))
     game_state.money += sale_price
     game_state.garage.remove(car)
     return game_state
+
+
+def _resale_factor(car) -> float:
+    """Condition and mileage depreciate resale: a clean low-miler sells near the full
+    sell factor, a thrashed high-miler well below it. Racing (which wears condition and
+    adds mileage) now has a real cost on the way out of the garage."""
+    condition = 1.0 - SELL_CONDITION_WEIGHT * (1.0 - car.condition.overall_condition / PERCENT_MAX)
+    mileage = max(
+        SELL_MILEAGE_FLOOR,
+        1.0 - car.condition.mileage / SELL_MILEAGE_FULL_KM * (1.0 - SELL_MILEAGE_FLOOR),
+    )
+    return condition * mileage
 
 
 def repair_car(game_state: GameState, car_id: str, points: float = REPAIR_MAX_POINTS) -> GameState:

@@ -342,6 +342,9 @@ class RaceCarState:
     event_log: list[str]
     is_dnf: bool = False
     lap_elapsed: float = 0.0
+    # Count of event_log entries already published to the session race log, so each
+    # entry is surfaced exactly once (event_log is cumulative and never cleared).
+    event_log_published: int = 0
 
 
 @dataclass
@@ -367,6 +370,13 @@ class RaceSession:
     # lockstep field finishes the lead lap. None for lap/distance races, where total_laps is
     # the fixed target. For duration races total_laps instead tracks the completed lap count.
     duration_s: float | None = None
+    # The rolled race-day condition (loader.roll_race_condition); the session's track
+    # profiles are already escalated to it.
+    weather: str = "dry"
+    # Per-entry effective stats, computed once at entry: they are invariant for the
+    # whole race (condition and tune don't change mid-race), so ticks read this cache
+    # instead of recomputing (which deep-copies the car) every tick for every car.
+    effective_stats: dict[str, EffectiveCarStats] = field(default_factory=dict)
 
 
 @dataclass
