@@ -79,21 +79,27 @@ Validation run:
 - `python3 -m unittest tests.test_models tests.test_race_format tests.test_creator_web tests.test_progression`
 - `python3 -m unittest discover -s tests`
 
-## Remaining Milestones
-
 ### Milestone 4: Event Gates
 
-Scope:
+Commit: `6e2ee8e Enforce event team level gates`
 
-- Enforce team-level gate in the race start path, ideally in/near
-  `start_race_action()` or `enter_event()` so CLI and web share enforcement.
-- Locked events remain browsable.
-- Race entry should fail clearly if `team_level_for_xp(state.team_xp)` is below
-  `event.min_team_level`.
-- Open invitationals are not special-cased beyond their authored `min_team_level`.
-- Add tests for blocked and allowed entry.
-- Update AGENT_MAP.
-- Commit milestone.
+Added:
+
+- Central team-level gate in `race_session.enter_event()`
+- Matching gate in the one-shot `simulate_race()` path
+- Clear blocked-entry message with required/current Team Level and current Team XP
+- No entry-fee deduction when a locked event is blocked
+- CLI handling for locked-event errors from the race picker
+- Tests for blocked and allowed entry
+- Test fixture updates for high-tier event entry
+- AGENT_MAP entry for the entry gate
+
+Validation run:
+
+- `python3 -m unittest tests.test_actions tests.test_opponents tests.test_segment_resolution tests.test_supercar_tracks tests.test_wired_systems tests.test_economy`
+- `python3 -m unittest discover -s tests`
+
+## Remaining Milestones
 
 ### Milestone 5: Event List And Detail UI
 
