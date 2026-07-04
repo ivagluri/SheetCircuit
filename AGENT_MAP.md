@@ -29,7 +29,7 @@ For future web UI, prefer calling `game.actions` instead of `interfaces.cli`.
 
 ```text
 constants.py
-  All tuning constants, command modifiers, validation ranges.
+  All tuning constants, progression XP thresholds, command modifiers, validation ranges.
 
 data/
   JSON seed data: cars, drivers, tracks, events, parts.
@@ -42,6 +42,9 @@ game/
   actions.py         UI-neutral service layer for CLI and future web UI.
   economy.py         buy_car(), sell_car(), repair_car().
   market.py          list_market_cars().
+  progression.py     Pure team career progression helpers: Team XP -> Team Level,
+                     event-progress normalization/update, and Team XP award math
+                     (finish quality, event kind, repeat wins, first-win bonus).
   tuning.py          set_tune(), update_tune_fields(), tune validation. Covers setup
                      knobs (TuneSetup) and garage-tweakable hard-mod car stats
                      (constants.CAR_MOD_FIELD_SECTIONS); tune_target() maps a field
@@ -140,6 +143,22 @@ advance_race_action(session, command)
 simulate_to_end_action(session, command="normal")   # fast-forward to flag
 finish_race_action(state, session)
 ```
+
+## Team Progression
+
+Team career progression is pure and derived. Store Team XP on `GameState` (milestone
+2+), derive Team Level through `game.progression.team_level_for_xp()` and
+`TEAM_LEVEL_THRESHOLDS`; do not store a separate level. Event progress records are
+expandable dicts normalized by `normalize_event_progress()`:
+
+```text
+starts, best_position, wins, podiums, best_time_s
+```
+
+Team XP awards come from `team_xp_award(class, event_kind, position, is_dnf,
+event_progress_before)`: base XP by event class, finish multiplier, event-kind
+multiplier, repeat-win smoothing, plus a one-time first-win bonus. Keep this module
+UI-free and simulation-free so pacing can be tested without running races.
 
 ## Main Game Loop
 
@@ -447,6 +466,10 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
   `GRADIENT_PW_GAIN` when pace went proportional. Fix unrealistic outliers by tuning that track's
   `SEGMENT_TAG_SPEED` or a car's stats — never by bending `PERF_FRACTION` away from honest.
 - Balance opponents: tune `RIVAL_MATCH_*`, `EVENT_PACE_FLOOR_PERCENTILE`, and other `RIVAL_*` constants first, then event restrictions/data or `opponents.py`.
+- Balance team progression: tune `TEAM_LEVEL_THRESHOLDS`, `TEAM_XP_BY_CLASS`,
+  `TEAM_XP_FINISH_MULTIPLIERS`, `TEAM_XP_EVENT_KIND_MULTIPLIER`, and
+  `TEAM_XP_REPEAT_MULTIPLIERS`, then progression tests/probe output; keep rules in
+  `game/progression.py`.
 - Add web UI: create new interface/API layer that calls `game.actions`; avoid importing `interfaces.cli`.
 - Add save fields: update dataclasses, loader/save roundtrip tests, schema if breaking.
 
@@ -455,6 +478,7 @@ Adding data should usually mean adding JSON files under `data/`, not editing reg
 ```text
 test_models.py             Loaders/dataclasses/track validation.
 test_save_load.py          Save schema and roundtrip.
+test_progression.py        Team Level derivation, event progress, and Team XP award math.
 test_effective_stats.py    Stats, derived PR/class rating, tune effects.
 test_lap_time.py           Lap formula and full-race basics.
 test_segment_resolution.py Segment profiles and per-interval lap pace.

@@ -4,6 +4,52 @@ SCHEMA_VERSION = 1
 STARTING_MONEY = 8000
 STARTING_WEEK = 1
 
+# --- Team career progression -------------------------------------------------
+# Team XP is a non-spendable career track. Team Level is derived from this table
+# instead of stored, so pacing can be tuned without creating save-state conflicts.
+TEAM_LEVEL_THRESHOLDS: dict[int, int] = {
+    1: 0,
+    2: 100,
+    3: 250,
+    4: 500,
+    5: 850,
+    6: 1300,
+}
+TEAM_LEVEL_BY_CLASS: dict[str, int] = {
+    "E": 1,
+    "D": 2,
+    "C": 3,
+    "B": 4,
+    "A": 5,
+    "S": 6,
+}
+EVENT_KIND_LADDER = "ladder"
+EVENT_KIND_OPEN_INVITATIONAL = "open_invitational"
+EVENT_KINDS = (EVENT_KIND_LADDER, EVENT_KIND_OPEN_INVITATIONAL)
+TEAM_XP_BY_CLASS: dict[str, int] = {
+    "E": 25,
+    "D": 45,
+    "C": 70,
+    "B": 105,
+    "A": 150,
+    "S": 210,
+}
+TEAM_XP_FINISH_MULTIPLIERS: dict[int | str, float] = {
+    1: 1.00,
+    2: 0.65,
+    3: 0.45,
+    "finish": 0.15,
+    "dnf": 0.00,
+}
+TEAM_XP_EVENT_KIND_MULTIPLIER: dict[str, float] = {
+    EVENT_KIND_LADDER: 1.00,
+    EVENT_KIND_OPEN_INVITATIONAL: 0.70,
+}
+# Indexed by wins already recorded for the event. The final value is reused for
+# all later repeats, so favorite events stay useful but stop being optimal farms.
+TEAM_XP_REPEAT_MULTIPLIERS: list[float] = [1.00, 0.85, 0.70, 0.60]
+TEAM_XP_FIRST_WIN_BONUS_MULTIPLIER = 1.00
+
 # --- Presentation / time-scale ----------------------------------------------
 # Three independent layers (see memory: time-scale-model):
 #   * canonical clock  -- base_lap_time, the real seconds a lap takes (intrinsic to geometry)
