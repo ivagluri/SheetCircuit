@@ -357,6 +357,24 @@ class ImportDeleteTests(CreatorWebCase):
         self.assertIn("not found", out)
 
 
+class EventRestrictionRoundTripTests(TestCase):
+    """The creator now exposes all five restriction keys the engine honours;
+    shipped events using the previously JSON-only keys must survive an editor
+    load/save round trip unchanged."""
+
+    def _roundtrip_restrictions(self, event_id: str) -> None:
+        source = json.loads((REAL_DATA / "events" / f"{event_id}.json").read_text())
+        draft = editor_app.event_json_to_draft(source)
+        rebuilt = editor_app.event_draft_to_json(draft)
+        self.assertEqual(rebuilt["restrictions"], source["restrictions"])
+
+    def test_max_weight_kg_survives_roundtrip(self) -> None:
+        self._roundtrip_restrictions("lightweight_challenge")
+
+    def test_max_overall_condition_survives_roundtrip(self) -> None:
+        self._roundtrip_restrictions("beater_enduro")
+
+
 class MarkupStripTests(TestCase):
     def test_allowlist_strips_tags_but_keeps_literal_brackets(self) -> None:
         self.assertEqual(strip_markup("[red]bad[/red] [M] cycle · [G] track"), "bad [M] cycle · [G] track")

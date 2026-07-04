@@ -80,6 +80,10 @@ def event_draft_to_json(draft: dict) -> dict:
         restrictions["max_power_hp"] = int(draft["restr_max_power_hp"])
     if int(draft.get("restr_max_class_rating", 0)) > 0:
         restrictions["max_class_rating"] = int(draft["restr_max_class_rating"])
+    if int(draft.get("restr_max_weight_kg", 0)) > 0:
+        restrictions["max_weight_kg"] = int(draft["restr_max_weight_kg"])
+    if float(draft.get("restr_max_overall_condition", 0)) > 0:
+        restrictions["max_overall_condition"] = float(draft["restr_max_overall_condition"])
     if draft.get("restr_allowed_tires"):
         restrictions["allowed_tires"] = list(draft["restr_allowed_tires"])
     event["restrictions"] = restrictions
@@ -111,6 +115,8 @@ def event_json_to_draft(event: dict) -> dict:
     restrictions = event.get("restrictions") or {}
     draft["restr_max_power_hp"] = restrictions.get("max_power_hp", 0)
     draft["restr_max_class_rating"] = restrictions.get("max_class_rating", 0)
+    draft["restr_max_weight_kg"] = restrictions.get("max_weight_kg", 0)
+    draft["restr_max_overall_condition"] = restrictions.get("max_overall_condition", 0)
     draft["restr_allowed_tires"] = list(restrictions.get("allowed_tires", []))
     return draft
 

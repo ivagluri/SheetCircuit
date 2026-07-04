@@ -54,6 +54,7 @@ class FieldData:
     minimum: float | None = None
     maximum: float | None = None
     options: list[OptionData] = field(default_factory=list)
+    help: str = ""  # short effect summary; populated from the compendium registry
 
 
 @dataclass

@@ -432,6 +432,8 @@ EVENT_TEMPLATE: dict[str, Any] = {
     "race_value": 5,            # laps count, or km, or seconds (per race_mode)
     "restr_max_power_hp": 0,    # 0 = no restriction
     "restr_max_class_rating": 0,
+    "restr_max_weight_kg": 0,
+    "restr_max_overall_condition": 0,
     "restr_allowed_tires": [],
 }
 
@@ -455,6 +457,8 @@ EVENT_SECTIONS: list[Section] = [
     Section("Restrictions (optional)", [
         _f(("restr_max_power_hp",), "max_power_hp", "int", "0 = no cap", 0, None),
         _f(("restr_max_class_rating",), "max_class_rating", "int", "0 = no cap", 0, None),
+        _f(("restr_max_weight_kg",), "max_weight_kg", "int", "0 = no cap", 0, None),
+        _f(("restr_max_overall_condition",), "max_overall_condition", "float", "0 = no cap; % condition ceiling", 0, 100),
         _f(("restr_allowed_tires",), "allowed_tires", "tags", "empty = any compound", choices=TIRE_COMPOUNDS),
     ]),
 ]
