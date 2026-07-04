@@ -284,6 +284,19 @@ class CompendiumCliTests(TestCase):
         _, screen = run_menu_choice(state, "compendium final_drive", "garage")
         self.assertEqual(screen, "compendium?car.tune.final_drive")
 
+    def test_back_from_field_detail_steps_up_one_level(self) -> None:
+        # Drill index -> Cars -> Tune -> a field, then B should return to the
+        # Tune section (its parent), not jump all the way to the index.
+        state = new_career()
+        screen = "garage"
+        for step in ("c", "1", "tune", "3"):
+            _, screen = run_menu_choice(state, step, screen)
+        self.assertTrue(screen.startswith("compendium?"))
+        _, screen = run_menu_choice(state, "b", screen)
+        self.assertEqual(screen, "compendium:cars/Tune")
+        _, screen = run_menu_choice(state, "b", screen)
+        self.assertEqual(screen, "compendium:cars")
+
     def test_render_index_lists_chapters(self) -> None:
         state = new_career()
         buffer = io.StringIO()

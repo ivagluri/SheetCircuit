@@ -662,6 +662,16 @@ def _resolve_section(chapter, token):
     return next((s for s in chapter.sections if s.title.lower() == text), None)
 
 
+def _compendium_parent_token(entry) -> str:
+    """The section-page token an entry lives on, so a leaf's B steps up one
+    level (to its section) rather than jumping out to the index."""
+    for chapter in registry.CHAPTERS:
+        for section in chapter.sections:
+            if any(candidate.id == entry.id for candidate in section.entries):
+                return compendium_token((chapter.id, section.title))
+    return COMPENDIUM_PREFIX
+
+
 def _resolve_compendium_entry(query):
     if query in registry.ENTRIES_BY_ID:
         return registry.ENTRIES_BY_ID[query]
@@ -725,7 +735,8 @@ def compendium_nav(token: str, raw: str) -> str | None:
     low = text.lower()
     if low in {"b", "back"}:
         if query:
-            return COMPENDIUM_PREFIX
+            entry = _resolve_compendium_entry(query)
+            return _compendium_parent_token(entry) if entry else COMPENDIUM_PREFIX
         if path:
             return compendium_token(path[:-1])
         return ""
