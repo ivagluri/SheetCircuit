@@ -33,6 +33,18 @@ class OpponentGenerationTests(unittest.TestCase):
             self.assertEqual(derived_class(car, self.parts), "E")
             self.assertLessEqual(car.powertrain.power_hp, 140)
 
+    def test_rivals_get_real_generated_names(self) -> None:
+        event = self.events["sunday_cup"]
+        track = self.tracks[event.track_id]
+        _cars, drivers, entries = build_opponent_grid(
+            event, "kanto_k660", self.drivers["driver_novak"], self.cars, self.parts, track, seed=1
+        )
+
+        for _car_id, driver_id in entries:
+            driver = drivers[driver_id]
+            self.assertNotRegex(driver.name, r"^Rival \d+$")
+            self.assertIn(" ", driver.name)  # first + last name
+
     def test_player_entry_restrictions_are_enforced(self) -> None:
         event = self.events["sunday_cup"]
 

@@ -238,7 +238,10 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
     rng = random.Random(seed)
     parts = load_parts()
     cars = {car.identity.id: car for car in load_cars()}
+    # Player driver resolves from the hired roster (incl. generated hires), overlaid on
+    # the seed catalog so hired instances win.
     drivers = {driver.id: driver for driver in load_drivers()}
+    drivers.update({driver.id: driver for driver in game_state.hired_drivers})
     events = {event.id: event for event in load_events()}
     tracks = {track.id: track for track in load_tracks()}
 

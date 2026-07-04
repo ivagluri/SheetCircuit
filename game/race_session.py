@@ -107,7 +107,10 @@ def ticks_per_lap_for(lap_time_s: float) -> int:
 
 def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: str, seed: int = 1) -> RaceSession:
     cars = {car.identity.id: deepcopy(car) for car in load_cars()}
+    # The player's driver comes from their hired roster (which includes procedurally
+    # generated hires), overlaid on the seed catalog so hired instances win.
     drivers = {driver.id: driver for driver in load_drivers()}
+    drivers.update({driver.id: driver for driver in game_state.hired_drivers})
     events = {event.id: event for event in load_events()}
     tracks = {track.id: track for track in load_tracks()}
     parts = load_parts()
