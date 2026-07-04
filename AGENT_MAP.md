@@ -186,7 +186,7 @@ start_race_action()
 advance_race_action()
   -> race_session.apply_player_command()
     -> race_session.simulate_tick()
-      -> compute_effective_stats()
+      -> session.effective_stats[car_id]  # cached once per entry in enter_event
       -> lap_time_over_interval()   # segment-resolved slice of the lap
       -> _apply_lap_wear(profile=)  # per-segment local rates
       -> mistake_chance()/failure_chance()  # rolled PER TICK (scaled by slice)
@@ -212,7 +212,29 @@ finish) races with the same pseudo-live telemetry and commands as a multi-lap ci
 Race length lives on the **event** (one of `laps` / `distance_km` / `duration_s`,
 resolved by `loader.resolve_race`), not the track; the track defines one lap of
 geometry. Attrition is physical: fuel is litres vs the tank, tyres are a distance-based
-life, engine heat and driver fatigue accrue over time (see `_apply_lap_wear`).
+life, engine heat and driver fatigue accrue over time (see `_apply_lap_wear`). An empty
+tank is a real failure state: the car limps at +`FUEL_EMPTY_PACE_FRACTION` of the base
+lap per lap until it pits. Temperatures are a heat *balance*: gain fights an always-on
+passive cooling (linear in seconds, so the segment<->aggregate integration invariant
+stays exact). Normal running holds a mid car near its operating floor (`TIRE_OPTIMAL_C`
+/ `INITIAL_ENGINE_TEMP_C`); thermally demanding cars creep up and must lift; the cooling
+commands multiply the passive rate (`TIRE_COOLING_BOOST`/`ENGINE_COOLING_BOOST`). A
+mechanical failure can be terminal (`telemetry.failure_dnf_chance`, steeper past engine
+overheat), for player and rivals alike.
+
+Incidents damage the car mid-race (`RaceCarState.condition_pct`, feeding failure risk and
+post-race wear), and driver energy is live (fatigue mistake risk + a pace leak when
+exhausted). Post-race wear scales with real race distance and hits sub-systems
+(`simulation.apply_post_race_wear`); resale depreciates with condition/mileage
+(`economy._resale_factor`); each race consumes a week. Race-day **weather** is one
+forecast roll per race (`loader.roll_race_condition`, seeded off the race seed on an
+isolated stream; `track.weather_variability` is the chance of change) applied by
+escalating the session track's segment profiles (`loader.apply_race_condition` -- never
+dries an authored-wet segment). **Overtaking** is live-only (like jitter): the car
+behind must make a pass stick (`race_session._contest_overtakes` walks the road ahead
+nearest-first; `_pass_chance` = per-lap base x (1 - track.overtake_difficulty) x
+racecraft edge), else it is held in dirty air at the follow gap; sweeping past a
+crippled car (pitted/crawling) is free.
 
 ### Time Scale / Presentation
 
@@ -249,12 +271,15 @@ normal, push, go_all_out, save_tyres, save_fuel, cool_down, pit
 
 `COMMAND_MODIFIERS[name]` = (pace, tire_wear, fuel_burn, engine_heat, mistake, stress);
 pace > 1 is faster, the other columns are >1 = more of that effect (all six columns are
-live — stress uses `COMMAND_STRESS_INDEX`). Cooling is targeted via
-`TYRE_COOLING_COMMANDS` / `ENGINE_COOLING_COMMANDS`. `go_all_out` can crash a car out
+live — stress uses `COMMAND_STRESS_INDEX`). Every command gets the passive cooling
+baseline; `TYRE_COOLING_COMMANDS` / `ENGINE_COOLING_COMMANDS` multiply it by the
+matching `*_COOLING_BOOST`. `go_all_out` can crash a car out
 (`race_session._dnf_chance`, eased by driver consistency/mechanical sympathy — hook for
 future driver levels). `pit` is one-shot: `simulate_tick` resets `pace_mode` to `normal`
-after the stop and the CLI loop resumes the prior command. AI uses only `push`/`normal`
-(`_ai_command`).
+after the stop and the CLI loop resumes the prior command. The AI is a rule-based pit
+boss (`_ai_command`): pit when tyres/fuel cross `AI_PIT_TIRE_PCT`/`AI_PIT_FUEL_PCT`,
+lift to the matching cooling command past an overheat threshold, `push` in a close
+battle, else `normal`.
 
 ## Opponents And Entry Rules
 
@@ -291,11 +316,13 @@ Field generation is event-set difficulty plus dynamic pace matching (see
 5. each rival is a real copied car + generated Driver; no performance scalar
 ```
 
-Liveliness comes from two engine-side touches in `simulate_tick`:
+Liveliness comes from three engine-side touches in `simulate_tick`:
 
 ```text
 rival jitter   (RIVAL_LAP_JITTER_S, sqrt(slice)-scaled)  -> pack shuffles (tick-count invariant)
 reactive push  (RIVAL_REACTIVE_GAP_S)                    -> rivals race you back
+overtaking     (OVERTAKE_* constants)                    -> passes must stick; trains form on
+                                                            narrow tracks (racecraft is live)
 ```
 
 `start_race_action` uses a random seed by default (pass an explicit seed for
@@ -395,6 +422,9 @@ test_orphan_stats.py       Secondary car/tune/durability stat folds (direction t
 test_balance_baseline.py   Reference lap + race-outcome balance guard (catches drift).
 test_race_tick.py          Interactive race commands.
 test_commands.py           Command set: live stress column, one-shot pit, engine-map decoupling.
+test_attrition_endgame.py  Fuel failure state, heat balance, AI pit boss, terminal failures.
+test_wired_systems.py      Mid-race damage, driver energy, distance wear, resale, weeks,
+                           overtaking, race-day weather.
 test_telemetry.py          Telemetry history and warnings.
 test_economy.py            Buy/sell/repair/prizes.
 test_opponents.py          Event restrictions, pace floors, and opponent generation.

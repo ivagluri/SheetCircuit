@@ -3,6 +3,28 @@
 Work on the `refactor/track-agnostic-sim` branch: making the simulation track-agnostic,
 de-pinned from the sample catalog, and honest about time. Newest first.
 
+## Simulation audit (SIM_AUDIT.md)
+
+- **Audit record & docs** — SIM_AUDIT.md tracks every finding from the full engine audit
+  with per-item status; AGENT_MAP updated for the reworked race flow.
+- **Engine rework** (`d936448`) — attrition endgame (dry-tank limp, heat as a passive-cooling
+  *balance* with thermal character per car), rule-based AI pit boss + terminal failures,
+  mid-race damage and live driver energy, distance-scaled per-system post-race wear, weekly
+  calendar, live overtaking (passes must stick; trains form on narrow tracks; racecraft and
+  overtake_difficulty finally load-bearing), race-day weather rolled from weather_variability,
+  fuel load as lap time, per-entry effective-stats cache (~8x faster ticks), collision-safe
+  tick RNG stride, one-shot pit in run-to-flag, batch sim charges the entry fee. Race log
+  publishes each event exactly once (was re-emitting stale events every lap) and crashing
+  cars' messages are no longer dropped.
+- **Guard suites** (`3ed556d`) — test_attrition_endgame + test_wired_systems pin all of the
+  above; existing heat/money/baseline pins re-pinned deliberately (dry pace verified
+  bit-for-bit unchanged; balance seed 7 now characterizes a wet race).
+- **Groundwork** (`ce85c20`) — constants blocks, session weather/cache fields, forecast
+  roll/escalation in the loader, terminal-failure + fatigue terms in telemetry, resale
+  depreciation in the economy.
+- **Crash fix** (`40b9041`) — event detail screen crashed whenever the garage had a car
+  (EffectiveCarStats passed where a Car was expected).
+
 ## Honest time & pace
 
 - **Proportional pace model** (`1e04f53`) — performance is now a *fraction* of the lap, not a
