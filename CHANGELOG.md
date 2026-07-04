@@ -5,6 +5,13 @@ de-pinned from the sample catalog, and honest about time. Newest first.
 
 ## Simulation audit (SIM_AUDIT.md)
 
+- **Overtaking math fix** — the `d936448` overtake gate froze every field into a train
+  behind whoever was processed first (the player, on ties), pinned at exactly the follow
+  gap, and dragged faster cars down to the leader's pace. Two rules fixed for all tracks:
+  a car that was not strictly ahead when the tick began (standing start / dead heat)
+  holds no road to defend, and a *won* contest now completes the pass — the pair
+  exchange race clocks (time-conserving), so the move genuinely reorders the road
+  instead of evaporating at the ranking step. Passes are logged to the race log.
 - **Audit record & docs** — SIM_AUDIT.md tracks every finding from the full engine audit
   with per-item status; AGENT_MAP updated for the reworked race flow.
 - **Engine rework** (`d936448`) — attrition endgame (dry-tank limp, heat as a passive-cooling

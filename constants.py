@@ -577,9 +577,13 @@ OVERTAKE_DIFFICULTY_TAG_DELTA: dict[str, float] = {
 # The car behind cannot simply drive through the one ahead: a tick that would put it
 # within the follow gap contests the pass. Chance per LAP of sustained pressure =
 # BASE x (1 - track.overtake_difficulty) x racecraft edge (scaled by the tick slice, so
-# it is resolution-invariant). Only close battles are contested: if the follower would
-# sweep past by more than the contest window (the leader pitted, crashed wide, or is
-# crawling on fumes), the pass is free. The instant sim carries none of this, same as
+# it is resolution-invariant). A won contest COMPLETES the pass: a follower still
+# nominally behind exchanges race clocks with the defender, so the move always reorders
+# the road. Only close battles between established positions are contested: if the
+# follower would sweep past by more than the contest window (the leader pitted, crashed
+# wide, or is crawling on fumes) the pass is free, and a car that was not strictly
+# ahead when the tick began (standing start / dead heat) holds no road to defend -- the
+# field spreads on pace alone. The instant sim carries none of this, same as
 # jitter/reactive push.
 OVERTAKE_FOLLOW_GAP_S = 0.4      # dirty-air gap a blocked car is held at
 OVERTAKE_CONTEST_MAX_S = 2.0     # only contest passes with less margin than this

@@ -78,7 +78,13 @@ These three were one theme and landed together; they define the long-race strate
   resolution-invariant), a failed move holds the car in dirty air at the follow gap
   (stacking into trains), and sweeping past a crippled car (pitted/crawling) is free.
   `overtake_difficulty` and `racecraft` are both live. Instant sim carries none of it,
-  same as jitter/reactive push.
+  same as jitter/reactive push. *Regression fix (post-`d936448`)*: the first cut froze
+  every field — cars tied at the start (no established position) were contested, so the
+  whole grid trained up behind whichever car was processed first (the player, on
+  stable-sorted ties) at exactly the follow gap, and a won roll never reordered the
+  road because ranking is by `total_time`. Now a defender must have been strictly ahead
+  at tick start (a dead heat spreads on pace alone) and a won contest completes the
+  pass by exchanging the pair's race clocks (time-conserving), logged to the race log.
 - **Race-day weather — fixed.** One forecast roll per race (`loader.roll_race_condition`,
   isolated rng stream so pace/mistake draws are untouched): `weather_variability` is the
   chance the race doesn't run in the default condition, usually damp, sometimes wet

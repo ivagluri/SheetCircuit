@@ -142,13 +142,20 @@ class WiredSystemsTests(unittest.TestCase):
         ace.racecraft = driver.racecraft + 40
         self.assertGreater(_pass_chance(easy, ace, driver), _pass_chance(easy, driver, ace))
 
+    def _road_car(self, pre_tick_time: float, total_time: float, driver, label: str = "A"):
+        """(pre-tick time, state, driver) road_ahead entry for an advanced defender."""
+        ahead = _initial_state(f"car_{label}", "d", label, False)
+        ahead.total_time = total_time
+        return (pre_tick_time, ahead, driver)
+
     def test_failed_pass_holds_the_follow_gap(self) -> None:
         _state, session = self._session()
         driver = session.driver_roster["driver_novak"]
         behind = _initial_state("b", "d", "B", False)
         behind.total_time = 100.1  # inside the follow gap of the car at 100.0: contested
+        road = [self._road_car(99.0, 100.0, driver)]
 
-        _contest_overtakes(self.track, _FixedRoll(0.99), behind, driver, [(100.0, driver)], 0.2)
+        _contest_overtakes(self.track, _FixedRoll(0.99), behind, driver, 99.5, road, 0.2)
         self.assertAlmostEqual(behind.total_time, 100.0 + OVERTAKE_FOLLOW_GAP_S, places=9)
 
     def test_successful_pass_stands(self) -> None:
@@ -156,9 +163,38 @@ class WiredSystemsTests(unittest.TestCase):
         driver = session.driver_roster["driver_novak"]
         behind = _initial_state("b", "d", "B", False)
         behind.total_time = 99.9  # would come out ahead: contested, and the roll succeeds
+        road = [self._road_car(99.0, 100.0, driver)]
 
-        _contest_overtakes(self.track, _FixedRoll(0.0), behind, driver, [(100.0, driver)], 1.0)
+        _contest_overtakes(self.track, _FixedRoll(0.0), behind, driver, 99.5, road, 1.0)
         self.assertAlmostEqual(behind.total_time, 99.9, places=9)
+        self.assertAlmostEqual(road[0][1].total_time, 100.0, places=9)  # defender untouched
+
+    def test_won_contest_from_dirty_air_completes_the_pass(self) -> None:
+        # The follower is nominally still behind (inside the follow gap) but wins the
+        # roll: the pair exchange clocks, so the pass genuinely reorders the road
+        # instead of evaporating at the ranking step.
+        _state, session = self._session()
+        driver = session.driver_roster["driver_novak"]
+        behind = _initial_state("b", "d", "B", False)
+        behind.total_time = 100.1
+        road = [self._road_car(99.0, 100.0, driver)]
+
+        _contest_overtakes(self.track, _FixedRoll(0.0), behind, driver, 99.5, road, 1.0)
+        self.assertAlmostEqual(behind.total_time, 100.0, places=9)
+        self.assertAlmostEqual(road[0][1].total_time, 100.1, places=9)
+        self.assertLess(behind.total_time, road[0][1].total_time)
+
+    def test_dead_heat_at_tick_start_is_not_contested(self) -> None:
+        # Standing start: both cars began the tick on the same clock, so neither holds
+        # the road -- the field spreads on pace alone, whatever the processing order.
+        _state, session = self._session()
+        driver = session.driver_roster["driver_novak"]
+        behind = _initial_state("b", "d", "B", False)
+        behind.total_time = 100.1  # inside the follow gap, but no one is defending
+        road = [self._road_car(0.0, 100.0, driver)]
+
+        _contest_overtakes(self.track, _FixedRoll(0.99), behind, driver, 0.0, road, 0.2)
+        self.assertAlmostEqual(behind.total_time, 100.1, places=9)
 
     def test_lapping_a_crippled_car_is_free_but_the_next_one_defends(self) -> None:
         # The car at +7s pitted (huge margin: free pass); the healthy car 0.1s up the
@@ -169,20 +205,26 @@ class WiredSystemsTests(unittest.TestCase):
         behind = _initial_state("b", "d", "B", False)
         behind.total_time = 100.0
         crippled = 100.0 + OVERTAKE_CONTEST_MAX_S + 5.0
-        road = [(crippled, driver), (99.9, driver)]
+        road = [self._road_car(99.0, crippled, driver, "C"), self._road_car(99.0, 99.9, driver, "H")]
 
-        _contest_overtakes(self.track, _FixedRoll(0.99), behind, driver, road, 0.2)
+        _contest_overtakes(self.track, _FixedRoll(0.99), behind, driver, 99.5, road, 0.2)
         self.assertAlmostEqual(behind.total_time, 99.9 + OVERTAKE_FOLLOW_GAP_S, places=9)
 
     def test_unpassable_track_keeps_the_field_at_follow_gaps(self) -> None:
         # Fine tick slices keep per-tick pace deltas inside the contest window, so no
         # "crippled car" free passes occur and every close approach must be contested.
+        # The first tick is exempt: the standing start is a dead heat (nothing to
+        # defend), so the field spreads on pace before dirty air starts to bite.
         _state, session = self._session(ticks_per_lap=12)
         session.track.overtake_difficulty = 1.0  # _pass_chance == 0: no move ever sticks
+        ticks = 0
         with mock.patch("game.race_session.mistake_chance", return_value=0.0), \
                 mock.patch("game.race_session.failure_chance", return_value=0.0):
             while not session.is_finished:
                 simulate_tick(session)
+                ticks += 1
+                if ticks < 2:
+                    continue
                 times = sorted(s.total_time for s in session.cars if not s.is_dnf)
                 for faster, slower in zip(times, times[1:]):
                     self.assertGreaterEqual(slower - faster, OVERTAKE_FOLLOW_GAP_S - 1e-9)

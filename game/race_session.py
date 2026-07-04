@@ -193,8 +193,9 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         (state for state in session.cars if not state.is_dnf),
         key=lambda state: state.total_time,
     )
-    road_ahead: list[tuple[float, object]] = []  # (total_time, driver) of advanced cars
+    road_ahead: list[tuple[float, object, object]] = []  # (pre-tick time, state, driver) of advanced cars
     for state in field_order:
+        pre_tick_time = state.total_time
         command = state.pace_mode if state.is_player else _ai_command(state, player_time)
         driver = _get(session.driver_roster, state.driver_id, "driver")
         effective = session.effective_stats.get(state.car_id)
@@ -247,7 +248,7 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         state.lap_elapsed += tick_time + extra_penalty
 
         if road_ahead and not state.is_dnf:
-            _contest_overtakes(session.track, rng, state, driver, road_ahead, seg_length)
+            _contest_overtakes(session.track, rng, state, driver, pre_tick_time, road_ahead, seg_length)
 
         if command == "pit" and is_lap_end:
             _apply_lap_wear(state, effective, session.track, "pit", driver_fitness=driver.fitness, seconds=tick_time)
@@ -276,7 +277,7 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
             # car is skipped on every later tick, so this is its last chance to speak.
             lap_log.extend(_unpublished_events(state))
         if not state.is_dnf:
-            road_ahead.append((state.total_time, driver))
+            road_ahead.append((pre_tick_time, state, driver))
 
     active = [state for state in session.cars if not state.is_dnf]
     if active:
@@ -360,32 +361,59 @@ def _pass_chance(track, attacker, defender) -> float:
     return max(0.0, OVERTAKE_BASE_CHANCE_PER_LAP * (1.0 - track.overtake_difficulty) * skill)
 
 
-def _contest_overtakes(track, rng, state, driver, road_ahead, seg_length: float) -> None:
+def _complete_pass(attacker, defender) -> None:
+    """A won contest reorders the road: the two cars exchange race clocks.
+
+    The exchange conserves the pair's combined time (a pass moves cars, it does not
+    mint or destroy lap time) and drops the defender into the attacker's old spot --
+    inside the new leader's dirty air, where it can fight back next tick."""
+    delta = defender.total_time - attacker.total_time
+    attacker.total_time += delta
+    attacker.lap_elapsed += delta
+    defender.total_time -= delta
+    defender.lap_elapsed -= delta
+
+
+def _contest_overtakes(track, rng, state, driver, pre_tick_time, road_ahead, seg_length: float) -> None:
     """The car behind cannot simply drive through the cars ahead.
 
-    ``road_ahead`` is the already-advanced field this tick as (total_time, driver)
-    pairs. Walking up the road from the nearest car (largest time), every car this
-    tick would put the follower within the follow gap of (or past) must be dealt
-    with: a seeded roll against _pass_chance (scaled by the tick slice, so pass rates
-    are resolution-invariant) makes the move stick; a failed move holds the follower
-    in dirty air at the follow gap and ends its progress. A car swept past with more
-    margin than the contest window (it pitted, crashed wide, or is crawling on fumes)
-    is not really defending -- that pass is free."""
-    for ahead_time, ahead_driver in sorted(road_ahead, key=lambda pair: pair[0], reverse=True):
-        held = ahead_time + OVERTAKE_FOLLOW_GAP_S
+    ``road_ahead`` is the already-advanced field this tick as (pre-tick time, state,
+    driver) triples; ``pre_tick_time`` is the follower's own clock at tick start.
+    Walking up the road from the nearest car (largest time), every car this tick
+    would put the follower within the follow gap of (or past) must be dealt with: a
+    seeded roll against _pass_chance (scaled by the tick slice, so pass rates are
+    resolution-invariant) completes the pass -- a follower still nominally behind
+    exchanges clocks with the defender (_complete_pass), so the move always reorders
+    the road; a failed move holds the follower in dirty air at the follow gap and
+    ends its progress. Two exemptions: a car swept past with more margin than the
+    contest window (it pitted, crashed wide, or is crawling on fumes) is not really
+    defending, and a car that was NOT strictly ahead when the tick began (a standing
+    start or dead heat) holds no road to defend -- there the field spreads on pace
+    alone instead of freezing in processing order."""
+    for ahead_pre, ahead_state, ahead_driver in sorted(
+        road_ahead, key=lambda entry: entry[1].total_time, reverse=True
+    ):
+        if ahead_pre >= pre_tick_time:
+            continue  # dead heat at tick start: no established position to defend
+        held = ahead_state.total_time + OVERTAKE_FOLLOW_GAP_S
         margin = held - state.total_time
         if margin <= 0.0:
             break  # clear of the nearest car ahead, so clear of everyone beyond it
         if margin > OVERTAKE_CONTEST_MAX_S:
             continue  # swept past a crippled car: free, keep driving up the road
         if rng.random() < _pass_chance(track, driver, ahead_driver) * seg_length:
+            if state.total_time > ahead_state.total_time:
+                _complete_pass(state, ahead_state)
+                state.event_log.append(f"{state.label} passed {ahead_state.label}.")
             continue  # the move sticks; on to the next car up the road
         # Slot into the train: if the follow-gap spot is itself inside another settled
         # car's gap (a queue has formed), stack behind that car instead. One ascending
         # sweep resolves the chain because the held time only ever moves backward.
-        for settled_time, _settled_driver in sorted(road_ahead, key=lambda pair: pair[0]):
-            if settled_time <= held < settled_time + OVERTAKE_FOLLOW_GAP_S:
-                held = settled_time + OVERTAKE_FOLLOW_GAP_S
+        for _settled_pre, settled_state, _settled_driver in sorted(
+            road_ahead, key=lambda entry: entry[1].total_time
+        ):
+            if settled_state.total_time <= held < settled_state.total_time + OVERTAKE_FOLLOW_GAP_S:
+                held = settled_state.total_time + OVERTAKE_FOLLOW_GAP_S
         state.lap_elapsed += held - state.total_time
         state.total_time = held
         break
