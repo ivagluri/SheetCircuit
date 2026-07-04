@@ -2,7 +2,7 @@
 
 Concise code map for future coding agents. The game is Python stdlib-first, with optional `rich` terminal rendering. Core rule: engine code lives in `game/`; UI code lives in `interfaces/`.
 
-Project docs: `CHANGELOG.md` = shipped history (what landed, by commit); `pendingupdates.md` = forward-looking roadmap (next work + deferred backlog). Both are self-contained/portable.
+Project docs: `CHANGELOG.md` = shipped history (what landed, by commit), self-contained/portable. (The old `SIM_AUDIT.md` audit record and `pendingupdates.md` roadmap were retired 2026-07-04; their content lives in git history.)
 
 ## Run And Test
 
@@ -233,8 +233,13 @@ escalating the session track's segment profiles (`loader.apply_race_condition` -
 dries an authored-wet segment). **Overtaking** is live-only (like jitter): the car
 behind must make a pass stick (`race_session._contest_overtakes` walks the road ahead
 nearest-first; `_pass_chance` = per-lap base x (1 - track.overtake_difficulty) x
-racecraft edge), else it is held in dirty air at the follow gap; sweeping past a
-crippled car (pitted/crawling) is free.
+racecraft edge). A won contest *completes* the pass -- a follower still nominally
+behind exchanges race clocks with the defender (time-conserving), so the move always
+reorders the road; a failed one holds the car in dirty air in a breathing band
+`[OVERTAKE_FOLLOW_GAP_S, +OVERTAKE_GAP_JITTER_S]` (re-drawn per tick, so trains
+flutter instead of freezing). Only a car strictly ahead at tick start defends (a
+standing start / dead heat spreads on pace alone); sweeping past a crippled car
+(pitted/crawling) is free.
 
 ### Time Scale / Presentation
 
@@ -322,7 +327,8 @@ Liveliness comes from three engine-side touches in `simulate_tick`:
 rival jitter   (RIVAL_LAP_JITTER_S, sqrt(slice)-scaled)  -> pack shuffles (tick-count invariant)
 reactive push  (RIVAL_REACTIVE_GAP_S)                    -> rivals race you back
 overtaking     (OVERTAKE_* constants)                    -> passes must stick; trains form on
-                                                            narrow tracks (racecraft is live)
+                                                            narrow tracks with breathing follow
+                                                            gaps (racecraft is live)
 ```
 
 `start_race_action` uses a random seed by default (pass an explicit seed for

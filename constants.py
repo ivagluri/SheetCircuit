@@ -585,7 +585,8 @@ OVERTAKE_DIFFICULTY_TAG_DELTA: dict[str, float] = {
 # ahead when the tick began (standing start / dead heat) holds no road to defend -- the
 # field spreads on pace alone. The instant sim carries none of this, same as
 # jitter/reactive push.
-OVERTAKE_FOLLOW_GAP_S = 0.4      # dirty-air gap a blocked car is held at
+OVERTAKE_FOLLOW_GAP_S = 0.4      # dirty-air gap a blocked car is held at (minimum)
+OVERTAKE_GAP_JITTER_S = 0.2      # breathing room above the gap: a hold lands in [gap, gap+jitter]
 OVERTAKE_CONTEST_MAX_S = 2.0     # only contest passes with less margin than this
 OVERTAKE_BASE_CHANCE_PER_LAP = 1.4
 OVERTAKE_RACECRAFT_PER_POINT = 0.006  # attacker-vs-defender racecraft edge per point

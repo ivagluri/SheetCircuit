@@ -1,7 +1,7 @@
 """Attrition endgame guards: fuel has a failure state, heat is a balance, the AI
 manages both, and a mechanical issue can end a race.
 
-These pin the Section-2 rework (SIM_AUDIT.md): an empty tank makes the car limp
+These pin the simulation-audit rework (see CHANGELOG): an empty tank makes the car limp
 (not free), normal running no longer cooks the tyres inexorably, cooling commands
 actually recover temperature, rivals pit/lift instead of degrading forever, and
 failures can be terminal -- especially on an overheated engine.

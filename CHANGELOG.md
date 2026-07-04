@@ -3,8 +3,16 @@
 Work on the `refactor/track-agnostic-sim` branch: making the simulation track-agnostic,
 de-pinned from the sample catalog, and honest about time. Newest first.
 
-## Simulation audit (SIM_AUDIT.md)
+## Simulation audit
 
+- **Breathing follow gap; audit docs retired** — a failed pass now holds the car in a
+  band `[OVERTAKE_FOLLOW_GAP_S, +OVERTAKE_GAP_JITTER_S]` re-drawn every tick, so train
+  gaps flutter like a car bobbing in the wake instead of freezing at exactly 0.400s.
+  The jitter exposed an interleave in the stacking sweep (two same-tick holds behind
+  one defender could land 0.007s apart); the sweep now guards both sides of a settled
+  car. `SIM_AUDIT.md` (every item fixed) and `pendingupdates.md` retired — content in
+  git history; the roadmap's unbuilt items (settings menu, ragged enduro, gravel twin,
+  reference manual) were dropped with it.
 - **Overtaking math fix** — the `d936448` overtake gate froze every field into a train
   behind whoever was processed first (the player, on ties), pinned at exactly the follow
   gap, and dragged faster cars down to the leader's pace. Two rules fixed for all tracks:

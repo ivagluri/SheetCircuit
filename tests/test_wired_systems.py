@@ -1,4 +1,4 @@
-"""Guards for the Section-3 rework (SIM_AUDIT.md): the half-wired systems are live.
+"""Guards for the simulation-audit rework (see CHANGELOG): the half-wired systems are live.
 
 Mid-race incidents damage the car (and damage feeds failure risk + post-race wear),
 driver energy matters (mistakes + pace), post-race wear scales with distance and hits
@@ -18,6 +18,7 @@ from constants import (
     DRIVER_ENERGY_PACE_FRACTION,
     OVERTAKE_CONTEST_MAX_S,
     OVERTAKE_FOLLOW_GAP_S,
+    OVERTAKE_GAP_JITTER_S,
 )
 from game.economy import sell_car
 from game.effective_stats import compute_effective_stats
@@ -156,7 +157,9 @@ class WiredSystemsTests(unittest.TestCase):
         road = [self._road_car(99.0, 100.0, driver)]
 
         _contest_overtakes(self.track, _FixedRoll(0.99), behind, driver, 99.5, road, 0.2)
-        self.assertAlmostEqual(behind.total_time, 100.0 + OVERTAKE_FOLLOW_GAP_S, places=9)
+        # Held in the breathing band: at least the follow gap, at most gap + jitter.
+        self.assertGreaterEqual(behind.total_time, 100.0 + OVERTAKE_FOLLOW_GAP_S - 1e-9)
+        self.assertLessEqual(behind.total_time, 100.0 + OVERTAKE_FOLLOW_GAP_S + OVERTAKE_GAP_JITTER_S + 1e-9)
 
     def test_successful_pass_stands(self) -> None:
         _state, session = self._session()
@@ -208,7 +211,8 @@ class WiredSystemsTests(unittest.TestCase):
         road = [self._road_car(99.0, crippled, driver, "C"), self._road_car(99.0, 99.9, driver, "H")]
 
         _contest_overtakes(self.track, _FixedRoll(0.99), behind, driver, 99.5, road, 0.2)
-        self.assertAlmostEqual(behind.total_time, 99.9 + OVERTAKE_FOLLOW_GAP_S, places=9)
+        self.assertGreaterEqual(behind.total_time, 99.9 + OVERTAKE_FOLLOW_GAP_S - 1e-9)
+        self.assertLessEqual(behind.total_time, 99.9 + OVERTAKE_FOLLOW_GAP_S + OVERTAKE_GAP_JITTER_S + 1e-9)
 
     def test_unpassable_track_keeps_the_field_at_follow_gaps(self) -> None:
         # Fine tick slices keep per-tick pace deltas inside the contest window, so no

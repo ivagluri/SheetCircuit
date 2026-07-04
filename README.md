@@ -30,7 +30,9 @@ requirements.txt`.
   ride height, camber, engine maps, and more — and it all feeds the simulation.
 - **Race live**: pick an event, car, and driver, then manage the race tick by
   tick with pace commands (push, save tyres, save fuel, cool down, pit…) while
-  tires wear, fuel burns, and engines heat up. Fast-forward laps, change
+  tires wear, fuel burns, engines heat, and race-day weather rolls in. Rivals
+  run their own pit strategy, passes must be earned through dirty air, and
+  mistakes, damage, or an empty tank can wreck a run. Fast-forward laps, change
   presentation speed, or sim to the end at any point.
 - 11 events across 9 tracks — sprints, ovals, hillclimbs, rallies, top-speed
   runs, and duration enduros. Tracks are pure geometry; race length lives on

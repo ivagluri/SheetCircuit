@@ -28,6 +28,7 @@ from constants import (
     OVERTAKE_BASE_CHANCE_PER_LAP,
     OVERTAKE_CONTEST_MAX_S,
     OVERTAKE_FOLLOW_GAP_S,
+    OVERTAKE_GAP_JITTER_S,
     OVERTAKE_RACECRAFT_PER_POINT,
     PERCENT_MAX,
     PRESENTATION_SPEED_FACTOR,
@@ -384,8 +385,10 @@ def _contest_overtakes(track, rng, state, driver, pre_tick_time, road_ahead, seg
     seeded roll against _pass_chance (scaled by the tick slice, so pass rates are
     resolution-invariant) completes the pass -- a follower still nominally behind
     exchanges clocks with the defender (_complete_pass), so the move always reorders
-    the road; a failed move holds the follower in dirty air at the follow gap and
-    ends its progress. Two exemptions: a car swept past with more margin than the
+    the road; a failed move holds the follower in dirty air just off the follow gap
+    (a breathing band of [gap, gap + OVERTAKE_GAP_JITTER_S], so trains flutter
+    instead of freezing at one number) and ends its progress. Two exemptions: a car
+    swept past with more margin than the
     contest window (it pitted, crashed wide, or is crawling on fumes) is not really
     defending, and a car that was NOT strictly ahead when the tick began (a standing
     start or dead heat) holds no road to defend -- there the field spreads on pace
@@ -406,14 +409,21 @@ def _contest_overtakes(track, rng, state, driver, pre_tick_time, road_ahead, seg
                 _complete_pass(state, ahead_state)
                 state.event_log.append(f"{state.label} passed {ahead_state.label}.")
             continue  # the move sticks; on to the next car up the road
-        # Slot into the train: if the follow-gap spot is itself inside another settled
-        # car's gap (a queue has formed), stack behind that car instead. One ascending
-        # sweep resolves the chain because the held time only ever moves backward.
+        # Breathing room: the hold is a band, not a rail. Positive-only, so the gap
+        # never dips below the follow gap (and never turns into a backdoor pass) --
+        # train gaps flutter in [gap, gap + jitter] instead of freezing at 0.400.
+        # Drawn BEFORE the stacking sweep so the sweep guards the final position.
+        held += rng.random() * OVERTAKE_GAP_JITTER_S
+        # Slot into the train: if the hold would land within the follow gap of another
+        # settled car -- on either side of it (a queue has formed) -- stack behind that
+        # car instead. One ascending sweep resolves the chain because the held time
+        # only ever moves backward.
         for _settled_pre, settled_state, _settled_driver in sorted(
             road_ahead, key=lambda entry: entry[1].total_time
         ):
-            if settled_state.total_time <= held < settled_state.total_time + OVERTAKE_FOLLOW_GAP_S:
-                held = settled_state.total_time + OVERTAKE_FOLLOW_GAP_S
+            settled_time = settled_state.total_time
+            if settled_time - OVERTAKE_FOLLOW_GAP_S < held < settled_time + OVERTAKE_FOLLOW_GAP_S:
+                held = settled_time + OVERTAKE_FOLLOW_GAP_S
         state.lap_elapsed += held - state.total_time
         state.total_time = held
         break
