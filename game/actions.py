@@ -738,7 +738,7 @@ def _estimate_entry(state: GameState, event, track):
     parts = load_parts()
     garage = list(state.garage)
     if garage:
-        ranked = sorted(garage, key=lambda car: class_rating(compute_effective_stats(car, parts)), reverse=True)
+        ranked = sorted(garage, key=lambda car: class_rating(car, parts), reverse=True)
         eligible = None
         for car in ranked:
             try:
@@ -753,7 +753,7 @@ def _estimate_entry(state: GameState, event, track):
         catalog = load_cars()
         if not catalog:
             return None
-        car = max(catalog, key=lambda c: class_rating(compute_effective_stats(c, parts)))
+        car = max(catalog, key=lambda c: class_rating(c, parts))
         is_eligible = False
     drivers = state.hired_drivers or load_drivers()
     if not drivers:

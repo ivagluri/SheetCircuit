@@ -107,6 +107,16 @@ class ActionLayerTests(unittest.TestCase):
         self.assertEqual(market_car.title, "1994 Kanto K660")
         self.assertIn("Driver Stats", [table.title for table in driver.tables])
 
+    def test_event_detail_with_state_estimates_time_from_garage_car(self) -> None:
+        # Regression: _estimate_entry passed EffectiveCarStats into class_rating (which
+        # takes a Car), crashing event detail whenever the garage was non-empty.
+        state = new_career()
+
+        screen = event_detail_screen("sunday_cup", state)
+
+        event_rows = next(table for table in screen.tables if table.title == "Event").rows
+        self.assertIn("Est. Time", [row[0] for row in event_rows])
+
     def test_garage_and_market_show_pr_and_type(self) -> None:
         state = new_career()
 
