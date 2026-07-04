@@ -8,6 +8,7 @@ from typing import Any
 from constants import SCHEMA_VERSION
 from game.game_state import GameState
 from game.loader import DataLoadError, car_from_dict, driver_from_dict
+from game.progression import normalize_event_progress
 
 
 class SaveVersionError(ValueError):
@@ -18,8 +19,13 @@ def game_state_to_dict(game_state: GameState) -> dict[str, Any]:
     return {
         "money": game_state.money,
         "week": game_state.week,
+        "team_xp": int(game_state.team_xp),
         "garage": [asdict(car) for car in game_state.garage],
         "hired_drivers": [asdict(driver) for driver in game_state.hired_drivers],
+        "event_progress": {
+            event_id: dict(progress)
+            for event_id, progress in game_state.event_progress.items()
+        },
     }
 
 
@@ -27,8 +33,13 @@ def game_state_from_dict(data: dict[str, Any]) -> GameState:
     return GameState(
         money=data["money"],
         week=data["week"],
+        team_xp=int(data.get("team_xp", 0)),
         garage=[car_from_dict(car_data) for car_data in data.get("garage", [])],
         hired_drivers=[driver_from_dict(driver_data) for driver_data in data.get("hired_drivers", [])],
+        event_progress={
+            str(event_id): normalize_event_progress(progress)
+            for event_id, progress in data.get("event_progress", {}).items()
+        },
     )
 
 

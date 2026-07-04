@@ -37,8 +37,9 @@ data/
 game/
   models.py          Dataclasses for cars, tracks, events, race state, telemetry.
   loader.py          JSON loading, validation, track weight derivation.
-  game_state.py      GameState, new_game(), new_career().
-  save_load.py       Versioned JSON save/load.
+  game_state.py      GameState, new_game(), new_career(). Stores money/week,
+                     team_xp, garage, hired_drivers, event_progress.
+  save_load.py       Versioned JSON save/load (schema v2 includes team progression).
   actions.py         UI-neutral service layer for CLI and future web UI.
   economy.py         buy_car(), sell_car(), repair_car().
   market.py          list_market_cars().
@@ -146,10 +147,11 @@ finish_race_action(state, session)
 
 ## Team Progression
 
-Team career progression is pure and derived. Store Team XP on `GameState` (milestone
-2+), derive Team Level through `game.progression.team_level_for_xp()` and
-`TEAM_LEVEL_THRESHOLDS`; do not store a separate level. Event progress records are
-expandable dicts normalized by `normalize_event_progress()`:
+Team career progression is pure and derived. Store `GameState.team_xp`, derive Team
+Level through `game.progression.team_level_for_xp()` and `TEAM_LEVEL_THRESHOLDS`;
+do not store a separate level. Per-event progress lives in
+`GameState.event_progress[event_id]` as expandable dicts normalized on load by
+`normalize_event_progress()`:
 
 ```text
 starts, best_position, wins, podiums, best_time_s

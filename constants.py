@@ -1,6 +1,6 @@
 """Central tuning values for SheetCircuit."""
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 STARTING_MONEY = 8000
 STARTING_WEEK = 1
 

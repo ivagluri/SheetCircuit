@@ -434,6 +434,14 @@ class WebSaveLoadTests(TestCase):
         game = make_game()
         game.handle_input("sell")
         game.handle_input("1")
+        game.state.team_xp = 145
+        game.state.event_progress["sunday_cup"] = {
+            "starts": 2,
+            "best_position": 1,
+            "wins": 1,
+            "podiums": 2,
+            "best_time_s": 382.4,
+        }
         payload = game.export_save()
         data = json.loads(payload)
         self.assertEqual(data["schema_version"], SCHEMA_VERSION)
@@ -442,6 +450,8 @@ class WebSaveLoadTests(TestCase):
         self.assertIn("Loaded from browser storage", out)
         self.assertEqual(other.state.money, game.state.money)
         self.assertEqual(len(other.state.garage), 0)
+        self.assertEqual(other.state.team_xp, 145)
+        self.assertEqual(other.state.event_progress["sunday_cup"]["wins"], 1)
 
     def test_import_empty_payload_reports_no_save(self) -> None:
         game = make_game()

@@ -11,8 +11,10 @@ from game.models import Car, Driver
 class GameState:
     money: int = STARTING_MONEY
     week: int = STARTING_WEEK
+    team_xp: int = 0
     garage: list[Car] = field(default_factory=list)
     hired_drivers: list[Driver] = field(default_factory=list)
+    event_progress: dict[str, dict] = field(default_factory=dict)
 
 
 def new_game() -> GameState:
