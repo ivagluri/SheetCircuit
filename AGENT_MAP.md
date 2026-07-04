@@ -77,7 +77,8 @@ game/
 interfaces/
   cli.py             Terminal state machine, menu flow, guided pickers.
   terminal.py        Rich/stdlib terminal adapter.
-  menu.py            Main menu hotkeys and status bar.
+  menu.py            Main menu hotkeys and global status bar, including Team
+                     Level/XP display via `team_xp_status()`.
   render_text.py     Legacy/simple row render helpers.
 ```
 
@@ -174,6 +175,8 @@ Each `Event` has `min_team_level` and `event_kind`. The loader infers missing
 `min_team_level` from `TEAM_LEVEL_BY_CLASS` and defaults missing `event_kind` to
 `ladder`, but seed data is explicitly annotated. Valid event kinds are defined by
 `constants.EVENT_KINDS`; `beater_enduro` is the level-1 `open_invitational`.
+The global CLI/web status bar includes compact Team Level/XP text from
+`interfaces.menu.team_xp_status()` so progression is visible on every screen.
 
 ## Main Game Loop
 

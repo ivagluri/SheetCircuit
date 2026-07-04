@@ -233,7 +233,7 @@ def run_command(state: GameState, raw: str) -> GameState:
 
 def _render_screen(state: GameState, screen: str, subtitle: str = "") -> None:
     terminal.header("SheetCircuit", subtitle)
-    terminal.print(status_bar(state.money, state.week, len(state.garage), screen))
+    terminal.print(status_bar(state.money, state.week, len(state.garage), screen, state.team_xp))
     terminal.menu(menu_bar())
     if screen == "garage":
         _show_garage(state)
@@ -314,7 +314,7 @@ def _buy_on_market(state: GameState) -> None:
 def _show_detail_screen(state: GameState, screen, parent_screen: str) -> None:
     terminal.clear()
     terminal.header(screen.title, screen.subtitle)
-    terminal.print(status_bar(state.money, state.week, len(state.garage), parent_screen))
+    terminal.print(status_bar(state.money, state.week, len(state.garage), parent_screen, state.team_xp))
     terminal.menu(menu_bar())
     _render_action_screen(screen)
     terminal.pause()
@@ -529,7 +529,7 @@ def _garage_picker_show(state: GameState, title: str, subtitle: str, screen_labe
     def show():
         terminal.clear()
         terminal.header(title, subtitle)
-        terminal.print(status_bar(state.money, state.week, len(state.garage), screen_label))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), screen_label, state.team_xp))
         terminal.menu(menu_bar())
         terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
         return _sorted_garage(state)
@@ -585,7 +585,7 @@ def _tune_editor(state: GameState, car_id: str) -> None:
         screen = tune_editor_screen(state, car_id, draft)
         terminal.clear()
         terminal.header(screen.title, screen.subtitle)
-        terminal.print(status_bar(state.money, state.week, len(state.garage), "tune"))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "tune", state.team_xp))
         terminal.menu(menu_bar())
         _render_action_screen(screen)
         terminal.print("number/name = open section  |  W = apply staged setup  |  B = back")
@@ -620,7 +620,7 @@ def _tune_section_editor(state: GameState, car_id: str, section: str, draft: dic
         screen = tune_section_screen(state, car_id, section, draft)
         terminal.clear()
         terminal.header(screen.title, screen.subtitle)
-        terminal.print(status_bar(state.money, state.week, len(state.garage), "tune"))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "tune", state.team_xp))
         terminal.menu(menu_bar())
         _render_action_screen(screen)
         terminal.print("number/name = edit field  |  B = back to sections")
@@ -727,7 +727,7 @@ def _hire_picker(state: GameState) -> None:
     def show():
         terminal.clear()
         terminal.header("Hire Driver", _PICKER_SUBTITLE.format(noun="a driver"))
-        terminal.print(status_bar(state.money, state.week, len(state.garage), "hire"))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "hire", state.team_xp))
         terminal.menu(menu_bar())
         available = available_drivers()
         terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(available))
@@ -749,7 +749,7 @@ def _fire_picker(state: GameState) -> None:
     def show():
         terminal.clear()
         terminal.header("Release Driver", _PICKER_SUBTITLE.format(noun="a driver"))
-        terminal.print(status_bar(state.money, state.week, len(state.garage), "fire"))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "fire", state.team_xp))
         terminal.menu(menu_bar())
         drivers = _sorted_hired_drivers(state)
         terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
@@ -772,7 +772,7 @@ def _race_picker(state: GameState) -> None:
     def show_events():
         terminal.clear()
         terminal.header("Race Entry", "Choose an event, car, and driver. Enter a number or ID; 'sort <field>' re-orders; q cancels.")
-        terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry", state.team_xp))
         terminal.menu(menu_bar())
         events = _sorted_events()
         terminal.table(
@@ -794,7 +794,7 @@ def _race_picker(state: GameState) -> None:
     def show_drivers():
         terminal.clear()
         terminal.header("Race Entry", f"{event.name} / {car.identity.name}")
-        terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry", state.team_xp))
         terminal.menu(menu_bar())
         drivers = sort_items("drivers", state.hired_drivers or load_drivers(), _screen_sort("drivers"))
         terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
@@ -920,7 +920,7 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
     finished = finish_race_action(state, session)
     terminal.clear()
     terminal.header(finished.screen.title, finished.screen.subtitle)
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "post race"))
+    terminal.print(status_bar(state.money, state.week, len(state.garage), "post race", state.team_xp))
     terminal.menu(menu_bar())
     _render_action_screen(finished.screen)
     terminal.pause()
@@ -974,7 +974,7 @@ def _render_race_screen(state: GameState, session, result=None, error: str = "")
     screen = race_screen(session, result, error, log_event_chars=_race_log_event_budget(session))
     terminal.clear()
     terminal.header(screen.title, screen.subtitle)
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "race"))
+    terminal.print(status_bar(state.money, state.week, len(state.garage), "race", state.team_xp))
     terminal.menu(_option_bar(screen.actions) + "  help")
     for message in screen.messages:
         terminal.print(message)

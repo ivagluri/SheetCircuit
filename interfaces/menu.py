@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from game.progression import team_xp_progress
+
 
 @dataclass(frozen=True)
 class MenuAction:
@@ -46,5 +48,17 @@ def menu_command(choice: str) -> str | None:
     return None
 
 
-def status_bar(money: int, week: int, garage_count: int, screen: str) -> str:
-    return f"Money: ${money:,}  Week: {week}  Garage: {garage_count}  Screen: {screen.title()}"
+def team_xp_status(team_xp: int, width: int = 8) -> str:
+    progress = team_xp_progress(team_xp)
+    if progress.next_level is None:
+        return f"Team Lv {progress.level} [MAX] {progress.xp} XP"
+    filled = round(progress.level_fraction * width)
+    bar = "█" * filled + "░" * (width - filled)
+    return f"Team Lv {progress.level} [{bar}] {progress.xp}/{progress.next_level_xp} XP"
+
+
+def status_bar(money: int, week: int, garage_count: int, screen: str, team_xp: int = 0) -> str:
+    return (
+        f"Money: ${money:,}  Week: {week}  Garage: {garage_count}  "
+        f"{team_xp_status(team_xp)}  Screen: {screen.title()}"
+    )

@@ -252,7 +252,7 @@ class WebGame:
             terminal.print("Enter a number or ID to view details  |  'ext <id>' for full specs")
 
     def _print_status_menu(self, screen_label: str) -> None:
-        terminal.print(status_bar(self.state.money, self.state.week, len(self.state.garage), screen_label))
+        terminal.print(status_bar(self.state.money, self.state.week, len(self.state.garage), screen_label, self.state.team_xp))
         terminal.menu(menu_bar())
 
     def _print_detail(self, screen) -> None:

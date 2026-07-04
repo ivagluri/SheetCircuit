@@ -9,7 +9,7 @@ from game.game_state import new_career
 from game.loader import load_cars
 import interfaces.cli as cli
 from interfaces.cli import _race_command, run_command, run_menu_choice
-from interfaces.menu import menu_bar, menu_command, status_bar
+from interfaces.menu import menu_bar, menu_command, status_bar, team_xp_status
 
 
 class CliTests(TestCase):
@@ -21,8 +21,13 @@ class CliTests(TestCase):
         self.assertEqual(menu_command("g"), "garage")
         self.assertEqual(menu_command("R"), "race")
 
-    def test_status_bar_shows_money_week_and_screen(self) -> None:
-        self.assertEqual(status_bar(8000, 1, 1, "garage"), "Money: $8,000  Week: 1  Garage: 1  Screen: Garage")
+    def test_status_bar_shows_money_week_team_xp_and_screen(self) -> None:
+        self.assertEqual(
+            status_bar(8000, 1, 1, "garage"),
+            "Money: $8,000  Week: 1  Garage: 1  Team Lv 1 [░░░░░░░░] 0/100 XP  Screen: Garage",
+        )
+        self.assertEqual(team_xp_status(145), "Team Lv 2 [██░░░░░░] 145/250 XP")
+        self.assertEqual(team_xp_status(1400), "Team Lv 6 [MAX] 1400 XP")
 
     def test_hotkey_choice_changes_screen_without_typed_command(self) -> None:
         state = new_career()
