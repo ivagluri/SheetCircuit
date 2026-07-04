@@ -220,7 +220,7 @@ class WebTuneTests(TestCase):
     def test_tune_numeric_field_staged_then_applied(self) -> None:
         game = make_game()
         self._open_tyres_section(game)
-        out = game.handle_input("1")
+        out = game.handle_input("tire_pressure_front")
         self.assertEqual(meta(game)["mode"], "tune_value")
         self.assertIn("Value (", meta(game)["prompt_label"])
         out = game.handle_input("2.2")
@@ -260,7 +260,7 @@ class WebTuneTests(TestCase):
     def test_tune_value_out_of_range_stays_in_editor(self) -> None:
         game = make_game()
         self._open_tyres_section(game)
-        game.handle_input("1")
+        game.handle_input("tire_pressure_front")
         out = game.handle_input("99")
         self.assertIn("Rejected:", out)
         self.assertEqual(meta(game)["mode"], "tune_field")
@@ -269,7 +269,7 @@ class WebTuneTests(TestCase):
     def test_tune_empty_value_stages_nothing(self) -> None:
         game = make_game()
         self._open_tyres_section(game)
-        game.handle_input("1")
+        game.handle_input("tire_pressure_front")
         out = game.handle_input("")
         self.assertIn("No change staged", out)
         self.assertEqual(meta(game)["mode"], "tune_field")
@@ -277,7 +277,7 @@ class WebTuneTests(TestCase):
     def test_tune_exit_with_staged_changes_asks_and_discards(self) -> None:
         game = make_game()
         self._open_tyres_section(game)
-        game.handle_input("1")
+        game.handle_input("tire_pressure_front")
         game.handle_input("2.2")
         game.handle_input("b")  # back to sections with a staged change
         out = game.handle_input("q")

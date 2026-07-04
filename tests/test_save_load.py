@@ -27,6 +27,10 @@ class SaveLoadTests(unittest.TestCase):
             driver = load_drivers()[0]
             car.condition.engine_condition = 57.5
             car.tune.brake_bias = 0.61
+            # In-game hard mods write into the car's stat sections; they must persist.
+            car.tires.tire_compound = "semi_slick"
+            car.tires.base_grip = 71
+            car.chassis.weight_distribution_front = 0.49
             state = GameState(money=7150, week=3, garage=[car], hired_drivers=[driver])
             save_path = Path(tmpdir) / "save.json"
 

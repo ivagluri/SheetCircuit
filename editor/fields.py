@@ -17,6 +17,7 @@ from constants import (
     ENGINE_MAP_POWER,
     SEGMENT_TAG_WEIGHTS,
     SURFACE_MODIFIERS,
+    TIRE_COMPOUNDS,
     TUNE_FIELD_RANGES,
 )
 
@@ -29,7 +30,7 @@ CAR_CLASSES = ["E", "D", "C", "B", "A", "S"]
 DRIVETRAINS = ["RWD", "FWD", "AWD"]
 LAYOUTS = ["front_engine", "mid_engine", "rear_engine", "front_mid", "rear_mid"]
 ASPIRATIONS = ["NA", "turbo", "supercharged", "twin_turbo"]
-TIRE_COMPOUNDS = ["economy", "street", "sport", "semi_slick", "slick"]
+# TIRE_COMPOUNDS is imported from constants: the in-game tune menu shares the vocabulary.
 TRACK_LAYOUT_TYPES = [
     "circuit",
     "road_course",

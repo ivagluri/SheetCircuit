@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
+from constants import CAR_MOD_FIELD_RANGES, ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TIRE_COMPOUNDS, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
 from game.effective_stats import class_breakdown, class_rating, compute_effective_stats, derived_class, performance_type
 from game.game_state import GameState
@@ -17,7 +17,7 @@ from game.race_session import apply_player_command, enter_event, finish_event
 from game.simulation import calculate_lap_time
 from game.save_load import load_game, save_game
 from game.sorting import SortSpec, sort_items, sort_label
-from game.tuning import update_tune_fields, validate_tune_field
+from game.tuning import tune_target, update_tune_fields, validate_tune_field
 
 
 def _fuel_range_km(eff) -> float:
@@ -567,15 +567,37 @@ def _table_title(title: str, screen: str, sort_spec: SortSpec | None) -> str:
     return f"{title} (sorted by {sort_label(screen, sort_spec)})"
 
 
-# Every editable TuneSetup field, grouped by subsystem for the tune menu. The whole
-# set is exposed (each one now influences the simulation); grouping keeps a long list
-# scannable while a single continuous numbering drives selection.
+# Every in-game tweakable knob, grouped by subsystem for the tune menu: the full
+# TuneSetup (setup knobs) plus the garage-tweakable car stats from
+# CAR_MOD_FIELD_SECTIONS (hard mods — same fields the creator edits, minus the
+# intrinsic properties; see the constants block for the boundary). Within each
+# section the hard mods lead (what the car has) and the setup knobs follow (how
+# it is adjusted); a single continuous numbering drives selection.
 _TUNE_FIELD_GROUPS: list[tuple[str, list[str]]] = [
-    ("Tyres", ["tire_pressure_front", "tire_pressure_rear", "camber_front", "camber_rear", "toe_front", "toe_rear"]),
-    ("Drivetrain", ["final_drive", "gear_bias", "differential_power", "differential_coast", "differential_preload", "engine_map"]),
-    ("Brakes", ["brake_bias", "brake_pressure"]),
-    ("Suspension", ["front_ride_height", "rear_ride_height", "suspension_stiffness_front", "suspension_stiffness_rear", "antiroll_front", "antiroll_rear"]),
-    ("Aero", ["front_downforce", "rear_downforce"]),
+    ("Tyres", [
+        "tire_compound", "tire_width_front", "tire_width_rear", "base_grip", "wet_grip",
+        "tire_wear_resistance", "tire_heat_resistance", "tire_warmup",
+        "tire_pressure_front", "tire_pressure_rear", "camber_front", "camber_rear", "toe_front", "toe_rear",
+    ]),
+    ("Drivetrain", [
+        "fuel_efficiency",
+        "final_drive", "gear_bias", "differential_power", "differential_coast", "differential_preload", "engine_map",
+    ]),
+    ("Brakes", [
+        "braking_power", "brake_stability", "brake_cooling", "brake_fade_resistance",
+        "brake_bias", "brake_pressure",
+    ]),
+    ("Chassis", [
+        "weight_distribution_front", "center_of_gravity", "chassis_rigidity", "stability", "rotation",
+    ]),
+    ("Suspension", [
+        "handling", "mechanical_grip", "suspension_compliance", "curb_handling", "bump_absorption", "steering_precision",
+        "front_ride_height", "rear_ride_height", "suspension_stiffness_front", "suspension_stiffness_rear", "antiroll_front", "antiroll_rear",
+    ]),
+    ("Aero", [
+        "downforce", "drag", "aero_efficiency", "high_speed_stability",
+        "front_downforce", "rear_downforce",
+    ]),
 ]
 
 
@@ -637,7 +659,7 @@ def tune_section_screen(state: GameState, car_id: str, section: Any, draft: dict
     car = _garage_car_or_raise(state, car_id)
     draft = draft or {}
     category, names = _resolve_tune_section(section)
-    fields = [_field_data(name, getattr(car.tune, name)) for name in names]
+    fields = [_field_data(name, _tune_current(car, name)) for name in names]
     rows = []
     for index, field_data in enumerate(fields, start=1):
         staged = _format_tune_value(draft[field_data.name]) if field_data.name in draft else ""
@@ -697,7 +719,7 @@ def _tune_preview_lines(car, draft: dict[str, Any]) -> list[str]:
     current_eff = compute_effective_stats(car, parts)
     tuned_car = deepcopy(car)
     for name, value in draft.items():
-        setattr(tuned_car.tune, name, value)
+        setattr(tune_target(tuned_car, name), name, value)
     tuned_eff = compute_effective_stats(tuned_car, parts)
 
     def delta(current: Any, new: Any, fmt: str = "{:.0f}") -> str:
@@ -729,7 +751,12 @@ def tune_fields_for_car(state: GameState, car_id: str) -> list[FieldData]:
     if car is None:
         raise ValueError(f"Unknown garage car: {car_id}")
     names = [name for _category, group in _TUNE_FIELD_GROUPS for name in group]
-    return [_field_data(name, getattr(car.tune, name)) for name in names]
+    return [_field_data(name, _tune_current(car, name)) for name in names]
+
+
+def _tune_current(car, name: str) -> Any:
+    """Current value of a tune-menu field, wherever it lives on the car."""
+    return getattr(tune_target(car, name), name)
 
 
 def _field_data(name: str, current: Any) -> FieldData:
@@ -744,7 +771,18 @@ def _field_data(name: str, current: Any) -> FieldData:
                 for value in sorted(ENGINE_MAP_POWER)
             ],
         )
-    minimum, maximum = TUNE_FIELD_RANGES[name]
+    if name == "tire_compound":
+        return FieldData(
+            name=name,
+            label=_field_label(name),
+            current=current,
+            value_type="choice",
+            options=[
+                OptionData(value=value, label=value.replace("_", " ").title())
+                for value in TIRE_COMPOUNDS
+            ],
+        )
+    minimum, maximum = TUNE_FIELD_RANGES.get(name) or CAR_MOD_FIELD_RANGES[name]
     value_type = "integer" if isinstance(current, int) else "number"
     return FieldData(
         name=name,
@@ -757,6 +795,34 @@ def _field_data(name: str, current: Any) -> FieldData:
 
 
 _TUNE_FIELD_LABELS: dict[str, str] = {
+    "tire_compound": "Tyre Compound",
+    "tire_width_front": "Tyre Width (F)",
+    "tire_width_rear": "Tyre Width (R)",
+    "base_grip": "Base Grip",
+    "wet_grip": "Wet Grip",
+    "tire_wear_resistance": "Wear Resistance",
+    "tire_heat_resistance": "Heat Resistance",
+    "tire_warmup": "Warmup",
+    "braking_power": "Braking Power",
+    "brake_stability": "Brake Stability",
+    "brake_cooling": "Brake Cooling",
+    "brake_fade_resistance": "Fade Resistance",
+    "weight_distribution_front": "Weight Dist (F)",
+    "center_of_gravity": "Centre of Gravity",
+    "chassis_rigidity": "Chassis Rigidity",
+    "stability": "Stability",
+    "rotation": "Rotation",
+    "handling": "Handling",
+    "mechanical_grip": "Mechanical Grip",
+    "suspension_compliance": "Compliance",
+    "curb_handling": "Curb Handling",
+    "bump_absorption": "Bump Absorption",
+    "steering_precision": "Steering Precision",
+    "downforce": "Downforce (Base)",
+    "drag": "Drag",
+    "aero_efficiency": "Aero Efficiency",
+    "high_speed_stability": "High-Speed Stability",
+    "fuel_efficiency": "Fuel Efficiency",
     "tire_pressure_front": "Tyre Pressure (F)",
     "tire_pressure_rear": "Tyre Pressure (R)",
     "camber_front": "Camber (F)",

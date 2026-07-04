@@ -5,6 +5,18 @@ de-pinned from the sample catalog, and honest about time. Newest first.
 
 ## UI consistency
 
+- **Creator knobs in the tune menu** — almost everything the creator can edit on a car
+  is now a tweakable knob in-game. The tune editor gains the creator's hard-mod stats
+  (28 new fields): the full Tyres group (compound/widths/grip/wear/heat/warmup), all
+  brake and suspension ratings, body aero (downforce/drag/efficiency/high-speed
+  stability), a new Chassis section (weight distribution, CoG, rigidity, stability,
+  rotation) and fuel efficiency — 50 knobs across 6 sections, same staged-draft flow,
+  free to apply. Hard mods write straight into the car's stat sections (they persist
+  through save/load and move PR/class live). Intrinsic properties stay creator-only:
+  identity/value, the engine itself (hp/torque/aspiration/powerband/throttle/cooling/
+  stress), weight_kg, durability build quality, fuel hardware, and condition (that's
+  wear). The compound vocabulary moved to `constants.TIRE_COMPOUNDS`, shared by the
+  creator and validated in-game (events' `allowed_tires` restrictions read it).
 - **Creator-style tune editor** — the in-game Tune flow now has the creator's look and
   feel: a sections menu (Tyres/Drivetrain/Brakes/Suspension/Aero) opens one group of
   knobs at a time instead of one flat 22-row screen, and the editor is a persistent

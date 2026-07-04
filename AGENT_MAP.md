@@ -42,7 +42,10 @@ game/
   actions.py         UI-neutral service layer for CLI and future web UI.
   economy.py         buy_car(), sell_car(), repair_car().
   market.py          list_market_cars().
-  tuning.py          set_tune(), update_tune_fields(), tune validation.
+  tuning.py          set_tune(), update_tune_fields(), tune validation. Covers setup
+                     knobs (TuneSetup) and garage-tweakable hard-mod car stats
+                     (constants.CAR_MOD_FIELD_SECTIONS); tune_target() maps a field
+                     name to the object that owns it.
   effective_stats.py compute_effective_stats(), derived_rating()/class_rating(),
                      performance_type(). Secondary car/tune/durability stats fold
                      into the 7 effective axes via centered factors (see the
@@ -103,6 +106,11 @@ tune_section_screen(state, car_id, section, draft=None)  # one section's knobs (
 stage_tune_value(state, car_id, field, value)   # validate one draft value (raises TuningError)
 apply_tune_draft(state, car_id, draft)          # atomic validated apply of the whole draft
 tune_fields_screen(state, car_id)               # legacy flat list (kept for API/tests)
+# The tune menu covers the full TuneSetup PLUS the garage-tweakable hard-mod stats
+# (constants.CAR_MOD_FIELD_SECTIONS): the creator's car knobs minus intrinsic
+# properties (identity/value, engine hp/torque/aspiration/character, weight_kg,
+# durability build quality, fuel hardware, condition). Hard mods write straight
+# into the car's stat sections and persist through save/load.
 race_screen(session, tick=None, error="",  # pinned constant-size panels incl. "Track" strip
             log_event_chars=None)          # (vertical dot mini-map; magnified gaps, no two rows
                                            # share unless times tie). log_event_chars = Event

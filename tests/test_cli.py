@@ -183,10 +183,10 @@ class CliTests(TestCase):
     def test_blank_tune_value_cancels_without_crashing(self) -> None:
         state = new_career()
         scripted_input = [
-            "1",   # car
-            "2",   # Drivetrain section
-            "6",   # engine_map (choice field) within the section
-            "",    # blank value: nothing staged
+            "1",           # car
+            "2",           # Drivetrain section
+            "engine map",  # engine_map (choice field) within the section
+            "",            # blank value: nothing staged
             "b",   # back to sections
             "b",   # back out (draft empty: exits cleanly)
         ]
@@ -200,10 +200,10 @@ class CliTests(TestCase):
     def test_tune_choice_field_staged_then_applied(self) -> None:
         state = new_career()
         scripted_input = [
-            "1",   # car
-            "2",   # Drivetrain section
-            "6",   # engine_map
-            "3",   # hot
+            "1",           # car
+            "2",           # Drivetrain section
+            "engine map",  # engine_map
+            "3",           # hot
             "b",   # back to sections (still only staged)
             "w",   # apply the draft
             "b",   # exit
@@ -239,7 +239,7 @@ class CliTests(TestCase):
         scripted_input = [
             "1",
             "2",
-            "6",
+            "engine map",
             "4",   # qualifying (raises power: the preview must show a delta arrow)
             "b",   # back to sections
             "b",   # try to leave with a staged change
