@@ -156,16 +156,22 @@ Validation run:
 
 ### Milestone 7: Status Bar Team XP Display
 
-Scope:
+Commit: `6635cff Show team XP in status bar`
 
-- Add compact Team Level/XP display to global status bar.
-- Suggested text:
-  - `Team Lv 2 [████░░░░] 145/250 XP`
-  - max level: `Team Lv 6 [MAX] 1320 XP`
-- Keep numeric XP for playtesting.
-- Update CLI/web tests affected by status bar output.
-- Update AGENT_MAP.
-- Commit milestone.
+Added:
+
+- `interfaces.menu.team_xp_status()`
+- global status bar Team Level/XP text for CLI and web screens
+- numeric XP readout for playtesting
+- max-level `[MAX]` display
+- CLI/web call-site updates to pass `state.team_xp`
+- focused tests for current-level progress and max-level formatting
+- AGENT_MAP status bar notes
+
+Validation run:
+
+- `python3 -m unittest tests.test_cli tests.test_web_adapter`
+- `python3 -m unittest discover -s tests`
 
 ### Milestone 8: Progression Probe Tool
 
