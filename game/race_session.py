@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import random
 from copy import deepcopy
+from dataclasses import dataclass
 
 from constants import (
     AI_COMMAND,
@@ -52,9 +53,9 @@ from game.loader import (
     resolve_race,
     roll_race_condition,
 )
-from game.models import RaceSession, RaceTickResult, TelemetryHistory
+from game.models import CarCondition, RaceSession, RaceTickResult, TelemetryHistory
 from game.opponents import build_opponent_grid, opponent_entry_labels, validate_event_entry
-from game.progression import team_level_for_xp
+from game.progression import TeamXpAward, normalize_event_progress, team_level_for_xp, team_xp_award, updated_event_progress
 from game.simulation import (
     SimulationError,
     _apply_lap_wear,
@@ -68,6 +69,26 @@ from game.simulation import (
     lap_time_over_interval,
 )
 from game.telemetry import failure_chance, failure_dnf_chance, mistake_chance, record_telemetry, warning_messages
+
+
+@dataclass
+class FinishEventResult:
+    prize_money: int
+    driver_progression_message: str
+    team_xp_award: TeamXpAward | None
+    team_xp_before: int
+    team_xp_after: int
+    event_progress_before: dict
+    event_progress_after: dict
+    player_position: int
+    player_is_dnf: bool
+    player_total_time_s: float | None
+    car_condition_before: CarCondition | None
+    car_condition_after: CarCondition | None
+
+    def __iter__(self):
+        yield self.prize_money
+        yield self.driver_progression_message
 
 
 def ticks_per_lap_for(lap_time_s: float) -> int:
@@ -151,6 +172,7 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
         ticks_per_lap=ticks_per_lap,
         current_sub_tick=0,
         effective_stats=effective_stats,
+        player_car_condition_before=deepcopy(garage_car.condition),
     )
 
 
@@ -321,12 +343,34 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
     )
 
 
-def finish_event(game_state: GameState, session: RaceSession) -> tuple[int, str]:
+def finish_event(game_state: GameState, session: RaceSession) -> FinishEventResult:
     player = _player_state(session)
     if player.is_dnf or session.event is None or session.track is None:
         prize_money = 0
     else:
         prize_money = _prize_for_position(session.event, player.position)
+    team_xp_before = game_state.team_xp
+    event_progress_before: dict = {}
+    event_progress_after: dict = {}
+    award: TeamXpAward | None = None
+    total_time_s = None if player.is_dnf else player.total_time
+    if session.event is not None:
+        event_progress_before = normalize_event_progress(game_state.event_progress.get(session.event.id))
+        award = team_xp_award(
+            session.event.car_class_limit,
+            session.event.event_kind,
+            position=player.position,
+            is_dnf=player.is_dnf,
+            event_progress_before=event_progress_before,
+        )
+        event_progress_after = updated_event_progress(
+            event_progress_before,
+            position=player.position,
+            is_dnf=player.is_dnf,
+            total_time_s=total_time_s,
+        )
+        game_state.team_xp += award.total_xp
+        game_state.event_progress[session.event.id] = event_progress_after
     game_state.money += prize_money
     game_state.week += 1
     if SALARY_WEEKLY_ENABLED:
@@ -334,15 +378,30 @@ def finish_event(game_state: GameState, session: RaceSession) -> tuple[int, str]
             round(driver.salary * SALARY_WEEKLY_FRACTION) for driver in game_state.hired_drivers
         )
     garage_car = _find_garage_car(game_state, player.car_id)
+    car_condition_after = None
     if garage_car is not None and session.track is not None:
         damage = PERCENT_MAX - player.condition_pct
         apply_post_race_wear(garage_car, session.track.length_km * session.current_lap, damage)
+        car_condition_after = deepcopy(garage_car.condition)
     progression_message = ""
     if not player.is_dnf:
         hired_driver = next((d for d in game_state.hired_drivers if d.id == player.driver_id), None)
         if hired_driver is not None:
             progression_message = _apply_driver_progression(hired_driver)
-    return prize_money, progression_message
+    return FinishEventResult(
+        prize_money=prize_money,
+        driver_progression_message=progression_message,
+        team_xp_award=award,
+        team_xp_before=team_xp_before,
+        team_xp_after=game_state.team_xp,
+        event_progress_before=event_progress_before,
+        event_progress_after=event_progress_after,
+        player_position=player.position,
+        player_is_dnf=player.is_dnf,
+        player_total_time_s=total_time_s,
+        car_condition_before=deepcopy(session.player_car_condition_before),
+        car_condition_after=car_condition_after,
+    )
 
 
 _PROGRESSION_STATS = ("pace", "consistency", "racecraft", "fitness", "mechanical_sympathy", "wet_skill")

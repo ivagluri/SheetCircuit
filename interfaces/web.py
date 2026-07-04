@@ -833,13 +833,12 @@ class WebGame:
         self._print_race_frame()
 
     def _finish_race(self) -> None:
-        cli._render_race_screen(self.state, self.session, self._last_tick, self._race_error)
         finished = finish_race_action(self.state, self.session)
+        terminal.header(finished.screen.title, finished.screen.subtitle)
+        self._print_status_menu("post race")
+        cli._render_action_screen(finished.screen)
         if self._race_error:
             terminal.print(self._race_error)
-        terminal.print(f"Race finished. Prize: ${finished.prize_money}")
-        for message in finished.screen.messages:
-            terminal.print(message)
         terminal.print("Enter to continue.")
         self.session = None
         self.race_paused = False

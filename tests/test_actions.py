@@ -14,17 +14,19 @@ from game.actions import (
     driver_detail_screen,
     events_screen,
     event_detail_screen,
+    finish_race_action,
     garage_screen,
     market_screen,
     market_car_detail_screen,
     race_screen,
     race_command_options,
+    simulate_to_end_action,
     start_race_action,
     tune_car_action,
     tune_fields_screen,
 )
 from game.game_state import GameState, new_career
-from game.loader import load_cars
+from game.loader import load_cars, load_drivers
 from game.sorting import parse_sort_spec
 from game.simulation import SimulationError
 from game.tuning import TuningError
@@ -428,6 +430,75 @@ class ActionLayerTests(unittest.TestCase):
         self.assertEqual(advanced.screen.name, "race")
         self.assertEqual(screen.tables[0].title, "Standings")
         self.assertIn("subtitle", asdict(screen))
+
+    def test_finish_race_commits_team_xp_event_progress_and_post_race_summary(self) -> None:
+        cars = {car.identity.id: car for car in load_cars()}
+        drivers = {driver.id: driver for driver in load_drivers()}
+        state = GameState(
+            garage=[deepcopy(cars["kanto_k660"])],
+            hired_drivers=[deepcopy(drivers["driver_novak"])],
+        )
+
+        session = start_race_action(state, "sunday_cup", "kanto_k660", "driver_novak", seed=3).session
+        simulate_to_end_action(session)
+        result = finish_race_action(state, session)
+
+        self.assertEqual(result.screen.name, "post_race")
+        self.assertEqual(
+            [table.title for table in result.screen.tables],
+            ["Final Standings", "Rewards", "Team Progress", "Event Progress", "Driver Progress", "Car Condition"],
+        )
+        self.assertIn("Race finished. Prize: $", result.screen.messages[0])
+        self.assertEqual(state.team_xp, 50)
+        self.assertEqual(state.event_progress["sunday_cup"]["starts"], 1)
+        self.assertEqual(state.event_progress["sunday_cup"]["wins"], 1)
+
+        rewards = dict(next(table for table in result.screen.tables if table.title == "Rewards").rows)
+        self.assertEqual(rewards["Team XP"], "+50")
+        self.assertEqual(rewards["Result XP"], "+25")
+        self.assertEqual(rewards["First Win Bonus"], "+25")
+        self.assertEqual(rewards["Repeat Multiplier"], "1.00x")
+
+        progress_rows = {
+            row[0]: row for row in next(table for table in result.screen.tables if table.title == "Event Progress").rows
+        }
+        self.assertEqual(progress_rows["Starts"], ["Starts", 0, 1])
+        self.assertEqual(progress_rows["Best Result"], ["Best Result", "No starts", "Win"])
+
+        driver_rows = dict(next(table for table in result.screen.tables if table.title == "Driver Progress").rows)
+        self.assertIn("+10 XP", driver_rows["Driver"])
+        condition_rows = {
+            row[0]: row for row in next(table for table in result.screen.tables if table.title == "Car Condition").rows
+        }
+        self.assertTrue(str(condition_rows["Mileage"][3]).startswith("+"))
+
+    def test_repeat_win_uses_repeat_multiplier_without_first_win_bonus(self) -> None:
+        cars = {car.identity.id: car for car in load_cars()}
+        state = GameState(
+            team_xp=50,
+            garage=[deepcopy(cars["kanto_k660"])],
+            event_progress={
+                "sunday_cup": {
+                    "starts": 1,
+                    "best_position": 1,
+                    "wins": 1,
+                    "podiums": 1,
+                    "best_time_s": 405.0,
+                }
+            },
+        )
+
+        session = start_race_action(state, "sunday_cup", "kanto_k660", "driver_novak", seed=3).session
+        simulate_to_end_action(session)
+        result = finish_race_action(state, session)
+
+        rewards = dict(next(table for table in result.screen.tables if table.title == "Rewards").rows)
+        self.assertEqual(state.team_xp, 71)
+        self.assertEqual(state.event_progress["sunday_cup"]["starts"], 2)
+        self.assertEqual(state.event_progress["sunday_cup"]["wins"], 2)
+        self.assertEqual(rewards["Team XP"], "+21")
+        self.assertEqual(rewards["First Win Bonus"], "-")
+        self.assertEqual(rewards["Repeat Multiplier"], "0.85x")
 
     def test_race_screen_caps_log_to_recent_events(self) -> None:
         cars = {car.identity.id: car for car in load_cars()}

@@ -379,6 +379,7 @@ class RaceSession:
     # whole race (condition and tune don't change mid-race), so ticks read this cache
     # instead of recomputing (which deep-copies the car) every tick for every car.
     effective_stats: dict[str, EffectiveCarStats] = field(default_factory=dict)
+    player_car_condition_before: CarCondition | None = None
 
 
 @dataclass

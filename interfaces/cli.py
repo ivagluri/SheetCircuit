@@ -918,9 +918,11 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
         _print_lap_bar(session, current_command, pending_command, speed_mult)
 
     finished = finish_race_action(state, session)
-    terminal.print(f"Race finished. Prize: ${finished.prize_money}")
-    for message in finished.screen.messages:
-        terminal.print(message)
+    terminal.clear()
+    terminal.header(finished.screen.title, finished.screen.subtitle)
+    terminal.print(status_bar(state.money, state.week, len(state.garage), "post race"))
+    terminal.menu(menu_bar())
+    _render_action_screen(finished.screen)
     terminal.pause()
 
 

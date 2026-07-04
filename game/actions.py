@@ -15,7 +15,7 @@ from game.loader import load_cars, load_drivers, load_events, load_parts, load_t
 from game.market import list_market_cars
 from game.models import RaceSession, RaceTickResult
 from game.race_session import apply_player_command, enter_event, finish_event
-from game.progression import team_level_for_xp
+from game.progression import team_level_for_xp, team_xp_progress
 from game.simulation import calculate_lap_time
 from game.save_load import load_game, save_game
 from game.sorting import SortSpec, sort_items, sort_label
@@ -1100,6 +1100,23 @@ def _standings_table(session: RaceSession, tick: RaceTickResult | None) -> Table
     return TableData("Standings", ["P", "Car", "Gap", "Last", "Tires", "Fuel"], rows)
 
 
+def _final_standings_table(session: RaceSession) -> TableData:
+    running = sorted((car for car in session.cars if not car.is_dnf), key=lambda car: car.position)
+    rows = [
+        [
+            car.position,
+            car.label,
+            format_race_clock(car.total_time),
+            f"{car.gap_to_leader:+.3f}",
+            f"{car.last_lap_time or 0.0:.3f}",
+            "Finished",
+        ]
+        for car in running
+    ]
+    rows.extend(["-", car.label, "DNF", "-", "-", "DNF"] for car in session.cars if car.is_dnf)
+    return TableData("Final Standings", ["P", "Car", "Total", "Gap", "Last", "Status"], rows)
+
+
 def race_screen(
     session: RaceSession,
     tick: RaceTickResult | None = None,
@@ -1162,6 +1179,113 @@ def race_screen(
         messages=messages,
         actions=race_command_options(),
     )
+
+
+def post_race_screen(session: RaceSession, result) -> ScreenData:
+    messages = [f"Race finished. Prize: ${result.prize_money}"]
+    tables = [
+        _final_standings_table(session),
+        _rewards_table(result),
+        _team_progress_table(result),
+        _event_progress_delta_table(result),
+        _driver_progress_table(result),
+        _car_condition_table(result),
+    ]
+    return ScreenData(
+        name="post_race",
+        title="Post Race",
+        subtitle=session.event.name if session.event is not None else session.event_id,
+        tables=tables,
+        messages=messages,
+    )
+
+
+def _rewards_table(result) -> TableData:
+    rows: list[list[object]] = [["Prize", f"${result.prize_money}"]]
+    award = result.team_xp_award
+    if award is not None:
+        rows.extend([
+            ["Team XP", f"+{award.total_xp}"],
+            ["Result XP", f"+{award.result_xp}"],
+            ["First Win Bonus", f"+{award.first_win_bonus}" if award.first_win_bonus else "-"],
+            ["Event Kind Multiplier", f"{award.event_kind_multiplier:.2f}x"],
+            ["Repeat Multiplier", f"{award.repeat_multiplier:.2f}x"],
+        ])
+    return TableData("Rewards", ["Reward", "Value"], rows)
+
+
+def _team_progress_table(result) -> TableData:
+    before = team_xp_progress(result.team_xp_before)
+    after = team_xp_progress(result.team_xp_after)
+    if after.next_level is None:
+        next_text = "Max level"
+    else:
+        next_text = f"Lv {after.next_level}: {after.xp_needed_for_next} XP needed"
+    return TableData(
+        "Team Progress",
+        ["Metric", "Before", "After"],
+        [
+            ["Team Level", f"Lv {before.level}", f"Lv {after.level}"],
+            ["Team XP", before.xp, after.xp],
+            ["Next Level", "-", next_text],
+        ],
+    )
+
+
+def _event_progress_delta_table(result) -> TableData:
+    before = result.event_progress_before
+    after = result.event_progress_after
+    return TableData(
+        "Event Progress",
+        ["Metric", "Before", "After"],
+        [
+            ["Starts", before.get("starts", 0), after.get("starts", 0)],
+            ["Best Result", event_best_text(before), event_best_text(after)],
+            ["Wins", before.get("wins", 0), after.get("wins", 0)],
+            ["Podiums", before.get("podiums", 0), after.get("podiums", 0)],
+            ["Best Time", _best_time_text(before.get("best_time_s")), _best_time_text(after.get("best_time_s"))],
+        ],
+    )
+
+
+def _driver_progress_table(result) -> TableData:
+    message = result.driver_progression_message or "No driver progression."
+    return TableData("Driver Progress", ["Metric", "Value"], [["Driver", message]])
+
+
+def _car_condition_table(result) -> TableData:
+    before = result.car_condition_before
+    after = result.car_condition_after
+    if before is None or after is None:
+        return TableData("Car Condition", ["Area", "Before", "After", "Change"], [["Condition", "-", "-", "-"]])
+    specs = [
+        ("Overall", "overall_condition", "{:.0f}%"),
+        ("Engine", "engine_condition", "{:.0f}%"),
+        ("Gearbox", "gearbox_condition", "{:.0f}%"),
+        ("Suspension", "suspension_condition", "{:.0f}%"),
+        ("Brakes", "brake_condition", "{:.0f}%"),
+        ("Body", "body_condition", "{:.0f}%"),
+        ("Tires", "tire_condition", "{:.0f}%"),
+        ("Mileage", "mileage", "{:,.0f} km"),
+    ]
+    rows = []
+    for label, field_name, fmt in specs:
+        old = getattr(before, field_name)
+        new = getattr(after, field_name)
+        rows.append([label, fmt.format(old), fmt.format(new), _condition_delta(old, new, " km" if field_name == "mileage" else "%")])
+    return TableData("Car Condition", ["Area", "Before", "After", "Change"], rows)
+
+
+def _best_time_text(value) -> str:
+    return f"{value:.1f}s" if value is not None else "-"
+
+
+def _condition_delta(before: float, after: float, suffix: str) -> str:
+    delta = after - before
+    sign = "+" if delta > 0 else ""
+    if suffix == " km":
+        return f"{sign}{delta:,.0f}{suffix}"
+    return f"{sign}{delta:.0f}{suffix}"
 
 
 def race_command_options() -> list[OptionData]:
@@ -1264,8 +1388,6 @@ def advance_to_lap_end_action(session: RaceSession, command: str = "normal") -> 
 
 
 def finish_race_action(state: GameState, session: RaceSession) -> RaceActionResult:
-    prize, progression_message = finish_event(state, session)
-    screen = race_screen(session)
-    if progression_message:
-        screen.messages.append(progression_message)
-    return RaceActionResult(session=session, screen=screen, prize_money=prize)
+    result = finish_event(state, session)
+    screen = post_race_screen(session, result)
+    return RaceActionResult(session=session, screen=screen, prize_money=result.prize_money)

@@ -68,6 +68,9 @@ game/
                      ticks_per_lap_for(lap_s) sets tick density from *watched* wall-clock
                      (lap_s / PRESENTATION_SPEED_FACTOR * TICK_RATE_HZ), using the player's
                      nominal lap pace -> a slow car genuinely takes longer to watch.
+                     `finish_event()` commits money/week, Team XP, event progress,
+                     driver XP, and car wear, returning `FinishEventResult`; sessions
+                     snapshot the player's pre-race car condition for post-race deltas.
   telemetry.py       Telemetry history, warnings, mistake/failure probabilities.
   sorting.py         SortSpec parsing and per-screen list sorting (class/PR/type-aware).
 
@@ -246,7 +249,9 @@ advance_race_action()
 
 finish_race_action()
   -> finish_event()
-    -> prize money, mileage, wear
+    -> prize money, Team XP, event progress, driver XP, mileage, wear
+  -> ScreenData(name="post_race") with Final Standings, Rewards, Team Progress,
+     Event Progress, Driver Progress, and Car Condition tables
 ```
 
 Segment-resolved simulation: the whole field shares one track position each tick
