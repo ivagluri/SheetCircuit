@@ -83,6 +83,7 @@ def driver_rows(drivers: list[Driver], sort_spec: SortSpec | None = None) -> lis
             driver.pace,
             driver.consistency,
             driver.feedback,
+            driver.potential,
             f"${driver.salary}",
         ]
         for index, driver in enumerate(sorted_drivers, start=1)

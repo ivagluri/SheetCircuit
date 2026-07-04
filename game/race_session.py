@@ -43,6 +43,7 @@ from constants import (
 )
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
+from game.market import maybe_refresh_free_agents
 from game.loader import (
     apply_race_condition,
     load_cars,
@@ -373,6 +374,7 @@ def finish_event(game_state: GameState, session: RaceSession) -> FinishEventResu
         game_state.event_progress[session.event.id] = event_progress_after
     game_state.money += prize_money
     game_state.week += 1
+    maybe_refresh_free_agents(game_state)
     if SALARY_WEEKLY_ENABLED:
         game_state.money -= sum(
             round(driver.salary * SALARY_WEEKLY_FRACTION) for driver in game_state.hired_drivers
@@ -413,8 +415,10 @@ def _apply_driver_progression(driver) -> str:
     gains_before = xp_before // DRIVER_XP_PER_STAT_POINT
     gains_after = driver.experience // DRIVER_XP_PER_STAT_POINT
     messages = [f"{driver.name} +{DRIVER_XP_PER_RACE} XP (total: {driver.experience})"]
+    # A driver's own potential ceiling caps growth, never above the universal stat cap.
+    cap = min(getattr(driver, "potential", DRIVER_STAT_CAP), DRIVER_STAT_CAP)
     for _ in range(gains_after - gains_before):
-        eligible = [(getattr(driver, s), s) for s in _PROGRESSION_STATS if getattr(driver, s) < DRIVER_STAT_CAP]
+        eligible = [(getattr(driver, s), s) for s in _PROGRESSION_STATS if getattr(driver, s) < cap]
         if not eligible:
             break
         _, stat = min(eligible)

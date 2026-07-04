@@ -12,8 +12,8 @@ from constants import (
     SELL_VALUE_FACTOR,
 )
 from game.game_state import GameState
-from game.loader import load_cars, load_drivers
-from game.market import list_market_cars
+from game.loader import load_cars
+from game.market import list_free_agents, list_market_cars
 
 
 class EconomyError(ValueError):
@@ -76,16 +76,17 @@ def repair_car(game_state: GameState, car_id: str, points: float = REPAIR_MAX_PO
 
 
 def hire_driver(game_state: GameState, driver_id: str) -> GameState:
-    pool = {driver.id: driver for driver in load_drivers()}
-    if driver_id not in pool:
-        raise EconomyError(f"Unknown driver: {driver_id}")
+    pool = list_free_agents(game_state)
+    driver = next((d for d in pool if d.id == driver_id), None)
+    if driver is None:
+        raise EconomyError(f"Driver {driver_id} is not on the market")
     if any(d.id == driver_id for d in game_state.hired_drivers):
-        raise EconomyError(f"{pool[driver_id].name} is already on your team")
-    driver = pool[driver_id]
+        raise EconomyError(f"{driver.name} is already on your team")
     if game_state.money < driver.salary:
         raise EconomyError(f"Insufficient funds to hire {driver.name} (salary: ${driver.salary})")
     game_state.money -= driver.salary
     game_state.hired_drivers.append(deepcopy(driver))
+    game_state.free_agents = [d for d in game_state.free_agents if d.id != driver_id]
     return game_state
 
 

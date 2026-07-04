@@ -389,6 +389,55 @@ RIVAL_REACTIVE_GAP_S = 1.0       # opponents push only in an immediate battle wi
 LOW_FEEDBACK_THRESHOLD = 50
 HIGH_FEEDBACK_THRESHOLD = 75
 
+# --- Procedural drivers (see game/driver_gen.py, game/market.py) ---
+# Intrinsic driver archetypes, mirroring the philosophy of editor.fields.CAR_ARCHETYPES:
+# each is an anchored skill band + personality bias + potential headroom, defined here
+# NOT derived from the seed roster (see the project's de-pin philosophy). Generated
+# drivers roll a skill in [skill_lo, skill_hi]; `bias` shifts specific stat anchors;
+# `headroom` is added to the driver's peak current stat to get their potential ceiling.
+DRIVER_ARCHETYPES: list[tuple[str, str, dict]] = [
+    (
+        "Rookie",
+        "raw and cheap; wide, high ceiling that may or may not pan out",
+        {"skill": (26, 46), "headroom": (20, 36), "bias": {"consistency": -6, "aggression": 4}},
+    ),
+    (
+        "Journeyman",
+        "dependable mid-pack pro with little growth left",
+        {"skill": (50, 64), "headroom": (3, 11), "bias": {"consistency": 6}},
+    ),
+    (
+        "Ace",
+        "front-running talent, already near their ceiling",
+        {"skill": (72, 86), "headroom": (2, 9), "bias": {"racecraft": 5, "consistency": 4}},
+    ),
+    (
+        "Wet specialist",
+        "modest in the dry, mercurial in the rain",
+        {"skill": (46, 62), "headroom": (8, 18), "bias": {"wet_skill": 20, "consistency": 2}},
+    ),
+    (
+        "Hothead",
+        "blazing pace, fragile temperament",
+        {"skill": (54, 70), "headroom": (10, 22), "bias": {"aggression": 24, "consistency": -14, "mechanical_sympathy": -8}},
+    ),
+]
+
+# Free-agent market: a persisted, rotating hireable pool (see game/market.py). Every
+# FREE_AGENT_REFRESH_WEEKS the pool churns -- up to FREE_AGENT_CHURN of the passed-over
+# agents are replaced by freshly generated ones, refilling to FREE_AGENT_POOL_SIZE.
+FREE_AGENT_POOL_SIZE = 6
+FREE_AGENT_REFRESH_WEEKS = 4
+FREE_AGENT_CHURN = 3
+
+# Generated hire price (the Driver.salary one-off hire fee). Scales super-linearly with
+# current ability and carries a premium for potential headroom, so a promising rookie is
+# never a free arbitrage. Monotonic in both current ability and potential.
+SALARY_BASE = 600
+SALARY_ABILITY_REF = 40          # reference mean progressable stat
+SALARY_ABILITY_EXP = 2.2
+SALARY_POTENTIAL_COEF = 0.8
+
 # Car class is derived at runtime (game/reference_suite.py): PR = mean capability
 # composite across the drag/slalom/hybrid fixtures, scaled, then bracketed. The scale
 # puts PR on a familiar ~150-1100 band; the thresholds are intrinsic capability levels

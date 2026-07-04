@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 
-from constants import STARTING_MONEY, STARTING_WEEK
+from constants import FREE_AGENT_POOL_SIZE, STARTING_MONEY, STARTING_WEEK
+from game.driver_gen import generate_market_pool
 from game.loader import load_cars, load_drivers
 from game.models import Car, Driver
 
@@ -15,6 +17,11 @@ class GameState:
     garage: list[Car] = field(default_factory=list)
     hired_drivers: list[Driver] = field(default_factory=list)
     event_progress: dict[str, dict] = field(default_factory=dict)
+    # Persisted rotating free-agent market (see game/market.py). market_seed makes each
+    # career's market unique; free_agents_week is the week the pool last churned.
+    free_agents: list[Driver] = field(default_factory=list)
+    free_agents_week: int = 0
+    market_seed: int = 0
 
 
 def new_game() -> GameState:
@@ -40,7 +47,18 @@ def _starter_driver(drivers: list[Driver]) -> Driver:
 
 
 def new_career() -> GameState:
-    return GameState(
+    drivers = load_drivers()
+    starter = _starter_driver(drivers)
+    state = GameState(
         garage=[_starter_car(load_cars())],
-        hired_drivers=[_starter_driver(load_drivers())],
+        hired_drivers=[starter],
+        market_seed=random.randrange(1_000_000_000),
     )
+    # The hand-authored seed drivers (minus the one you start with) remain in the world as
+    # flavour, seeded into the opening market; procedural agents fill the rest to size.
+    others = [d for d in drivers if d.id != starter.id]
+    rng = random.Random(state.market_seed * 1_000_003 + state.week)
+    fill = max(0, FREE_AGENT_POOL_SIZE - len(others))
+    state.free_agents = others + generate_market_pool(rng, fill, id_prefix=f"fa_w{state.week}")
+    state.free_agents_week = state.week
+    return state

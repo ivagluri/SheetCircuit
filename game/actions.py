@@ -12,7 +12,7 @@ from game.effective_stats import class_breakdown, class_rating, compute_effectiv
 from game.event_display import event_best_text, event_kind_label, event_progress_rows, event_requirement_text, team_status_text, xp_needed_for_team_level
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
-from game.market import list_market_cars
+from game.market import list_free_agents, list_market_cars
 from game.models import RaceSession, RaceTickResult
 from game.race_session import apply_player_command, enter_event, finish_event
 from game.progression import team_level_for_xp, team_xp_progress
@@ -113,32 +113,21 @@ def garage_screen(state: GameState, sort_spec: SortSpec | None = None) -> Screen
 
 
 def drivers_screen(state: GameState, sort_spec: SortSpec | None = None) -> ScreenData:
-    all_drivers = load_drivers()
     hired_ids = {d.id for d in state.hired_drivers}
     hired = sort_items("drivers", state.hired_drivers, sort_spec)
-    available = sort_items("drivers", [d for d in all_drivers if d.id not in hired_ids], sort_spec)
+    available = sort_items("drivers", [d for d in list_free_agents(state) if d.id not in hired_ids], sort_spec)
+    headers = ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"]
+
+    def _rows(drivers):
+        return [
+            [index, d.id, d.name, d.pace, d.consistency, d.feedback, d.potential, f"${d.salary}"]
+            for index, d in enumerate(drivers, start=1)
+        ]
+
     tables = []
     if hired:
-        tables.append(
-            TableData(
-                _table_title("Your Team", "drivers", sort_spec),
-                ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"],
-                [
-                    [index, d.id, d.name, d.pace, d.consistency, d.feedback, f"${d.salary}"]
-                    for index, d in enumerate(hired, start=1)
-                ],
-            )
-        )
-    tables.append(
-        TableData(
-            _table_title("Available Drivers", "drivers", sort_spec),
-            ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"],
-            [
-                [index, d.id, d.name, d.pace, d.consistency, d.feedback, f"${d.salary}"]
-                for index, d in enumerate(available, start=1)
-            ],
-        )
-    )
+        tables.append(TableData(_table_title("Your Team", "drivers", sort_spec), headers, _rows(hired)))
+    tables.append(TableData(_table_title("Free Agents", "drivers", sort_spec), headers, _rows(available)))
     return ScreenData(name="drivers", title="Drivers", tables=tables)
 
 
@@ -480,8 +469,13 @@ def _car_extended_screen(car, name: str) -> ScreenData:
     )
 
 
-def driver_detail_screen(driver_id: str) -> ScreenData:
-    driver = next((driver for driver in load_drivers() if driver.id == driver_id), None)
+def driver_detail_screen(driver_id: str, state: GameState | None = None) -> ScreenData:
+    # Drivers can be hired, on the free-agent market, or (for reference) in the seed
+    # roster; search all of them so generated drivers resolve, not just seed ids.
+    candidates = list(load_drivers())
+    if state is not None:
+        candidates = list(state.hired_drivers) + list(state.free_agents) + candidates
+    driver = next((driver for driver in candidates if driver.id == driver_id), None)
     if driver is None:
         raise ValueError(f"Unknown driver: {driver_id}")
     rows = [
@@ -493,6 +487,7 @@ def driver_detail_screen(driver_id: str) -> ScreenData:
         ["Aggression", driver.aggression, "aggression"],
         ["Mechanical Sympathy", driver.mechanical_sympathy, "mechanical_sympathy"],
         ["Wet Skill", driver.wet_skill, "wet_skill"],
+        ["Potential", driver.potential, "potential"],
         ["Salary", f"${driver.salary}", "salary"],
         ["Experience", driver.experience, "experience"],
     ]
@@ -833,7 +828,7 @@ def race_entry_screen(state: GameState, step: str = "events", sort_spec: SortSpe
         drivers = sort_items("drivers", state.hired_drivers or load_drivers(), sort_spec)
         screen = drivers_screen(state, sort_spec)
         screen.tables[0].rows = [
-            [index, driver.id, driver.name, driver.pace, driver.consistency, driver.feedback, f"${driver.salary}"]
+            [index, driver.id, driver.name, driver.pace, driver.consistency, driver.feedback, driver.potential, f"${driver.salary}"]
             for index, driver in enumerate(drivers, start=1)
         ]
         return screen

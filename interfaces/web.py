@@ -72,7 +72,7 @@ MODE_RACE = "race"
 MODE_RACE_RESULT = "race_result"
 
 _GARAGE_HEADERS = ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"]
-_DRIVER_HEADERS = ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"]
+_DRIVER_HEADERS = ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"]
 _EVENT_HEADERS = ["#", "ID", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"]
 
 _PROMPT_LABELS = {
@@ -509,9 +509,7 @@ class WebGame:
         return car_extended_screen(self.state, car.identity.id)
 
     def _available_drivers(self):
-        hired_ids = {d.id for d in self.state.hired_drivers}
-        available = [d for d in load_drivers() if d.id not in hired_ids]
-        return sort_items("drivers", available, cli._screen_sort("drivers"))
+        return cli._sorted_available_drivers(self.state)
 
     def _entry_drivers(self):
         return sort_items("drivers", self.state.hired_drivers or load_drivers(), cli._screen_sort("drivers"))

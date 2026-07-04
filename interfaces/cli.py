@@ -353,7 +353,7 @@ def _screen_selection(state: GameState, screen: str, raw: str):
     if screen == "drivers":
         combined = _sorted_hired_drivers(state) + _sorted_available_drivers(state)
         driver = _select_from_collection(combined, raw, lambda item: item.id)
-        return driver_detail_screen(driver.id) if driver is not None else None
+        return driver_detail_screen(driver.id, state) if driver is not None else None
     if screen == "events":
         events = _sorted_events()
         event = _select_from_collection(events, raw, lambda item: item.id)
@@ -445,9 +445,11 @@ def _sorted_hired_drivers(state: GameState):
 
 
 def _sorted_available_drivers(state: GameState):
-    all_drivers = load_drivers()
+    from game.market import list_free_agents
+
     hired_ids = {d.id for d in state.hired_drivers}
-    return sort_items("drivers", [d for d in all_drivers if d.id not in hired_ids], _screen_sort("drivers"))
+    available = [d for d in list_free_agents(state) if d.id not in hired_ids]
+    return sort_items("drivers", available, _screen_sort("drivers"))
 
 
 def _render_action_screen(screen) -> None:
@@ -748,8 +750,7 @@ def _load_picker(state: GameState) -> GameState:
 
 def _hire_picker(state: GameState) -> None:
     def available_drivers():
-        hired_ids = {d.id for d in state.hired_drivers}
-        return sort_items("drivers", [d for d in load_drivers() if d.id not in hired_ids], _screen_sort("drivers"))
+        return _sorted_available_drivers(state)
 
     if not available_drivers():
         terminal.print("No drivers available to hire.")
@@ -761,7 +762,7 @@ def _hire_picker(state: GameState) -> None:
         terminal.print(status_bar(state.money, state.week, len(state.garage), "hire", state.team_xp))
         terminal.menu(menu_bar())
         available = available_drivers()
-        terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(available))
+        terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(available))
         return available
 
     driver = _choose(show(), lambda item: item.id, "Hire", sort_screen="drivers", refresh=show)
@@ -783,7 +784,7 @@ def _fire_picker(state: GameState) -> None:
         terminal.print(status_bar(state.money, state.week, len(state.garage), "fire", state.team_xp))
         terminal.menu(menu_bar())
         drivers = _sorted_hired_drivers(state)
-        terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
+        terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(drivers))
         return drivers
 
     driver = _choose(show(), lambda item: item.id, "Release", sort_screen="drivers", refresh=show)
@@ -828,7 +829,7 @@ def _race_picker(state: GameState) -> None:
         terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry", state.team_xp))
         terminal.menu(menu_bar())
         drivers = sort_items("drivers", state.hired_drivers or load_drivers(), _screen_sort("drivers"))
-        terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
+        terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(drivers))
         return drivers
 
     driver = _choose(show_drivers(), lambda item: item.id, "Driver", sort_screen="drivers", refresh=show_drivers)

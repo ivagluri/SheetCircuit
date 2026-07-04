@@ -237,6 +237,10 @@ class Driver:
     wet_skill: int
     salary: int
     experience: int = 0
+    # Development ceiling: XP progression cannot raise a stat past this (see
+    # race_session._apply_driver_progression). Default 99 keeps pre-feature saves and
+    # any driver without an authored potential behaving exactly as before.
+    potential: int = 99
 
 
 @dataclass

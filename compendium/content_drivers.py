@@ -1,36 +1,48 @@
 """Drivers chapter.
 
-Unlike cars/tracks/events there is no creator schema to harvest from — drivers
-are a fixed seed roster you hire and fire, and their stats only move through
-race XP. So every entry is hand-built here, one per field of the ``Driver``
-dataclass (``game/models.py``). The ``source`` notes cite the mechanic each
+Unlike cars/tracks/events there is no creator schema to harvest from, so every
+field entry is hand-built here, one per field of the ``Driver`` dataclass
+(``game/models.py``). Drivers are procedurally generated into a rotating
+free-agent market you scout and hire from; their stats then develop through race
+XP up to a per-driver potential ceiling. A Presets section documents the intrinsic
+archetypes the generator draws from. The ``source`` notes cite the mechanic each
 stat actually drives, for maintainers; they are not shown to players.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import fields as dataclass_fields
 from typing import Any
 
-from constants import DRIVER_STAT_CAP
+from constants import DRIVER_ARCHETYPES, DRIVER_STAT_CAP
 from game.models import Driver
 from compendium.model import Chapter, Entry, Section
 
 DOMAIN = "driver"
-_EDITABLE = ("derived",)  # not player-editable; fixed roster, stats grow via XP
+_EDITABLE = ("derived",)  # not player-editable; generated/hired, stats grow via XP
 _SKILL_RANGE = (0, DRIVER_STAT_CAP)
+_ARCHETYPE_SECTION = "Archetypes (Market)"
 
 CHAPTER_INTRO: str = (
-    "Drivers are not built in an editor — you hire them from a fixed roster and let "
-    "them earn their improvements on track. Skills sit on a 0-99 scale. After each "
-    "race a driver banks experience, and every so often that XP raises whichever of "
-    "their progression skills is currently lowest, up to the 99 cap. Two traits — "
-    "feedback and aggression — are fixed personality and never change. Because you "
-    "cannot set these directly, every row here is marked read-only; the value is in "
-    "knowing what to look for when signing a driver and how they will grow."
+    "Drivers are not built in an editor — you scout and hire them from a rotating "
+    "free-agent market. Skills sit on a 0-99 scale. After each race a driver banks "
+    "experience, and every so often that XP raises whichever of their progression "
+    "skills is currently lowest — up to their personal potential ceiling, and never "
+    "past the 99 cap. Two traits — feedback and aggression — are fixed personality and "
+    "never change. The market refreshes every few weeks: a cheap rookie with a high "
+    "potential can grow into a star, while a finished veteran is already near their "
+    "ceiling. Every row here is read-only; the value is in knowing what to look for "
+    "when signing a driver and how they will grow."
 )
 
 SECTION_INTROS: dict[str, str] = {
+    _ARCHETYPE_SECTION: (
+        "How the market is stocked. Every generated free agent is rolled from one of "
+        "these intrinsic archetypes — a skill band, a personality bias, and how much "
+        "room they have to grow into their potential. They are design templates, not "
+        "copies of the hand-authored starting drivers."
+    ),
     "Identity": "Who the driver is. Labels only — no performance effect.",
     "Skills": (
         "The eight ability ratings. Six of them (pace, consistency, racecraft, fitness, "
@@ -95,8 +107,13 @@ _STATS: dict[str, dict[str, Any]] = {
     },
     "salary": {
         "section": "Career", "label": "salary", "units": "$",
-        "effect": "Weekly wage — the hiring cost and ongoing upkeep you pay to keep them.",
-        "source": "constants.py:328-331 SALARY_WEEKLY_*",
+        "effect": "Hire fee — the one-off cost to sign them, scaling with ability and potential.",
+        "prose": (
+            "For generated free agents the fee is computed from current ability (super-linearly) plus a "
+            "premium for potential headroom, so a promising rookie is never a free pickup. Optional weekly "
+            "upkeep exists but is disabled by default."
+        ),
+        "source": "game/driver_gen.py compute_salary; constants.py SALARY_* ; upkeep constants.py:328-331 SALARY_WEEKLY_*",
     },
     "experience": {
         "section": "Career", "label": "experience", "units": "XP",
@@ -109,9 +126,40 @@ _STATS: dict[str, dict[str, Any]] = {
         ),
         "source": "constants.py:146-148 DRIVER_XP_*; game/race_session.py:407-423",
     },
+    "potential": {
+        "section": "Career", "label": "potential", "value_range": _SKILL_RANGE,
+        "effect": "Development ceiling — XP progression cannot raise any skill past this value.",
+        "prose": (
+            "Potential is a single number showing how high this driver's skills can ultimately climb. A "
+            "rookie may sit well below their potential and grow into it over many races; a veteran is often "
+            "already at their ceiling. It caps growth only — it never lowers a stat — and a driver whose "
+            "current skills already exceed a low potential simply stops improving."
+        ),
+        "source": "game/models.py Driver.potential; game/race_session.py:407-423 _apply_driver_progression",
+    },
 }
 
 _SECTION_ORDER = ("Identity", "Skills", "Career")
+
+
+def _slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
+def _archetype_section() -> Section:
+    entries = tuple(
+        Entry(
+            id=f"{DOMAIN}.archetype.{_slug(name)}",
+            domain=DOMAIN,
+            section=_ARCHETYPE_SECTION,
+            label=name,
+            effect_summary=description,
+            editable_in=_EDITABLE,
+            source="constants.py DRIVER_ARCHETYPES; game/driver_gen.py generate_from_archetype",
+        )
+        for name, description, _spec in DRIVER_ARCHETYPES
+    )
+    return Section(title=_ARCHETYPE_SECTION, intro=SECTION_INTROS[_ARCHETYPE_SECTION], entries=entries)
 
 
 def build_chapter() -> Chapter:
@@ -122,7 +170,7 @@ def build_chapter() -> Chapter:
     if missing:
         raise AssertionError(f"undocumented Driver fields: {missing}")
 
-    sections: list[Section] = []
+    sections: list[Section] = [_archetype_section()]
     for section_title in _SECTION_ORDER:
         entries = tuple(
             Entry(

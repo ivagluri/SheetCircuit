@@ -1,6 +1,6 @@
 [
-  {"id": "driver_novak", "name": "Pete Novak", "pace": 52, "consistency": 58, "racecraft": 45, "feedback": 38, "fitness": 60, "aggression": 42, "mechanical_sympathy": 55, "wet_skill": 40, "salary": 0, "experience": 0},
-  {"id": "driver_rashid", "name": "Kenji Rashid", "pace": 68, "consistency": 38, "racecraft": 70, "feedback": 42, "fitness": 55, "aggression": 82, "mechanical_sympathy": 28, "wet_skill": 50, "salary": 800, "experience": 0},
-  {"id": "driver_costa", "name": "Marta Costa", "pace": 42, "consistency": 72, "racecraft": 55, "feedback": 85, "fitness": 68, "aggression": 25, "mechanical_sympathy": 80, "wet_skill": 65, "salary": 600, "experience": 0},
-  {"id": "driver_bellamy", "name": "Dale Bellamy", "pace": 78, "consistency": 75, "racecraft": 72, "feedback": 65, "fitness": 78, "aggression": 55, "mechanical_sympathy": 65, "wet_skill": 70, "salary": 2200, "experience": 0}
+  {"id": "driver_novak", "name": "Pete Novak", "pace": 52, "consistency": 58, "racecraft": 45, "feedback": 38, "fitness": 60, "aggression": 42, "mechanical_sympathy": 55, "wet_skill": 40, "salary": 0, "experience": 0, "potential": 68},
+  {"id": "driver_rashid", "name": "Kenji Rashid", "pace": 68, "consistency": 38, "racecraft": 70, "feedback": 42, "fitness": 55, "aggression": 82, "mechanical_sympathy": 28, "wet_skill": 50, "salary": 800, "experience": 0, "potential": 76},
+  {"id": "driver_costa", "name": "Marta Costa", "pace": 42, "consistency": 72, "racecraft": 55, "feedback": 85, "fitness": 68, "aggression": 25, "mechanical_sympathy": 80, "wet_skill": 65, "salary": 600, "experience": 0, "potential": 84},
+  {"id": "driver_bellamy", "name": "Dale Bellamy", "pace": 78, "consistency": 75, "racecraft": 72, "feedback": 65, "fitness": 78, "aggression": 55, "mechanical_sympathy": 65, "wet_skill": 70, "salary": 2200, "experience": 0, "potential": 85}
 ]

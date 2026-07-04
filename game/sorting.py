@@ -146,6 +146,7 @@ _DRIVER_SORT_OPTIONS = [
         ("mechanical", "mechanical_sympathy", "mech"),
     ),
     SortOption("wet", "Wet Skill", lambda driver: driver.wet_skill, True, ("wet_skill",)),
+    SortOption("potential", "Potential", lambda driver: driver.potential, True, ("pot", "ceiling")),
     SortOption("salary", "Salary", lambda driver: driver.salary, aliases=("cost", "pay")),
     SortOption("experience", "Experience", lambda driver: driver.experience, True, ("xp",)),
 ]

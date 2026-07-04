@@ -66,6 +66,7 @@ from constants import (
 )
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
+from game.market import maybe_refresh_free_agents
 from game.loader import (
     apply_race_condition,
     load_cars,
@@ -309,6 +310,7 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
     prize_money = _prize_for_position(event, player_state.position)
     game_state.money += prize_money
     game_state.week += 1
+    maybe_refresh_free_agents(game_state)
     garage_car = _find_garage_car(game_state, car_id)
     if garage_car is not None:
         damage = PERCENT_MAX - player_state.condition_pct

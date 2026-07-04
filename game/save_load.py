@@ -26,6 +26,9 @@ def game_state_to_dict(game_state: GameState) -> dict[str, Any]:
             event_id: dict(progress)
             for event_id, progress in game_state.event_progress.items()
         },
+        "free_agents": [asdict(driver) for driver in game_state.free_agents],
+        "free_agents_week": game_state.free_agents_week,
+        "market_seed": game_state.market_seed,
     }
 
 
@@ -40,6 +43,9 @@ def game_state_from_dict(data: dict[str, Any]) -> GameState:
             str(event_id): normalize_event_progress(progress)
             for event_id, progress in data.get("event_progress", {}).items()
         },
+        free_agents=[driver_from_dict(driver_data) for driver_data in data.get("free_agents", [])],
+        free_agents_week=int(data.get("free_agents_week", 0)),
+        market_seed=int(data.get("market_seed", 0)),
     )
 
 

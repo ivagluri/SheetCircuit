@@ -82,13 +82,13 @@ class CliTests(TestCase):
         cli._SCREEN_SORTS.clear()
 
     def test_hire_picker_accepts_sort(self) -> None:
-        from game.loader import load_drivers
+        from game.market import list_free_agents
         from game.sorting import SortSpec, sort_items
 
         state = new_career()
         cli._SCREEN_SORTS.clear()
         hired_ids = {d.id for d in state.hired_drivers}
-        available = [d for d in load_drivers() if d.id not in hired_ids]
+        available = [d for d in list_free_agents(state) if d.id not in hired_ids]
         priciest = sort_items("drivers", available, SortSpec("salary", True))[0]
 
         with patch("builtins.input", side_effect=["sort salary desc", "1"]), contextlib.redirect_stdout(io.StringIO()) as output:
