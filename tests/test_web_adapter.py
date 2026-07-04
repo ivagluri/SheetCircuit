@@ -15,6 +15,7 @@ from interfaces.web import (
     MODE_RACE_EVENT,
     MODE_RACE_RESULT,
     MODE_TUNE_CAR,
+    MODE_TUNE_SECTIONS,
     WebGame,
     install_stdin_guard,
 )
@@ -203,57 +204,101 @@ class WebPickerTests(TestCase):
 
 
 class WebTuneTests(TestCase):
-    def test_tune_numeric_field_three_steps(self) -> None:
-        game = make_game()
-        out = game.handle_input("t")
-        self.assertIn("Tune", out)
-        out = game.handle_input("1")
+    # Section-based tune editor (creator look and feel): car -> sections -> fields
+    # -> value. Edits stage into a draft; [W] applies atomically.
+
+    def _open_tyres_section(self, game: WebGame) -> str:
+        game.handle_input("t")
+        out = game.handle_input("1")  # car
+        self.assertEqual(meta(game)["mode"], MODE_TUNE_SECTIONS)
+        self.assertIn("Setup Sections", out)
+        out = game.handle_input("1")  # Tyres
         self.assertEqual(meta(game)["mode"], "tune_field")
         self.assertIn("Tyre Pressure (F)", out)
+        return out
+
+    def test_tune_numeric_field_staged_then_applied(self) -> None:
+        game = make_game()
+        self._open_tyres_section(game)
         out = game.handle_input("1")
         self.assertEqual(meta(game)["mode"], "tune_value")
         self.assertIn("Value (", meta(game)["prompt_label"])
         out = game.handle_input("2.2")
-        self.assertIn("Updated", out)
-        self.assertEqual(meta(game)["mode"], MODE_MENU)
+        self.assertEqual(meta(game)["mode"], "tune_field")
+        self.assertIn("2.2", out)  # staged column
+        self.assertNotEqual(game.state.garage[0].tune.tire_pressure_front, 2.2)  # not yet applied
+        game.handle_input("b")  # back to sections
+        out = game.handle_input("w")  # apply
+        self.assertIn("Setup applied", out)
         self.assertEqual(game.state.garage[0].tune.tire_pressure_front, 2.2)
+        self.assertEqual(meta(game)["mode"], MODE_TUNE_SECTIONS)
 
     def test_tune_option_field_by_number(self) -> None:
         game = make_game()
         game.handle_input("t")
         game.handle_input("1")
+        game.handle_input("2")  # Drivetrain
         out = game.handle_input("engine map")
         self.assertEqual(meta(game)["prompt_label"], "Option")
         self.assertIn("Engine Map Options", out)
-        out = game.handle_input("1")
-        self.assertIn("Updated engine_map", out)
+        game.handle_input("3")  # hot: staged
+        game.handle_input("b")
+        out = game.handle_input("w")
+        self.assertIn("Setup applied", out)
+        self.assertEqual(game.state.garage[0].tune.engine_map, "hot")
 
-    def test_tune_unknown_option_surfaces_error(self) -> None:
+    def test_tune_unknown_option_stays_in_editor(self) -> None:
         game = make_game()
         game.handle_input("t")
         game.handle_input("1")
+        game.handle_input("2")
         game.handle_input("engine map")
         out = game.handle_input("warp")
-        self.assertIn("Error: Unknown option", out)
-        self.assertEqual(meta(game)["mode"], MODE_MENU)
+        self.assertIn("Rejected: Unknown option", out)
+        self.assertEqual(meta(game)["mode"], "tune_field")
 
-    def test_tune_value_out_of_range_surfaces_error(self) -> None:
+    def test_tune_value_out_of_range_stays_in_editor(self) -> None:
         game = make_game()
-        game.handle_input("t")
-        game.handle_input("1")
+        self._open_tyres_section(game)
         game.handle_input("1")
         out = game.handle_input("99")
-        self.assertIn("Error:", out)
-        self.assertEqual(meta(game)["mode"], MODE_MENU)
+        self.assertIn("Rejected:", out)
+        self.assertEqual(meta(game)["mode"], "tune_field")
+        self.assertEqual(game._tune_draft, {})
 
-    def test_tune_empty_value_cancels(self) -> None:
+    def test_tune_empty_value_stages_nothing(self) -> None:
+        game = make_game()
+        self._open_tyres_section(game)
+        game.handle_input("1")
+        out = game.handle_input("")
+        self.assertIn("No change staged", out)
+        self.assertEqual(meta(game)["mode"], "tune_field")
+
+    def test_tune_exit_with_staged_changes_asks_and_discards(self) -> None:
+        game = make_game()
+        self._open_tyres_section(game)
+        game.handle_input("1")
+        game.handle_input("2.2")
+        game.handle_input("b")  # back to sections with a staged change
+        out = game.handle_input("q")
+        self.assertEqual(meta(game)["mode"], "tune_exit")
+        self.assertIn("staged change", out)
+        out = game.handle_input("d")
+        self.assertEqual(meta(game)["mode"], MODE_MENU)
+        self.assertIn("Discarded", out)
+        self.assertNotEqual(game.state.garage[0].tune.tire_pressure_front, 2.2)
+
+    def test_tune_preview_shows_deltas(self) -> None:
         game = make_game()
         game.handle_input("t")
         game.handle_input("1")
-        game.handle_input("1")
-        out = game.handle_input("")
-        self.assertIn("No tune change made", out)
-        self.assertEqual(meta(game)["mode"], MODE_MENU)
+        game.handle_input("2")  # Drivetrain
+        game.handle_input("engine map")
+        out = game.handle_input("4")  # qualifying: more power
+        self.assertIn("→", out)  # before→after readout
+        game.handle_input("b")
+        game.handle_input("q")
+        game.handle_input("d")
 
     def test_direct_tune_command(self) -> None:
         game = make_game()

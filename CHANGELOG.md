@@ -5,6 +5,15 @@ de-pinned from the sample catalog, and honest about time. Newest first.
 
 ## UI consistency
 
+- **Creator-style tune editor** — the in-game Tune flow now has the creator's look and
+  feel: a sections menu (Tyres/Drivetrain/Brakes/Suspension/Aero) opens one group of
+  knobs at a time instead of one flat 22-row screen, and the editor is a persistent
+  session (edit as many fields as you like before leaving). Edits STAGE into a draft —
+  nothing touches the car until `[W]` applies the whole draft atomically — and backing
+  out with staged changes asks apply/discard/keep-editing. Every screen carries a live
+  PR/class/stat readout with before→after deltas (no lap-sim panel in-game; the event
+  screen's Est. Time covers that). Same flow in the terminal CLI and the browser
+  adapter; `tune <car> <field> <value>` stays for one-shot typed changes.
 - **Sort everywhere you choose** — every picker prompt now accepts the same `sort`
   grammar as the main screens (buy, sell, repair, hire, fire, ext, and all three
   race-entry steps), in both the terminal CLI and the browser adapter. Sorting inside

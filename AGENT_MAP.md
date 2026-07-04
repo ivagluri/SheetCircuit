@@ -98,7 +98,11 @@ estimate_race_times(car, driver, event, track, parts=None) -> (canonical_s, play
 race_entry_screen(state, step="events", sort_spec=None)  # guided race picker
                                            # (events/cars/drivers); sort_spec applies
                                            # to the step's own list
-tune_fields_screen(state, car_id)
+tune_editor_screen(state, car_id, draft=None)   # tune editor top level: sections + delta readout
+tune_section_screen(state, car_id, section, draft=None)  # one section's knobs (Current/Staged/Allowed)
+stage_tune_value(state, car_id, field, value)   # validate one draft value (raises TuningError)
+apply_tune_draft(state, car_id, draft)          # atomic validated apply of the whole draft
+tune_fields_screen(state, car_id)               # legacy flat list (kept for API/tests)
 race_screen(session, tick=None, error="",  # pinned constant-size panels incl. "Track" strip
             log_event_chars=None)          # (vertical dot mini-map; magnified gaps, no two rows
                                            # share unless times tie). log_event_chars = Event
@@ -369,10 +373,24 @@ Ranges live in `constants.TUNE_FIELD_RANGES`. Engine map choices are from `const
 The UI should use:
 
 ```text
-tune_fields_screen(state, car_id)
+tune_editor_screen(state, car_id, draft)          # sections menu + delta readout
+tune_section_screen(state, car_id, section, draft) # one group of knobs
+stage_tune_value(state, car_id, field, value)      # per-field draft validation
+apply_tune_draft(state, car_id, draft)             # atomic apply ([W])
 ```
 
-This returns `FieldData` with labels, current value, ranges, and option lists. Do not make players memorize internal values. `tune_fields_for_car()` exposes **every** editable `TuneSetup` field, grouped for display by `_TUNE_FIELD_GROUPS` (Tyres/Drivetrain/Brakes/Suspension/Aero) with one continuous numbering; every knob now influences `compute_effective_stats`.
+The in-game tune flow is a **creator-style section editor** (mirrors `editor/app.py`'s
+edit → edit_section → edit_field loops): pick a car, then a sections menu
+(`_TUNE_FIELD_GROUPS`: Tyres/Drivetrain/Brakes/Suspension/Aero) opens one group of
+knobs at a time. Edits are **staged into a draft** (dict field → value, owned by the
+UI session — CLI locals in `cli._tune_editor`, web `self._tune_draft`); `[W]` applies
+the whole draft atomically via `apply_tune_draft`/`update_tune_fields`, and backing
+out with staged changes asks apply/discard/keep-editing. Every screen carries a live
+readout with before→after deltas (`_tune_preview_lines`: PR/class/type + effective
+stats; deliberately **no lap-time sim panel** in-game — that's the creator's job, and
+the event screen's Est. Time row covers "how will this race go"). Screens return
+`FieldData` with labels, current value, ranges, and option lists — do not make
+players memorize internal values; every knob influences `compute_effective_stats`.
 
 Choice fields (`value_type="choice"`) carry an `OptionData.description`; the CLI picker renders it as an **Effect** column so the player sees what each option does. `engine_map` uses this — `actions._engine_map_desc` summarises each map's power/fuel/heat trade-off (`ENGINE_MAP_POWER`/`FUEL`/`HEAT`). Reuse this pattern for any new enum field instead of hardcoding prose.
 

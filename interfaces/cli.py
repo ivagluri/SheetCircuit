@@ -37,9 +37,12 @@ from game.actions import (
     save_game_action,
     sell_car_action,
     simulate_to_end_action,
+    apply_tune_draft,
+    stage_tune_value,
     start_race_action,
     tune_car_action,
-    tune_fields_screen,
+    tune_editor_screen,
+    tune_section_screen,
 )
 from game.economy import EconomyError
 from game.game_state import GameState, new_career
@@ -565,40 +568,109 @@ def _tune_picker(state: GameState) -> None:
         return
     # Deliberately not sortable: the tune flow keeps its plain picker (and the tune
     # fields list keeps its authored subsystem grouping).
-    _garage_picker_show(state, "Tune", "Choose car, field, and value. q cancels.", "tune")()
+    _garage_picker_show(state, "Tune", "Choose a car to set up. q cancels.", "tune")()
     car = _choose(_sorted_garage(state), lambda item: item.identity.id, "Car")
     if car is None:
         return
-    terminal.clear()
-    screen = tune_fields_screen(state, car.identity.id)
-    terminal.header(screen.title, screen.subtitle)
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "tune"))
-    terminal.menu(menu_bar())
-    _render_action_screen(screen)
-    field_choice = terminal.prompt("Field").strip()
-    if field_choice.lower() in {"q", "quit", "cancel"}:
-        terminal.print("Cancelled.")
-        return
-    selected_field = None
-    if field_choice.isdigit() and 1 <= int(field_choice) <= len(screen.fields):
-        selected_field = screen.fields[int(field_choice) - 1]
-    else:
-        normalized_choice = field_choice.lower()
-        for field in screen.fields:
-            if normalized_choice in {field.name.lower(), field.label.lower()}:
-                selected_field = field
-                break
-    if selected_field is None:
-        terminal.print(f"Unknown tune field: {field_choice}")
-        return
-    value = _prompt_field_value(selected_field)
-    if value is None:
-        terminal.print("No tune change made.")
+    _tune_editor(state, car.identity.id)
+
+
+def _tune_editor(state: GameState, car_id: str) -> None:
+    """Creator-style setup editor: sections -> fields -> value.
+
+    Edits are STAGED into a draft; [W] applies the whole draft atomically and
+    backing out with staged changes asks first (mirrors the creator's edit loop)."""
+    draft: dict[str, object] = {}
+    while True:
+        screen = tune_editor_screen(state, car_id, draft)
+        terminal.clear()
+        terminal.header(screen.title, screen.subtitle)
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "tune"))
+        terminal.menu(menu_bar())
+        _render_action_screen(screen)
+        terminal.print("number/name = open section  |  W = apply staged setup  |  B = back")
+        raw = terminal.prompt("Section").strip()
+        low = raw.lower()
+        if low in {"b", "q", "cancel", ""}:
+            if not draft:
+                return
+            confirm = terminal.prompt(
+                "Staged changes not applied — [s] apply & exit, [d] discard & exit, anything else keeps editing"
+            ).strip().lower()
+            if confirm == "s" and _apply_staged_tune(state, car_id, draft):
+                return
+            if confirm == "d":
+                return
+            continue
+        if low == "w":
+            if _apply_staged_tune(state, car_id, draft):
+                draft = {}
+            continue
+        try:
+            tune_section_screen(state, car_id, raw, draft)
+        except ValueError as exc:
+            terminal.print(exc)
+            terminal.pause()
+            continue
+        _tune_section_editor(state, car_id, raw, draft)
+
+
+def _tune_section_editor(state: GameState, car_id: str, section: str, draft: dict[str, object]) -> None:
+    while True:
+        screen = tune_section_screen(state, car_id, section, draft)
+        terminal.clear()
+        terminal.header(screen.title, screen.subtitle)
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "tune"))
+        terminal.menu(menu_bar())
+        _render_action_screen(screen)
+        terminal.print("number/name = edit field  |  B = back to sections")
+        raw = terminal.prompt("Field").strip()
+        if raw.lower() in {"b", "q", "cancel", ""}:
+            return
+        selected_field = _match_tune_field(screen.fields, raw)
+        if selected_field is None:
+            terminal.print(f"Unknown tune field: {raw}")
+            terminal.pause()
+            continue
+        try:
+            value = _prompt_field_value(selected_field)
+            if value is None:
+                terminal.print("No change staged.")
+                continue
+            stage_tune_value(state, car_id, selected_field.name, value)
+        except TuningError as exc:
+            terminal.print(f"Rejected: {exc}")
+            terminal.pause()
+            continue
+        if value == selected_field.current:
+            # Re-entering the applied value un-stages the field.
+            draft.pop(selected_field.name, None)
+        else:
+            draft[selected_field.name] = value
+
+
+def _match_tune_field(fields: list, raw: str):
+    """Resolve a tune field by its number in the shown list, name, or display label."""
+    if raw.isdigit() and 1 <= int(raw) <= len(fields):
+        return fields[int(raw) - 1]
+    normalized = raw.lower()
+    return next((f for f in fields if normalized in {f.name.lower(), f.label.lower()}), None)
+
+
+def _apply_staged_tune(state: GameState, car_id: str, draft: dict[str, object]) -> bool:
+    if not draft:
+        terminal.print("No staged changes to apply.")
         terminal.pause()
-        return
-    result = tune_car_action(state, car.identity.id, selected_field.name, value)
+        return False
+    try:
+        result = apply_tune_draft(state, car_id, dict(draft))
+    except TuningError as exc:
+        terminal.print(f"Cannot apply: {exc}")
+        terminal.pause()
+        return False
     terminal.print(result.message)
     terminal.pause()
+    return True
 
 
 def _prompt_field_value(field) -> object | None:

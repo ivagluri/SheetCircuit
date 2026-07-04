@@ -20,6 +20,7 @@ from constants import SCHEMA_VERSION, TICK_RATE_HZ
 from game.actions import (
     advance_race_action,
     advance_to_lap_end_action,
+    apply_tune_draft,
     buy_car_action,
     car_extended_screen,
     fire_driver_action,
@@ -29,9 +30,11 @@ from game.actions import (
     repair_car_action,
     sell_car_action,
     simulate_to_end_action,
+    stage_tune_value,
     start_race_action,
     tune_car_action,
-    tune_fields_screen,
+    tune_editor_screen,
+    tune_section_screen,
 )
 from game.economy import EconomyError
 from game.game_state import GameState, new_career
@@ -55,8 +58,10 @@ MODE_HIRE = "hire"
 MODE_FIRE = "fire"
 MODE_EXT = "ext"
 MODE_TUNE_CAR = "tune_car"
+MODE_TUNE_SECTIONS = "tune_sections"
 MODE_TUNE_FIELD = "tune_field"
 MODE_TUNE_VALUE = "tune_value"
+MODE_TUNE_EXIT = "tune_exit"
 MODE_RACE_EVENT = "race_event"
 MODE_RACE_CAR = "race_car"
 MODE_RACE_DRIVER = "race_driver"
@@ -76,8 +81,10 @@ _PROMPT_LABELS = {
     MODE_FIRE: "Release",
     MODE_EXT: "Extended view (number or ID)",
     MODE_TUNE_CAR: "Car",
+    MODE_TUNE_SECTIONS: "Section",
     MODE_TUNE_FIELD: "Field",
     MODE_TUNE_VALUE: "Value",
+    MODE_TUNE_EXIT: "[s] apply & exit  [d] discard  [any] keep editing",
     MODE_RACE_EVENT: "Event",
     MODE_RACE_CAR: "Car",
     MODE_RACE_DRIVER: "Driver",
@@ -86,6 +93,9 @@ _PROMPT_LABELS = {
 }
 
 _CANCEL_WORDS = {"q", "quit", "cancel"}
+# The tune editor navigates UP one level rather than cancelling outright, and its
+# hint lines advertise [B] like the creator, so back accepts "b" too.
+_TUNE_BACK_WORDS = _CANCEL_WORDS | {"b", ""}
 
 # Picker modes whose table is backed by a sortable screen: typing `sort …` inside the
 # picker re-sorts it with the same grammar as the main screens (shared sort state).
@@ -141,6 +151,8 @@ class WebGame:
         self._skip_to_lap = False
         self._race_error = ""
         self._tune_car_id: str | None = None
+        self._tune_section: str = ""
+        self._tune_draft: dict[str, object] = {}
         self._tune_field = None
         self._entry_event_id: str | None = None
         self._entry_car_id: str | None = None
@@ -290,8 +302,10 @@ class WebGame:
             MODE_FIRE: self._fire_input,
             MODE_EXT: self._ext_input,
             MODE_TUNE_CAR: self._tune_car_input,
+            MODE_TUNE_SECTIONS: self._tune_sections_input,
             MODE_TUNE_FIELD: self._tune_field_input,
             MODE_TUNE_VALUE: self._tune_value_input,
+            MODE_TUNE_EXIT: self._tune_exit_input,
             MODE_RACE_EVENT: self._race_event_input,
             MODE_RACE_CAR: self._race_car_input,
             MODE_RACE_DRIVER: self._race_driver_input,
@@ -523,11 +537,24 @@ class WebGame:
             terminal.header("Tune", "Choose car, field, and value. q cancels.")
             self._print_status_menu("tune")
             self._print_garage_table()
-        elif self.mode == MODE_TUNE_FIELD:
-            screen = tune_fields_screen(self.state, self._tune_car_id)
+        elif self.mode == MODE_TUNE_SECTIONS:
+            screen = tune_editor_screen(self.state, self._tune_car_id, self._tune_draft)
             terminal.header(screen.title, screen.subtitle)
             self._print_status_menu("tune")
             cli._render_action_screen(screen)
+            terminal.print("number/name = open section  |  W = apply staged setup  |  B = back")
+        elif self.mode == MODE_TUNE_FIELD:
+            screen = tune_section_screen(self.state, self._tune_car_id, self._tune_section, self._tune_draft)
+            terminal.header(screen.title, screen.subtitle)
+            self._print_status_menu("tune")
+            cli._render_action_screen(screen)
+            terminal.print("number/name = edit field  |  B = back to sections")
+        elif self.mode == MODE_TUNE_EXIT:
+            terminal.header("Tune", "Staged changes not applied")
+            self._print_status_menu("tune")
+            terminal.print(
+                f"{len(self._tune_draft)} staged change(s) — [s] apply & exit, [d] discard & exit, anything else keeps editing."
+            )
         elif self.mode == MODE_TUNE_VALUE:
             field = self._tune_field
             terminal.header("Tune", f"{self._tune_car_id} / {field.label}")
@@ -625,23 +652,39 @@ class WebGame:
         if car is None:
             return
         self._tune_car_id = car.identity.id
+        self._tune_draft = {}
+        self.mode = MODE_TUNE_SECTIONS
+        self._print_mode_view()
+
+    def _tune_sections_input(self, raw: str) -> None:
+        low = raw.lower()
+        if low in _TUNE_BACK_WORDS:
+            if not self._tune_draft:
+                self._cancel()
+                return
+            self.mode = MODE_TUNE_EXIT
+            self._print_mode_view()
+            return
+        if low == "w":
+            self._apply_tune_draft(exit_after=False)
+            return
+        try:
+            tune_section_screen(self.state, self._tune_car_id, raw, self._tune_draft)
+        except ValueError as exc:
+            self._print_mode_view()
+            terminal.print(str(exc))
+            return
+        self._tune_section = raw
         self.mode = MODE_TUNE_FIELD
         self._print_mode_view()
 
     def _tune_field_input(self, raw: str) -> None:
-        if raw.lower() in _CANCEL_WORDS:
-            self._cancel()
+        if raw.lower() in _TUNE_BACK_WORDS:
+            self.mode = MODE_TUNE_SECTIONS
+            self._print_mode_view()
             return
-        screen = tune_fields_screen(self.state, self._tune_car_id)
-        selected_field = None
-        if raw.isdigit() and 1 <= int(raw) <= len(screen.fields):
-            selected_field = screen.fields[int(raw) - 1]
-        else:
-            normalized = raw.lower()
-            for field in screen.fields:
-                if normalized in {field.name.lower(), field.label.lower()}:
-                    selected_field = field
-                    break
+        screen = tune_section_screen(self.state, self._tune_car_id, self._tune_section, self._tune_draft)
+        selected_field = cli._match_tune_field(screen.fields, raw)
         if selected_field is None:
             self._print_mode_view()
             terminal.print(f"Unknown tune field: {raw}")
@@ -651,28 +694,75 @@ class WebGame:
         self._print_mode_view()
 
     def _tune_value_input(self, raw: str) -> None:
-        if raw == "" or raw.lower() in _CANCEL_WORDS:
-            self._cancel("No tune change made.")
+        if raw.lower() in _TUNE_BACK_WORDS:
+            self.mode = MODE_TUNE_FIELD
+            self._print_mode_view()
+            terminal.print("No change staged.")
             return
         field = self._tune_field
-        if field.options:
-            value = None
-            if raw.isdigit() and 1 <= int(raw) <= len(field.options):
-                value = field.options[int(raw) - 1].value
+        try:
+            if field.options:
+                value = None
+                if raw.isdigit() and 1 <= int(raw) <= len(field.options):
+                    value = field.options[int(raw) - 1].value
+                else:
+                    normalized = raw.lower()
+                    for option in field.options:
+                        if normalized in {option.value.lower(), option.label.lower()}:
+                            value = option.value
+                            break
+                if value is None:
+                    raise TuningError(f"Unknown option for {field.label}: {raw}")
             else:
-                normalized = raw.lower()
-                for option in field.options:
-                    if normalized in {option.value.lower(), option.label.lower()}:
-                        value = option.value
-                        break
-            if value is None:
-                raise TuningError(f"Unknown option for {field.label}: {raw}")
+                value = cli._parse_value(raw)
+            stage_tune_value(self.state, self._tune_car_id, field.name, value)
+        except (TuningError, ValueError) as exc:
+            # Stay in the editor: a rejected value must not eject the whole draft.
+            self.mode = MODE_TUNE_FIELD
+            self._print_mode_view()
+            terminal.print(f"Rejected: {exc}")
+            return
+        if value == field.current:
+            self._tune_draft.pop(field.name, None)
         else:
-            value = cli._parse_value(raw)
-        result = tune_car_action(self.state, self._tune_car_id, field.name, value)
-        self.mode = MODE_MENU
-        self.screen = "garage"
-        self._print_main_view()
+            self._tune_draft[field.name] = value
+        self.mode = MODE_TUNE_FIELD
+        self._print_mode_view()
+
+    def _tune_exit_input(self, raw: str) -> None:
+        low = raw.lower()
+        if low == "s":
+            self._apply_tune_draft(exit_after=True)
+            return
+        if low == "d":
+            count = len(self._tune_draft)
+            self._tune_draft = {}
+            self._cancel(f"Discarded {count} staged change(s).")
+            return
+        self.mode = MODE_TUNE_SECTIONS
+        self._print_mode_view()
+
+    def _apply_tune_draft(self, exit_after: bool) -> None:
+        if not self._tune_draft:
+            self.mode = MODE_TUNE_SECTIONS
+            self._print_mode_view()
+            terminal.print("No staged changes to apply.")
+            return
+        try:
+            result = apply_tune_draft(self.state, self._tune_car_id, dict(self._tune_draft))
+        except TuningError as exc:
+            self.mode = MODE_TUNE_SECTIONS
+            self._print_mode_view()
+            terminal.print(f"Cannot apply: {exc}")
+            return
+        self._tune_draft = {}
+        if exit_after:
+            self.mode = MODE_MENU
+            self.screen = "garage"
+            self._print_main_view()
+        else:
+            self.mode = MODE_TUNE_SECTIONS
+            self._print_mode_view()
         terminal.print(result.message)
 
     def _race_event_input(self, raw: str) -> None:

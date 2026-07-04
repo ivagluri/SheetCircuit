@@ -63,6 +63,63 @@ class ActionLayerTests(unittest.TestCase):
 
         self.assertEqual(paces, sorted(paces, reverse=True))
 
+    def test_tune_editor_screen_lists_sections_and_staged_counts(self) -> None:
+        from game.actions import tune_editor_screen
+
+        state = new_career()
+        car_id = state.garage[0].identity.id
+
+        screen = tune_editor_screen(state, car_id)
+        sections = [row[1] for row in screen.tables[0].rows]
+        self.assertEqual(sections, ["Tyres", "Drivetrain", "Brakes", "Suspension", "Aero"])
+        self.assertTrue(any(line.startswith("PR ") for line in screen.messages))
+
+        staged = tune_editor_screen(state, car_id, {"engine_map": "hot", "final_drive": 4.2})
+        drivetrain_row = next(row for row in staged.tables[0].rows if row[1] == "Drivetrain")
+        self.assertEqual(drivetrain_row[3], "2 staged")
+        self.assertIn("2 staged changes (not applied)", staged.subtitle)
+
+    def test_tune_section_screen_shows_staged_values_and_deltas(self) -> None:
+        from game.actions import tune_section_screen
+
+        state = new_career()
+        car_id = state.garage[0].identity.id
+
+        screen = tune_section_screen(state, car_id, "Drivetrain", {"engine_map": "qualifying"})
+        engine_row = next(row for row in screen.tables[0].rows if row[1] == "Engine Map")
+        self.assertEqual(engine_row[3], "qualifying")
+        # A power-map change must surface as a before→after delta in the readout.
+        self.assertTrue(any("→" in line for line in screen.messages))
+        # Section is addressable by 1-based index too.
+        by_index = tune_section_screen(state, car_id, 2)
+        self.assertEqual(by_index.tables[0].title, "Drivetrain")
+
+    def test_apply_tune_draft_is_atomic(self) -> None:
+        from game.actions import apply_tune_draft
+
+        state = new_career()
+        car = state.garage[0]
+
+        with self.assertRaises(TuningError):
+            apply_tune_draft(state, car.identity.id, {"engine_map": "hot", "brake_bias": 99.0})
+        # The invalid brake_bias must not let the valid engine_map slip through.
+        self.assertEqual(car.tune.engine_map, "balanced")
+
+        result = apply_tune_draft(state, car.identity.id, {"engine_map": "hot"})
+        self.assertEqual(car.tune.engine_map, "hot")
+        self.assertIn("Engine Map", result.message)
+
+    def test_stage_tune_value_validates_without_applying(self) -> None:
+        from game.actions import stage_tune_value
+
+        state = new_career()
+        car = state.garage[0]
+
+        stage_tune_value(state, car.identity.id, "brake_bias", 0.6)  # valid: no exception
+        self.assertNotEqual(car.tune.brake_bias, 0.6)  # and nothing applied
+        with self.assertRaises(TuningError):
+            stage_tune_value(state, car.identity.id, "brake_bias", 99.0)
+
     def test_tune_screen_surfaces_ranges_and_choice_options(self) -> None:
         state = new_career()
 

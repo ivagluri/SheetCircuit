@@ -35,6 +35,19 @@ def update_tune_fields(game_state: GameState, car_id: str, **fields: object) -> 
     return game_state
 
 
+def validate_tune_field(game_state: GameState, car_id: str, name: str, value: object) -> None:
+    """Validate one prospective tune value without applying it (raises TuningError).
+
+    Lets an editor stage a draft field-by-field with the same rules
+    update_tune_fields enforces when the whole draft is applied."""
+    car = next((garage_car for garage_car in game_state.garage if garage_car.identity.id == car_id), None)
+    if car is None:
+        raise TuningError(f"Unknown garage car: {car_id}")
+    if not hasattr(car.tune, name):
+        raise TuningError(f"Unknown tune field: {name}")
+    _validate_tune_value(name, value, getattr(car.tune, name))
+
+
 def _validate_tune_value(name: str, value: object, current_value: object) -> None:
     if value == "":
         raise TuningError(f"{name} cannot be blank")

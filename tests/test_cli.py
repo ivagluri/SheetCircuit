@@ -177,26 +177,36 @@ class CliTests(TestCase):
         self.assertIn("Standings", text)
         self.assertIn("Race finished", text)
 
+    # The tune editor is section-based (creator look and feel): car -> sections menu
+    # -> section fields -> value. Edits stage into a draft; [W] applies atomically.
+
     def test_blank_tune_value_cancels_without_crashing(self) -> None:
         state = new_career()
         scripted_input = [
-            "1",
-            "12",  # engine_map (choice field) in the grouped Drivetrain section
-            "",
+            "1",   # car
+            "2",   # Drivetrain section
+            "6",   # engine_map (choice field) within the section
+            "",    # blank value: nothing staged
+            "b",   # back to sections
+            "b",   # back out (draft empty: exits cleanly)
         ]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
             run_command(state, "tune")
 
         self.assertEqual(state.garage[0].tune.engine_map, "balanced")
-        self.assertIn("No tune change made", output.getvalue())
+        self.assertIn("No change staged", output.getvalue())
 
-    def test_tune_choice_field_can_be_selected_by_number(self) -> None:
+    def test_tune_choice_field_staged_then_applied(self) -> None:
         state = new_career()
         scripted_input = [
-            "1",
-            "12",  # engine_map is the 12th field in the grouped tune list
-            "3",
+            "1",   # car
+            "2",   # Drivetrain section
+            "6",   # engine_map
+            "3",   # hot
+            "b",   # back to sections (still only staged)
+            "w",   # apply the draft
+            "b",   # exit
         ]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
@@ -204,19 +214,43 @@ class CliTests(TestCase):
 
         self.assertEqual(state.garage[0].tune.engine_map, "hot")
         self.assertIn("Engine Map Options", output.getvalue())
+        self.assertIn("1 staged change (not applied)", output.getvalue())
+        self.assertIn("Setup applied: Engine Map.", output.getvalue())
 
-    def test_tune_choice_field_accepts_display_labels(self) -> None:
+    def test_tune_sections_and_fields_accept_display_labels(self) -> None:
         state = new_career()
         scripted_input = [
             "1",
+            "Drivetrain",
             "Engine Map",
             "Hot",
+            "b",
+            "w",
+            "b",
         ]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()):
             run_command(state, "tune")
 
         self.assertEqual(state.garage[0].tune.engine_map, "hot")
+
+    def test_tune_discard_leaves_car_untouched(self) -> None:
+        state = new_career()
+        scripted_input = [
+            "1",
+            "2",
+            "6",
+            "4",   # qualifying (raises power: the preview must show a delta arrow)
+            "b",   # back to sections
+            "b",   # try to leave with a staged change
+            "d",   # discard
+        ]
+
+        with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
+            run_command(state, "tune")
+
+        self.assertEqual(state.garage[0].tune.engine_map, "balanced")
+        self.assertIn("→", output.getvalue())  # live before→after readout rendered
 
     def test_race_commands_accept_display_labels(self) -> None:
         self.assertEqual(_race_command("Save Fuel"), "save_fuel")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,7 @@ from game.race_session import apply_player_command, enter_event, finish_event
 from game.simulation import calculate_lap_time
 from game.save_load import load_game, save_game
 from game.sorting import SortSpec, sort_items, sort_label
-from game.tuning import update_tune_fields
+from game.tuning import update_tune_fields, validate_tune_field
 
 
 def _fuel_range_km(eff) -> float:
@@ -600,6 +601,127 @@ def tune_fields_screen(state: GameState, car_id: str) -> ScreenData:
         tables=tables,
         fields=fields,
     )
+
+
+# --- Creator-style tune editor ------------------------------------------------
+# The tune flow mirrors the creator's car editor: a sections menu opens one group of
+# knobs at a time, edits are STAGED into a draft (dict of field -> value) owned by the
+# UI session, and nothing touches the car until the whole draft is applied atomically.
+
+
+def tune_editor_screen(state: GameState, car_id: str, draft: dict[str, Any] | None = None) -> ScreenData:
+    """Top level of the tune editor: the section list plus the live stat readout."""
+    car = _garage_car_or_raise(state, car_id)
+    draft = draft or {}
+    rows = []
+    for index, (category, names) in enumerate(_TUNE_FIELD_GROUPS, start=1):
+        staged = sum(1 for name in names if name in draft)
+        rows.append([index, category, len(names), f"{staged} staged" if staged else ""])
+    subtitle = car.identity.name
+    if draft:
+        plural = "s" if len(draft) != 1 else ""
+        subtitle += f" — {len(draft)} staged change{plural} (not applied)"
+    return ScreenData(
+        name="tune_editor",
+        title="Tune",
+        subtitle=subtitle,
+        tables=[TableData("Setup Sections", ["#", "Section", "Fields", "Staged"], rows)],
+        messages=_tune_preview_lines(car, draft),
+    )
+
+
+def tune_section_screen(state: GameState, car_id: str, section: Any, draft: dict[str, Any] | None = None) -> ScreenData:
+    """One section's knobs: current value, staged value, allowed domain.
+
+    ``section`` is a 1-based index or a section name (case-insensitive)."""
+    car = _garage_car_or_raise(state, car_id)
+    draft = draft or {}
+    category, names = _resolve_tune_section(section)
+    fields = [_field_data(name, getattr(car.tune, name)) for name in names]
+    rows = []
+    for index, field_data in enumerate(fields, start=1):
+        staged = _format_tune_value(draft[field_data.name]) if field_data.name in draft else ""
+        rows.append([index, field_data.label, _format_tune_value(field_data.current), staged, _allowed_text(field_data)])
+    return ScreenData(
+        name="tune_section",
+        title=f"Tune · {category}",
+        subtitle=car.identity.name,
+        tables=[TableData(category, ["#", "Field", "Current", "Staged", "Allowed"], rows)],
+        fields=fields,
+        messages=_tune_preview_lines(car, draft),
+    )
+
+
+def stage_tune_value(state: GameState, car_id: str, field_name: str, value: Any) -> None:
+    """Validate one draft value with the same rules the atomic apply enforces."""
+    validate_tune_field(state, car_id, field_name, value)
+
+
+def apply_tune_draft(state: GameState, car_id: str, draft: dict[str, Any]) -> ActionResult:
+    """Apply a staged draft to the car in one validated, atomic write."""
+    update_tune_fields(state, car_id, **draft)
+    labels = ", ".join(_field_label(name) for name in draft)
+    return ActionResult(state=state, message=f"Setup applied: {labels}.", screen=garage_screen(state))
+
+
+def _garage_car_or_raise(state: GameState, car_id: str):
+    car = next((garage_car for garage_car in state.garage if garage_car.identity.id == car_id), None)
+    if car is None:
+        raise ValueError(f"Unknown garage car: {car_id}")
+    return car
+
+
+def _resolve_tune_section(section: Any) -> tuple[str, list[str]]:
+    token = str(section).strip()
+    if token.isdigit():
+        index = int(token) - 1
+        if 0 <= index < len(_TUNE_FIELD_GROUPS):
+            return _TUNE_FIELD_GROUPS[index]
+    for category, names in _TUNE_FIELD_GROUPS:
+        if token.lower() == category.lower():
+            return category, names
+    valid = ", ".join(category for category, _names in _TUNE_FIELD_GROUPS)
+    raise ValueError(f"Unknown tune section: {section}. Try: {valid}")
+
+
+def _format_tune_value(value: Any) -> Any:
+    return f"{value:g}" if isinstance(value, float) else value
+
+
+def _tune_preview_lines(car, draft: dict[str, Any]) -> list[str]:
+    """The creator-style readout with before→after deltas for staged changes.
+
+    Both sides run the same pure effective-stats function; a value renders as a
+    plain number when the draft doesn't move it and as ``cur→new`` when it does."""
+    parts = load_parts()
+    current_eff = compute_effective_stats(car, parts)
+    tuned_car = deepcopy(car)
+    for name, value in draft.items():
+        setattr(tuned_car.tune, name, value)
+    tuned_eff = compute_effective_stats(tuned_car, parts)
+
+    def delta(current: Any, new: Any, fmt: str = "{:.0f}") -> str:
+        left, right = fmt.format(current), fmt.format(new)
+        return left if left == right else f"{left}→{right}"
+
+    lines = [
+        f"PR {delta(class_rating(car), class_rating(tuned_car), '{}')}"
+        f"  Class {delta(derived_class(car), derived_class(tuned_car), '{}')}"
+        f"  ({delta(performance_type(car), performance_type(tuned_car), '{}')})",
+        f"power {delta(current_eff.power, tuned_eff.power)}"
+        f"  accel {delta(current_eff.acceleration, tuned_eff.acceleration)}"
+        f"  top {delta(current_eff.top_speed, tuned_eff.top_speed)}"
+        f"  grip {delta(current_eff.grip, tuned_eff.grip)}"
+        f"  brake {delta(current_eff.braking, tuned_eff.braking)}"
+        f"  handling {delta(current_eff.handling, tuned_eff.handling)}",
+        f"aero {delta(current_eff.aero_grip, tuned_eff.aero_grip)}"
+        f"  drag {delta(current_eff.drag, tuned_eff.drag)}"
+        f"  reliability {delta(current_eff.reliability, tuned_eff.reliability)}"
+        f"  weight {delta(current_eff.weight, tuned_eff.weight)}kg",
+    ]
+    if draft:
+        lines.append("(deltas vs the car's applied setup)")
+    return lines
 
 
 def tune_fields_for_car(state: GameState, car_id: str) -> list[FieldData]:
