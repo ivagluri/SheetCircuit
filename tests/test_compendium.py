@@ -1,0 +1,63 @@
+"""Structural completeness + source-of-truth consistency for the compendium.
+
+These are the tripwires that keep the compendium from silently going stale:
+add a car/track/event knob to the schema (or a tune field) without a matching
+compendium entry and one of these fails loudly. Prose content is asserted in
+Phase 3's per-domain tests; here we only check structure and harvested data.
+"""
+
+from __future__ import annotations
+
+import unittest
+
+from constants import CAR_MOD_FIELD_RANGES, TUNE_FIELD_RANGES
+from editor.fields import CAR_SECTIONS, EVENT_SECTIONS, SEGMENT_FIELDS, TRACK_SECTIONS
+from game.actions import _TUNE_FIELD_GROUPS
+from compendium import registry
+
+
+class CompendiumCompletenessTests(unittest.TestCase):
+    def test_every_car_fieldspec_has_entry(self) -> None:
+        for section in CAR_SECTIONS:
+            if section.title == "Basics":
+                continue  # curated re-listing of other sections' paths
+            for spec in section.fields:
+                entry_id = "car." + ".".join(spec.path)
+                self.assertIn(entry_id, registry.ENTRIES_BY_ID, entry_id)
+
+    def test_every_track_fieldspec_has_entry(self) -> None:
+        for section in TRACK_SECTIONS:
+            for spec in section.fields:
+                entry_id = "track." + ".".join(spec.path)
+                self.assertIn(entry_id, registry.ENTRIES_BY_ID, entry_id)
+        for spec in SEGMENT_FIELDS:
+            entry_id = "track.segment." + spec.key
+            self.assertIn(entry_id, registry.ENTRIES_BY_ID, entry_id)
+
+    def test_every_event_fieldspec_has_entry(self) -> None:
+        for section in EVENT_SECTIONS:
+            for spec in section.fields:
+                entry_id = "event." + ".".join(spec.path)
+                self.assertIn(entry_id, registry.ENTRIES_BY_ID, entry_id)
+
+    def test_tune_lookup_matches_ingame_tune_fields(self) -> None:
+        names = [name for _title, group in _TUNE_FIELD_GROUPS for name in group]
+        # no duplicate field names across the tune-menu groups
+        self.assertEqual(len(names), len(set(names)))
+        # the reconstructed lookup covers exactly the in-game tune field set
+        self.assertEqual(set(names), set(registry.TUNE_LOOKUP))
+        # and every one resolves to a real, car-domain entry
+        for name in names:
+            entry = registry.TUNE_LOOKUP[name]
+            self.assertEqual(entry.domain, "car", name)
+            self.assertIn("tune_menu", entry.editable_in, name)
+
+    def test_harvested_ranges_match_source_of_truth(self) -> None:
+        for name, expected in TUNE_FIELD_RANGES.items():
+            self.assertEqual(registry.TUNE_LOOKUP[name].value_range, expected, name)
+        for name, expected in CAR_MOD_FIELD_RANGES.items():
+            self.assertEqual(registry.TUNE_LOOKUP[name].value_range, expected, name)
+
+
+if __name__ == "__main__":
+    unittest.main()
