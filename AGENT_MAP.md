@@ -9,6 +9,7 @@ Project docs: `CHANGELOG.md` = shipped history (what landed, by commit), self-co
 - Start game: `python3 main.py`
 - Full tests: `python3 -m unittest discover -s tests`
 - Compile check: `python3 -m compileall .`
+- Progression probe: `python3 tools/probe_progression.py`
 - Optional terminal polish: `python3 -m pip install -r requirements.txt`
 
 ## Top-Level Flow
@@ -80,6 +81,9 @@ interfaces/
   menu.py            Main menu hotkeys and global status bar, including Team
                      Level/XP display via `team_xp_status()`.
   render_text.py     Legacy/simple row render helpers.
+
+tools/
+  probe_progression.py  Dependency-free Team XP payout and pacing probe.
 ```
 
 ## UI-Neutral Service Layer

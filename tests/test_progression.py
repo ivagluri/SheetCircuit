@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from constants import EVENT_KIND_LADDER, EVENT_KIND_OPEN_INVITATIONAL
@@ -149,6 +152,21 @@ class ProgressionTests(unittest.TestCase):
             team_xp_award("E", event_kind="weird")
         with self.assertRaises(ValueError):
             team_xp_award("E", position=0)
+
+    def test_progression_probe_tool_runs(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [sys.executable, "tools/probe_progression.py"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertIn("Team XP Awards", result.stdout)
+        self.assertIn("open_invitational", result.stdout)
+        self.assertIn("Simple Ladder Path", result.stdout)
+        self.assertIn("Lv 6", result.stdout)
 
 
 if __name__ == "__main__":
