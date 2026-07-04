@@ -126,28 +126,33 @@ Validation run:
 
 ### Milestone 6: Post-Race Summary And Progress Commit
 
-Scope:
+Commit: `8f516b6 Commit team progress after races`
 
-- Update `finish_event()`/`finish_race_action()` to commit:
-  - Team XP
-  - event progress
-  - first-win bonus
-  - repeat multiplier effects
-- Return a dedicated `ScreenData(name="post_race", ...)` instead of a final live
-  race screen.
-- Post-race summary should include final competitor standings as the first table.
-- Suggested table order:
+Added:
+
+- `RaceSession.player_car_condition_before`
+- `FinishEventResult` with tuple-unpack compatibility for old `(prize, message)`
+  callers
+- `finish_event()` commits Team XP and per-event progress using first-win bonus
+  and repeat multipliers
+- `finish_race_action()` returns `ScreenData(name="post_race", ...)`
+- Post-race table order:
   1. Final Standings
   2. Rewards
   3. Team Progress
   4. Event Progress
   5. Driver Progress
   6. Car Condition
-- Capture player car condition before race on `RaceSession` so before/after wear
-  can be shown.
-- Add focused tests for progress commit and summary contents.
-- Update AGENT_MAP.
-- Commit milestone.
+- CLI/web finish flow renders the post-race summary instead of the final live
+  race screen
+- Focused tests for first-win Team XP, repeat-win XP, event progress mutation,
+  table order, driver progression, and car condition deltas
+- AGENT_MAP entries for finish/result behavior
+
+Validation run:
+
+- `python3 -m unittest tests.test_actions tests.test_cli tests.test_web_adapter tests.test_wired_systems`
+- `python3 -m unittest discover -s tests`
 
 ### Milestone 7: Status Bar Team XP Display
 
