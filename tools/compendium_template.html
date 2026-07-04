@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SheetCircuit Compendium</title>
+<style>
+  :root {
+    --bg: #101216;
+    --panel: #191d24;
+    --fg: #d6d9de;
+    --dim: #8a919c;
+    --accent: #5cc8ff;
+    --line: #2a303b;
+    --row: #151920;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "SF Mono", "Cascadia Mono", "JetBrains Mono", Consolas, Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 16px;
+    z-index: 10;
+  }
+  .titlebar { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .brand { color: var(--accent); font-size: 16px; font-weight: bold; }
+  .links { margin-left: auto; display: flex; gap: 14px; }
+  .links a { color: var(--dim); text-decoration: none; }
+  .links a:hover { color: var(--accent); }
+  #filter {
+    margin-top: 8px;
+    width: 100%;
+    max-width: 480px;
+    background: var(--panel);
+    color: var(--fg);
+    border: 1px solid #333c4c;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font: inherit;
+  }
+  #filter:focus { outline: 1px solid var(--accent); }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  .intro p { color: var(--dim); max-width: 70ch; }
+  .toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 14px 0 8px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  h2 { color: var(--fg); border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-top: 32px; }
+  h3 { color: var(--accent); margin: 22px 0 6px; }
+  .chapter-intro, .section-intro { color: var(--dim); max-width: 80ch; margin: 4px 0 10px; }
+  .table-wrap, .doc-section { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0 10px; }
+  th, td { text-align: left; padding: 4px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--dim); font-weight: normal; white-space: nowrap; }
+  tr.doc-row:nth-child(even) { background: var(--row); }
+  td.field { color: var(--fg); white-space: nowrap; }
+  td.effect { color: var(--dim); }
+  .notes { margin: 4px 0 12px; }
+  .notes .prose { color: var(--dim); max-width: 90ch; margin: 4px 0; }
+  .notes .prose b { color: var(--fg); }
+  .doc-row[hidden], .doc-section[hidden], .doc-chapter[hidden] { display: none; }
+  #empty { color: var(--dim); padding: 10px 0; }
+  #empty[hidden] { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="titlebar">
+    <span class="brand">SheetCircuit Compendium</span>
+    <nav class="links">
+      <a href="sheetcircuit.html" title="Play the game">&larr;&nbsp;game</a>
+      <a href="creator.html" title="Build cars, tracks, and events">creator</a>
+    </nav>
+  </div>
+  <input id="filter" placeholder="Filter fields… (e.g. camber, downforce, wet skill)" autocomplete="off" autocapitalize="off" spellcheck="false">
+</header>
+<main>
+__SHEETCIRCUIT_FILES__
+<p id="empty" hidden>No fields match your filter.</p>
+</main>
+<script>
+"use strict";
+(function () {
+  var filter = document.getElementById("filter");
+  var empty = document.getElementById("empty");
+  var rows = Array.prototype.slice.call(document.querySelectorAll(".doc-row"));
+  var sections = Array.prototype.slice.call(document.querySelectorAll(".doc-section"));
+  var chapters = Array.prototype.slice.call(document.querySelectorAll(".doc-chapter"));
+  function apply() {
+    var q = filter.value.trim().toLowerCase();
+    var anyVisible = false;
+    rows.forEach(function (r) {
+      var show = !q || r.dataset.text.indexOf(q) !== -1;
+      r.hidden = !show;
+      if (show) anyVisible = true;
+    });
+    sections.forEach(function (s) {
+      s.hidden = !!q && !s.querySelector(".doc-row:not([hidden])");
+    });
+    chapters.forEach(function (c) {
+      c.hidden = !!q && !c.querySelector(".doc-section:not([hidden])");
+    });
+    empty.hidden = !q || anyVisible;
+  }
+  filter.addEventListener("input", apply);
+})();
+</script>
+</body>
+</html>

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from constants import PRESENTATION_SPEED_FACTOR
-from game.actions import format_race_clock
+from game.actions import compendium_nav, compendium_screen, format_race_clock, parse_compendium_token
 from game.effective_stats import class_breakdown, class_rating, derived_class, performance_type, compute_effective_stats
 from game.loader import (
     DATA_ROOT,
@@ -467,7 +467,7 @@ class CreatorApp:
             self.term.menu(
                 "[C] New car    [T] New track    [V] New event\n"
                 "[E] Edit car   [K] Edit track    [F] Edit event\n"
-                "[Q] Quit"
+                "[R] Reference (compendium)    [Q] Quit"
             )
             choice = self.ask("Choice").lower()
             if choice in ("q", "quit", ""):
@@ -484,6 +484,32 @@ class CreatorApp:
                 self.open_existing(TRACK_SCHEMA, "tracks")
             elif choice == "f":
                 self.open_existing(EVENT_SCHEMA, "events")
+            elif choice == "r":
+                self.compendium()
+
+    def compendium(self) -> None:
+        """Browse the parameter reference without leaving the creator. Reuses the
+        game's manpages-style drill-down (index → chapter → section → field)."""
+        token = "compendium"
+        while True:
+            self.term.clear()
+            path, query = parse_compendium_token(token)
+            data = compendium_screen(path, query)
+            self.term.header(data.title, data.subtitle)
+            for table in data.tables:
+                self.term.table(table.title, table.headers, table.rows)
+            for message in data.messages:
+                self.note(message)
+            self.term.menu("number/name = open   [B] up a level   [Q] leave reference")
+            raw = self.ask("Reference").strip()
+            if raw.lower() in ("q", "quit"):
+                return
+            nxt = compendium_nav(token, raw)
+            if nxt is None:
+                continue  # not navigation — just redraw
+            if nxt == "":
+                return  # backed out past the index
+            token = nxt
 
     def new_car(self) -> None:
         """Start a new car from an intrinsic archetype or by cloning a catalog car."""

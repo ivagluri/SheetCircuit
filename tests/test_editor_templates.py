@@ -120,5 +120,37 @@ class UnsavedGuardTests(unittest.TestCase):
         self.assertGreaterEqual(sum("Unsaved" in p for p in prompts), 2, prompts)
 
 
+class _RecordingTerm(_DummyTerm):
+    """DummyTerm that remembers the table titles it was asked to render."""
+
+    def __init__(self) -> None:
+        self.tables: list[str] = []
+
+    def table(self, title, headers, rows):  # noqa: D401 - test stub
+        self.tables.append(title)
+
+
+class CreatorCompendiumTests(unittest.TestCase):
+    def test_browser_drills_in_and_exits_cleanly(self) -> None:
+        app = CreatorApp()
+        term = _RecordingTerm()
+        app.term = term
+        # index → Cars (1) → Tune (by name) → field 3 → up → up → quit
+        queue = ["1", "tune", "3", "b", "b", "q"]
+
+        def fake_ask(_label):
+            if not queue:
+                raise _Stop
+            return queue.pop(0)
+
+        app.ask = fake_ask  # type: ignore[method-assign]
+        try:
+            app.compendium()
+        except _Stop:
+            self.fail("compendium browser did not exit")
+        self.assertIn("Chapters", term.tables)  # index rendered
+        self.assertIn("Tune", term.tables)  # section page rendered
+
+
 if __name__ == "__main__":
     unittest.main()

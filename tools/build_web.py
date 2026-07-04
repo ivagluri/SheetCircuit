@@ -19,6 +19,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PLACEHOLDER = "__SHEETCIRCUIT_FILES__"
 
+# Allow `python3 tools/build_web.py` (script dir on sys.path, not the repo root)
+# to import the compendium package for the static content target.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 # Explicit allowlist: only what runs in the browser. tools/, tests/, creator.py
 # and main.py stay out of the bundles; editor/ ships only with the creator.
 SOURCE_GLOBS = [
@@ -43,6 +48,8 @@ EDITOR_GLOBS = [
 TARGETS = {
     "game": (ROOT / "tools" / "web_template.html", ROOT / "web" / "sheetcircuit.html", SOURCE_GLOBS),
     "creator": (ROOT / "tools" / "creator_template.html", ROOT / "web" / "creator.html", SOURCE_GLOBS + EDITOR_GLOBS),
+    # globs is None: static pre-rendered content, no embedded Python / Pyodide payload.
+    "compendium": (ROOT / "tools" / "compendium_template.html", ROOT / "web" / "compendium.html", None),
 }
 
 
@@ -63,9 +70,14 @@ def build(target: str, output: Path | None = None) -> Path:
     template = template_path.read_text(encoding="utf-8")
     if PLACEHOLDER not in template:
         raise SystemExit(f"build_web: placeholder {PLACEHOLDER} missing from {template_path}")
-    manifest = collect_files(globs)
-    # </ would terminate the inline <script> block early; JSON reads <\/ as </.
-    payload = json.dumps(manifest).replace("</", "<\\/")
+    if globs is None:
+        # Static content page: substitute pre-rendered HTML, no Pyodide payload.
+        from compendium.render_html import render_compendium
+
+        payload = render_compendium()
+    else:
+        # </ would terminate the inline <script> block early; JSON reads <\/ as </.
+        payload = json.dumps(collect_files(globs)).replace("</", "<\\/")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(template.replace(PLACEHOLDER, payload), encoding="utf-8")
     return output
@@ -78,8 +90,11 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     output = build(args.target, args.output)
     size_kb = output.stat().st_size / 1024
-    file_count = len(collect_files(TARGETS[args.target][2]))
-    print(f"Wrote {output} ({size_kb:.0f} KB, {file_count} embedded files)")
+    globs = TARGETS[args.target][2]
+    if globs is None:
+        print(f"Wrote {output} ({size_kb:.0f} KB, static content)")
+    else:
+        print(f"Wrote {output} ({size_kb:.0f} KB, {len(collect_files(globs))} embedded files)")
 
 
 if __name__ == "__main__":

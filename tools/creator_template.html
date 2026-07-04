@@ -45,6 +45,7 @@
   }
   #topbar { display: flex; justify-content: space-between; align-items: center; color: var(--dim); }
   #topbar a { color: var(--accent); text-decoration: none; }
+  #topbar .topbar-links { display: flex; gap: 14px; }
   #screen {
     flex: 1;
     margin: 0;
@@ -112,7 +113,10 @@
 <div id="app" hidden>
   <div id="topbar">
     <span>SheetCircuit Creator — saves download as JSON; session copies stay in this browser</span>
-    <a id="game-link" href="./">&larr; play the game</a>
+    <span class="topbar-links">
+      <a id="compendium-link" href="compendium.html" title="Full reference: every tunable knob explained">compendium</a>
+      <a id="game-link" href="./">&larr; play the game</a>
+    </span>
   </div>
   <div id="mode-buttons" class="btnrow"></div>
   <pre id="screen"></pre>
