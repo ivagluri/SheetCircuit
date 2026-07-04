@@ -57,31 +57,29 @@ Added:
 
 Current worktree was clean after this commit.
 
-## Remaining Milestones
-
 ### Milestone 3: Event Model, Loader, And Data
 
-Scope:
+Commit: `b191356 Add event progression metadata`
 
-- Extend `Event` with:
-  - `min_team_level: int`
-  - `event_kind: str`
-- Loader defaults:
-  - `min_team_level` inferred from `car_class_limit`:
-    - E -> 1
-    - D -> 2
-    - C -> 3
-    - B -> 4
-    - A -> 5
-    - S -> 6
-  - `event_kind` defaults to `"ladder"`
-- Validate/normalize `event_kind` against known event kinds.
-- Explicitly annotate existing `data/events/*.json`.
-- Set `sunday_cup` as Level 1 ladder starter.
-- Set `beater_enduro` as Level 1 `open_invitational`.
-- Update AGENT_MAP.
-- Run focused loader/model tests and full suite.
-- Commit milestone.
+Added:
+
+- `Event.min_team_level`
+- `Event.event_kind`
+- loader inference of missing `min_team_level` from `car_class_limit`
+- loader default/validation/normalization for `event_kind`
+- explicit progression metadata in existing `data/events/*.json`
+- `sunday_cup` as the Level 1 ladder starter
+- `beater_enduro` as Level 1 `open_invitational`
+- creator event schema round-trip support for progression metadata
+- focused loader/model and creator-web tests
+- AGENT_MAP entries for event progression metadata
+
+Validation run:
+
+- `python3 -m unittest tests.test_models tests.test_race_format tests.test_creator_web tests.test_progression`
+- `python3 -m unittest discover -s tests`
+
+## Remaining Milestones
 
 ### Milestone 4: Event Gates
 
