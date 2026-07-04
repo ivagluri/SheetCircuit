@@ -26,6 +26,7 @@ from game.actions import (
 from game.game_state import GameState, new_career
 from game.loader import load_cars
 from game.sorting import parse_sort_spec
+from game.simulation import SimulationError
 from game.tuning import TuningError
 
 
@@ -252,6 +253,25 @@ class ActionLayerTests(unittest.TestCase):
         self.assertEqual(garage_car.title, state.garage[0].identity.name)
         self.assertEqual(market_car.title, "1994 Kanto K660")
         self.assertIn("Driver Stats", [table.title for table in driver.tables])
+
+    def test_team_level_gate_blocks_locked_race_without_entry_fee(self) -> None:
+        car = deepcopy(next(car for car in load_cars() if car.identity.id == "kanto_k660"))
+        state = GameState(garage=[car])
+        money_before = state.money
+
+        with self.assertRaisesRegex(SimulationError, "requires Team Lv 2"):
+            start_race_action(state, "clubman_trial", "kanto_k660", "driver_novak", seed=3)
+
+        self.assertEqual(state.money, money_before)
+
+    def test_team_level_gate_allows_unlocked_race(self) -> None:
+        car = deepcopy(next(car for car in load_cars() if car.identity.id == "kanto_k660"))
+        state = GameState(team_xp=100, garage=[car])
+
+        result = start_race_action(state, "clubman_trial", "kanto_k660", "driver_novak", seed=3)
+
+        self.assertEqual(result.session.event_id, "clubman_trial")
+        self.assertEqual(state.money, 8000 - 500)
 
     def test_event_detail_with_state_estimates_time_from_garage_car(self) -> None:
         # Regression: _estimate_entry passed EffectiveCarStats into class_rating (which

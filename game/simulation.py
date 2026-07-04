@@ -78,6 +78,7 @@ from game.loader import (
 )
 from game.models import Car, Driver, EffectiveCarStats, Event, RaceCarState, RaceResult, SegmentProfile, Track
 from game.opponents import build_opponent_grid, opponent_entry_labels, validate_event_entry
+from game.progression import team_level_for_xp
 
 T = TypeVar("T")
 
@@ -241,6 +242,12 @@ def simulate_race(game_state: GameState, event_id: str, car_id: str, driver_id: 
     tracks = {track.id: track for track in load_tracks()}
 
     event = _get(events, event_id, "event")
+    current_team_level = team_level_for_xp(game_state.team_xp)
+    if current_team_level < event.min_team_level:
+        raise SimulationError(
+            f"{event.name} requires Team Lv {event.min_team_level}; "
+            f"current Team Lv {current_team_level} ({game_state.team_xp} XP)."
+        )
     track = _get(tracks, event.track_id, "track")
     # Race-day forecast: rolled on an isolated stream (the main rng's draw sequence is
     # untouched) and applied to this freshly loaded track copy.

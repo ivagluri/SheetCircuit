@@ -228,6 +228,7 @@ Interactive:
 ```text
 start_race_action()
   -> race_session.enter_event()
+    -> team-level gate (`event.min_team_level` vs derived level from `state.team_xp`)
     -> validate_event_entry()
     -> build_opponent_grid()
     -> RaceSession

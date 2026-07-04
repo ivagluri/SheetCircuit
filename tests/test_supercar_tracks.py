@@ -124,7 +124,7 @@ class SupercarTrackTests(unittest.TestCase):
             ("cinder_pass_rally", "escarpa_pikes"),
         ):
             self.assertIn(event_id, events)
-            state = GameState(garage=[deepcopy(self.cars[car_id])], money=20000)
+            state = GameState(team_xp=1300, garage=[deepcopy(self.cars[car_id])], money=20000)
             session = enter_event(state, event_id, car_id, driver_id, seed=4)
             with self.subTest(event=event_id):
                 self.assertEqual(session.event_id, event_id)

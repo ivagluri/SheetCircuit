@@ -125,7 +125,7 @@ class LapVsNonLapParityTests(unittest.TestCase):
         self.cars = {car.identity.id: car for car in load_cars()}
 
     def _session(self, event_id, car_id="torino_500r", seed=5):
-        state = GameState(garage=[deepcopy(self.cars[car_id])], money=5000)
+        state = GameState(team_xp=100, garage=[deepcopy(self.cars[car_id])], money=5000)
         return enter_event(state, event_id, car_id, "driver_novak", seed=seed)
 
     def test_single_lap_stage_runs_many_live_ticks(self) -> None:

@@ -837,7 +837,12 @@ def _choose(items: list[object], get_id, label: str, sort_screen: str | None = N
 
 
 def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> None:
-    race = start_race_action(state, event_id, car_id, driver_id)
+    try:
+        race = start_race_action(state, event_id, car_id, driver_id)
+    except SimulationError as exc:
+        terminal.print(str(exc))
+        terminal.pause()
+        return
     session = race.session
     last_result = None
     current_command = "normal"

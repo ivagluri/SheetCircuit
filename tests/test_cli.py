@@ -108,7 +108,7 @@ class CliTests(TestCase):
     def test_race_command_guides_selection_and_runs_event(self) -> None:
         state = new_career()
         starting_mileage = state.garage[0].condition.mileage
-        scripted_input = ["1", "1", "1"]
+        scripted_input = ["sunday_cup", "1", "1"]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
             run_command(state, "race")
@@ -144,7 +144,7 @@ class CliTests(TestCase):
         # "help" typed during animation is handled asynchronously via select.select,
         # not via builtins.input — in non-interactive mode the race just completes.
         state = new_career()
-        scripted_input = ["1", "1", "1"]
+        scripted_input = ["sunday_cup", "1", "1"]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
             run_command(state, "race")
@@ -155,7 +155,7 @@ class CliTests(TestCase):
 
     def test_race_screen_keeps_lap_updates_visible_between_commands(self) -> None:
         state = new_career()
-        scripted_input = ["1", "1", "1"]
+        scripted_input = ["sunday_cup", "1", "1"]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
             run_command(state, "race")
@@ -168,7 +168,7 @@ class CliTests(TestCase):
         # Commands come in via select.select during animation, not via builtins.input.
         # In non-interactive mode the race runs to completion with the default command.
         state = new_career()
-        scripted_input = ["1", "1", "1"]
+        scripted_input = ["sunday_cup", "1", "1"]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
             run_command(state, "race")

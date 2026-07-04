@@ -87,7 +87,7 @@ class OpponentGenerationTests(unittest.TestCase):
         self.assertLess(spread, base * 0.25)
 
     def test_rivals_are_not_all_identical(self) -> None:
-        state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])
+        state = GameState(team_xp=100, garage=[deepcopy(self.cars["kanto_k660"])])
         session = enter_event(state, "clubman_trial", "kanto_k660", "driver_bellamy", seed=3)
         rival_driver_stats = {
             (

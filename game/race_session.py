@@ -54,6 +54,7 @@ from game.loader import (
 )
 from game.models import RaceSession, RaceTickResult, TelemetryHistory
 from game.opponents import build_opponent_grid, opponent_entry_labels, validate_event_entry
+from game.progression import team_level_for_xp
 from game.simulation import (
     SimulationError,
     _apply_lap_wear,
@@ -89,6 +90,7 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
     tracks = {track.id: track for track in load_tracks()}
     parts = load_parts()
     event = _get(events, event_id, "event")
+    _validate_team_level_entry(game_state, event)
     track = _get(tracks, event.track_id, "track")
     # Race-day forecast: rolled on an isolated stream (the main rng's draw sequence is
     # untouched) and applied to this session's freshly loaded track copy.
@@ -150,6 +152,15 @@ def enter_event(game_state: GameState, event_id: str, car_id: str, driver_id: st
         current_sub_tick=0,
         effective_stats=effective_stats,
     )
+
+
+def _validate_team_level_entry(game_state: GameState, event) -> None:
+    current_level = team_level_for_xp(game_state.team_xp)
+    if current_level < event.min_team_level:
+        raise SimulationError(
+            f"{event.name} requires Team Lv {event.min_team_level}; "
+            f"current Team Lv {current_level} ({game_state.team_xp} XP)."
+        )
 
 
 def apply_player_command(session: RaceSession, command: str) -> RaceTickResult:

@@ -313,6 +313,7 @@ class WiredSystemsTests(unittest.TestCase):
         # Alpine has weather_variability 0.65; seed 3 rolls 0.62 on the isolated
         # forecast stream -> damp. The session's track must be escalated to match.
         state = new_career()
+        state.team_xp = 100
         state.money += 10000
         session = enter_event(
             state, "alpine_hillclimb_stage", state.garage[0].identity.id,

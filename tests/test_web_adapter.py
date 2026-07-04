@@ -7,7 +7,7 @@ from unittest import TestCase
 import interfaces.cli as cli
 from constants import SCHEMA_VERSION
 from game.game_state import new_career
-from game.loader import load_drivers, load_events
+from game.loader import load_drivers
 from interfaces.web import (
     MODE_MENU,
     MODE_RACE,
@@ -310,7 +310,7 @@ class WebTuneTests(TestCase):
 class WebRaceTests(TestCase):
     def enter_first_event(self, game: WebGame) -> None:
         game.handle_input("r")
-        game.handle_input("1")
+        game.handle_input("sunday_cup")
         game.handle_input("1")
         game.handle_input("1")
 
@@ -319,7 +319,7 @@ class WebRaceTests(TestCase):
         out = game.handle_input("r")
         self.assertIn("Race Entry", out)
         self.assertIn("Available Events", out)
-        out = game.handle_input("1")
+        out = game.handle_input("sunday_cup")
         self.assertEqual(meta(game)["mode"], "race_car")
         out = game.handle_input("1")
         self.assertEqual(meta(game)["mode"], "race_driver")
@@ -414,9 +414,8 @@ class WebRaceTests(TestCase):
 
     def test_direct_enter_command_starts_race(self) -> None:
         game = make_game(seed=7)
-        event = load_events()[0]
         driver = load_drivers()[0]
-        game.handle_input(f"enter {event.id} torino_500r {driver.id}")
+        game.handle_input(f"enter sunday_cup torino_500r {driver.id}")
         self.assertTrue(meta(game)["in_race"])
 
 
