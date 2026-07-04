@@ -23,6 +23,7 @@ MENU_ACTIONS = [
     MenuAction("P", "Repair", "repair"),
     MenuAction("S", "Save", "save"),
     MenuAction("L", "Load", "load"),
+    MenuAction("C", "Compendium", "compendium"),
     MenuAction("H", "Help", "help"),
     MenuAction("Q", "Quit", "quit"),
 ]

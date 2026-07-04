@@ -50,6 +50,7 @@ from editor.fields import (
     TRACK_SECTIONS,
 )
 from editor.sample_tracks import SAMPLE_TRACKS
+from compendium import registry
 
 
 def event_draft_to_json(draft: dict) -> dict:
@@ -680,13 +681,16 @@ class CreatorApp:
             if raw.isdigit():
                 idx = int(raw) - 1
                 if 0 <= idx < len(section.fields):
-                    self.edit_field(draft, section.fields[idx])
+                    self.edit_field(draft, section.fields[idx], schema.kind)
 
-    def edit_field(self, draft: dict, spec: FieldSpec) -> None:
+    def edit_field(self, draft: dict, spec: FieldSpec, domain: str = "") -> None:
         current = _get(draft, spec.path)
         self.note(f"\n[bold]{spec.label}[/bold]  current: {self._fmt(current)}")
         if spec.help:
             self.note(f"  {spec.help}")
+        entry = registry.entry_for(domain, spec.path) if domain else None
+        if entry and entry.prose:
+            self.note(f"  {entry.prose}")
         if spec.choices:
             for i, choice in enumerate(spec.choices):
                 self.note(f"  [{i + 1}] {choice}")
@@ -787,6 +791,9 @@ class CreatorApp:
                     self.note(f"\n[bold]{spec.label}[/bold]  current: {self._fmt(current)}")
                     if spec.help:
                         self.note(f"  {spec.help}")
+                    entry = registry.entry_for("track", spec.path, segment=True)
+                    if entry and entry.prose:
+                        self.note(f"  {entry.prose}")
                     if spec.choices:
                         for j, choice in enumerate(spec.choices):
                             self.note(f"  [{j + 1}] {choice}")

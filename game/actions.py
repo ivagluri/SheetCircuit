@@ -20,6 +20,7 @@ from game.simulation import calculate_lap_time
 from game.save_load import load_game, save_game
 from game.sorting import SortSpec, sort_items, sort_label
 from game.tuning import tune_target, update_tune_fields, validate_tune_field
+from compendium import registry
 
 
 def _fuel_range_km(eff) -> float:
@@ -483,29 +484,271 @@ def driver_detail_screen(driver_id: str) -> ScreenData:
     driver = next((driver for driver in load_drivers() if driver.id == driver_id), None)
     if driver is None:
         raise ValueError(f"Unknown driver: {driver_id}")
+    rows = [
+        ["Pace", driver.pace, "pace"],
+        ["Consistency", driver.consistency, "consistency"],
+        ["Racecraft", driver.racecraft, "racecraft"],
+        ["Feedback", driver.feedback, "feedback"],
+        ["Fitness", driver.fitness, "fitness"],
+        ["Aggression", driver.aggression, "aggression"],
+        ["Mechanical Sympathy", driver.mechanical_sympathy, "mechanical_sympathy"],
+        ["Wet Skill", driver.wet_skill, "wet_skill"],
+        ["Salary", f"${driver.salary}", "salary"],
+        ["Experience", driver.experience, "experience"],
+    ]
+    for row in rows:
+        entry = registry.ENTRIES_BY_ID.get(f"driver.{row[2]}")
+        row[2] = entry.effect_summary if entry else ""
     return ScreenData(
         name="driver_detail",
         title=driver.name,
         subtitle=driver.id,
-        tables=[
-            TableData(
-                "Driver Stats",
-                ["Stat", "Value"],
-                [
-                    ["Pace", driver.pace],
-                    ["Consistency", driver.consistency],
-                    ["Racecraft", driver.racecraft],
-                    ["Feedback", driver.feedback],
-                    ["Fitness", driver.fitness],
-                    ["Aggression", driver.aggression],
-                    ["Mechanical Sympathy", driver.mechanical_sympathy],
-                    ["Wet Skill", driver.wet_skill],
-                    ["Salary", f"${driver.salary}"],
-                    ["Experience", driver.experience],
-                ],
-            )
-        ],
+        tables=[TableData("Driver Stats", ["Stat", "Value", "Help"], rows)],
     )
+
+
+# --- Compendium (manpages-style parameter reference) ------------------------
+# A stateless, path-addressed browser over compendium.registry. The screen token
+# carries all navigation state so the terminal and browser render identically:
+#   "compendium"               -> index (chapter list)
+#   "compendium:<chap>"         -> chapter view (section list)
+#   "compendium:<chap>/<sec>"   -> section page (field table + prose)
+#   "compendium?<query>"         -> direct jump to one field's detail page
+# Drilling in (by number or name) and B-to-go-up are mapped to the next token by
+# compendium_nav(), called from the interfaces before their normal dispatch.
+
+COMPENDIUM_PREFIX = "compendium"
+_EDITABLE_LABEL = {"creator": "creator", "tune_menu": "tune menu", "derived": "read-only"}
+
+
+def compendium_screen(path: tuple[str, ...] = (), query: str = "") -> ScreenData:
+    if query:
+        entry = _resolve_compendium_entry(query)
+        if entry is None:
+            return _compendium_index(note=f"No compendium entry matches '{query}'.")
+        return _compendium_entry_screen(entry)
+    if not path:
+        return _compendium_index()
+    chapter = _resolve_chapter(path[0])
+    if chapter is None:
+        return _compendium_index(note=f"No chapter '{path[0]}'.")
+    if len(path) == 1:
+        return _compendium_chapter_screen(chapter)
+    section = _resolve_section(chapter, path[1])
+    if section is None:
+        return _compendium_chapter_screen(chapter, note=f"No section '{path[1]}'.")
+    return _compendium_section_screen(chapter, section)
+
+
+def _compendium_index(note: str = "") -> ScreenData:
+    rows = [
+        [index, chapter.title, ", ".join(section.title for section in chapter.sections)]
+        for index, chapter in enumerate(registry.CHAPTERS, start=1)
+    ]
+    messages = [registry.INTRO, "", registry.HOW_TO_READ]
+    if note:
+        messages = [note, ""] + messages
+    return ScreenData(
+        name="compendium",
+        title=registry.TITLE,
+        subtitle="Reference — every editable & tunable parameter",
+        tables=[TableData("Chapters", ["#", "Chapter", "Sections"], rows)],
+        messages=messages,
+    )
+
+
+def _compendium_chapter_screen(chapter, note: str = "") -> ScreenData:
+    rows = [
+        [index, section.title, len(section.entries)]
+        for index, section in enumerate(chapter.sections, start=1)
+    ]
+    messages = [chapter.intro]
+    if note:
+        messages = [note, ""] + messages
+    return ScreenData(
+        name="compendium",
+        title=chapter.title,
+        subtitle="Compendium",
+        tables=[TableData("Sections", ["#", "Section", "Fields"], rows)],
+        messages=messages,
+    )
+
+
+def _compendium_section_screen(chapter, section) -> ScreenData:
+    rows = []
+    for index, entry in enumerate(section.entries, start=1):
+        rows.append([
+            index,
+            entry.label,
+            _compendium_range(entry),
+            entry.units or "",
+            _compendium_ideal(entry),
+            entry.effect_summary,
+            _compendium_editable(entry),
+        ])
+    messages = [section.intro]
+    prose = [f"{entry.label} — {entry.prose}" for entry in section.entries if entry.prose]
+    if prose:
+        messages.append("")
+        messages.extend(prose)
+    return ScreenData(
+        name="compendium",
+        title=f"{chapter.title} · {section.title}",
+        subtitle="Compendium",
+        tables=[TableData(section.title, ["#", "Field", "Range", "Units", "Ideal", "Effect", "Editable"], rows)],
+        messages=messages,
+    )
+
+
+def _compendium_entry_screen(entry) -> ScreenData:
+    rows = [
+        ["Field", entry.label],
+        ["Section", entry.section],
+        ["Range", _compendium_range(entry)],
+        ["Units", entry.units or "—"],
+        ["Ideal", _compendium_ideal(entry) or "—"],
+        ["Editable in", _compendium_editable(entry)],
+    ]
+    messages = [entry.effect_summary]
+    if entry.prose:
+        messages += ["", entry.prose]
+    return ScreenData(
+        name="compendium",
+        title=entry.label,
+        subtitle=f"Compendium · {entry.domain}",
+        tables=[TableData("Field", ["", ""], rows)],
+        messages=messages,
+    )
+
+
+def _compendium_range(entry) -> str:
+    if entry.choices:
+        return ", ".join(entry.choices)
+    if entry.value_range is None:
+        return "—"
+    low, high = entry.value_range
+    low_text = "…" if low is None else f"{low:g}"
+    high_text = "…" if high is None else f"{high:g}"
+    return f"{low_text}–{high_text}"
+
+
+def _compendium_ideal(entry) -> str:
+    if entry.ideal is None:
+        return ""
+    if isinstance(entry.ideal, float):
+        return f"{entry.ideal:g}"
+    return str(entry.ideal)
+
+
+def _compendium_editable(entry) -> str:
+    if not entry.editable_in:
+        return "—"
+    return ", ".join(_EDITABLE_LABEL.get(tag, tag) for tag in entry.editable_in)
+
+
+def _resolve_chapter(token):
+    text = str(token).strip().lower()
+    if text.isdigit():
+        index = int(text) - 1
+        return registry.CHAPTERS[index] if 0 <= index < len(registry.CHAPTERS) else None
+    return next((c for c in registry.CHAPTERS if c.id == text or c.title.lower() == text), None)
+
+
+def _resolve_section(chapter, token):
+    text = str(token).strip().lower()
+    if text.isdigit():
+        index = int(text) - 1
+        return chapter.sections[index] if 0 <= index < len(chapter.sections) else None
+    return next((s for s in chapter.sections if s.title.lower() == text), None)
+
+
+def _resolve_compendium_entry(query):
+    if query in registry.ENTRIES_BY_ID:
+        return registry.ENTRIES_BY_ID[query]
+    text = str(query).strip().lower()
+    if text in registry.TUNE_LOOKUP:
+        return registry.TUNE_LOOKUP[text]
+    for entry in registry.ENTRIES_BY_ID.values():
+        if entry.id.lower() == text or entry.id.rsplit(".", 1)[-1].lower() == text or entry.label.lower() == text:
+            return entry
+    return None
+
+
+def parse_compendium_token(token: str) -> tuple[tuple[str, ...], str]:
+    """Split a screen token into (path, query). See COMPENDIUM_PREFIX grammar."""
+    body = token[len(COMPENDIUM_PREFIX):] if token.startswith(COMPENDIUM_PREFIX) else ""
+    if body.startswith("?"):
+        return (), body[1:]
+    if body.startswith(":"):
+        return tuple(part for part in body[1:].split("/") if part), ""
+    return (), ""
+
+
+def compendium_token(path: tuple[str, ...] = (), query: str = "") -> str:
+    if query:
+        return f"{COMPENDIUM_PREFIX}?{query}"
+    if path:
+        return f"{COMPENDIUM_PREFIX}:" + "/".join(path)
+    return COMPENDIUM_PREFIX
+
+
+def compendium_token_from_args(args: list[str]) -> str:
+    """Build a screen token from typed `compendium <args...>`.
+
+    Zero args -> index. A single arg matching a field jumps to it; otherwise the
+    args are treated as a chapter (and optional section) path."""
+    if not args:
+        return COMPENDIUM_PREFIX
+    if len(args) == 1 and _resolve_chapter(args[0]) is None:
+        entry = _resolve_compendium_entry(args[0])
+        if entry is not None:
+            return compendium_token(query=entry.id)
+    chapter = _resolve_chapter(args[0])
+    if chapter is None:
+        return COMPENDIUM_PREFIX
+    if len(args) == 1:
+        return compendium_token((chapter.id,))
+    section = _resolve_section(chapter, args[1])
+    if section is None:
+        return compendium_token((chapter.id,))
+    return compendium_token((chapter.id, section.title))
+
+
+def compendium_nav(token: str, raw: str) -> str | None:
+    """Map an input on a compendium screen to the next token.
+
+    Returns the next "compendium…" token, "" to leave the compendium (backing
+    out past the index), or None if the input is not compendium navigation and
+    should fall through to the interface's normal dispatch."""
+    path, query = parse_compendium_token(token)
+    text = raw.strip()
+    low = text.lower()
+    if low in {"b", "back"}:
+        if query:
+            return COMPENDIUM_PREFIX
+        if path:
+            return compendium_token(path[:-1])
+        return ""
+    if query or not text:
+        return None
+    if len(path) == 0:
+        chapter = _resolve_chapter(text)
+        return compendium_token((chapter.id,)) if chapter else None
+    if len(path) == 1:
+        chapter = _resolve_chapter(path[0])
+        section = _resolve_section(chapter, text) if chapter else None
+        return compendium_token((path[0], section.title)) if section else None
+    chapter = _resolve_chapter(path[0])
+    section = _resolve_section(chapter, path[1]) if chapter else None
+    if section is None:
+        return None
+    if text.isdigit():
+        index = int(text) - 1
+        if 0 <= index < len(section.entries):
+            return compendium_token(query=section.entries[index].id)
+        return None
+    match = next((e for e in section.entries if e.label.lower() == low or e.id.rsplit(".", 1)[-1].lower() == low), None)
+    return compendium_token(query=match.id) if match else None
 
 
 def event_detail_screen(event_id: str, state: GameState | None = None) -> ScreenData:
@@ -795,6 +1038,7 @@ def _field_data(name: str, current: Any) -> FieldData:
                 OptionData(value=value, label=_engine_map_label(value), description=_engine_map_desc(value))
                 for value in sorted(ENGINE_MAP_POWER)
             ],
+            help=_tune_help(name),
         )
     if name == "tire_compound":
         return FieldData(
@@ -806,6 +1050,7 @@ def _field_data(name: str, current: Any) -> FieldData:
                 OptionData(value=value, label=value.replace("_", " ").title())
                 for value in TIRE_COMPOUNDS
             ],
+            help=_tune_help(name),
         )
     minimum, maximum = TUNE_FIELD_RANGES.get(name) or CAR_MOD_FIELD_RANGES[name]
     value_type = "integer" if isinstance(current, int) else "number"
@@ -816,7 +1061,14 @@ def _field_data(name: str, current: Any) -> FieldData:
         value_type=value_type,
         minimum=minimum,
         maximum=maximum,
+        help=_tune_help(name),
     )
+
+
+def _tune_help(name: str) -> str:
+    """Short effect summary for a tune-menu field, from the compendium registry."""
+    entry = registry.TUNE_LOOKUP.get(name)
+    return entry.effect_summary if entry else ""
 
 
 _TUNE_FIELD_LABELS: dict[str, str] = {

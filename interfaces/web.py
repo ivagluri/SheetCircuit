@@ -18,11 +18,14 @@ import shlex
 
 from constants import SCHEMA_VERSION, TICK_RATE_HZ
 from game.actions import (
+    COMPENDIUM_PREFIX,
     advance_race_action,
     advance_to_lap_end_action,
     apply_tune_draft,
     buy_car_action,
     car_extended_screen,
+    compendium_nav,
+    compendium_token_from_args,
     fire_driver_action,
     finish_race_action,
     hire_driver_action,
@@ -335,6 +338,12 @@ class WebGame:
         return True
 
     def _menu_input(self, raw: str) -> None:
+        if self.screen.startswith(COMPENDIUM_PREFIX):
+            nav = compendium_nav(self.screen, raw)
+            if nav is not None:
+                self.screen = nav or "garage"
+                self._print_main_view()
+                return
         if not raw:
             self._print_main_view()
             return
@@ -349,11 +358,15 @@ class WebGame:
             tokens = [command]
         else:
             command = tokens[0] if tokens else ""
-        if command in {"garage", "drivers", "events", "market", "help"} and len(tokens) == 1:
+        if command in {"garage", "drivers", "events", "market", "help", "compendium"} and len(tokens) == 1:
             self.screen = command
             self._print_main_view()
             return
         lead = tokens[0].lower() if tokens else ""
+        if lead == "compendium":
+            self.screen = compendium_token_from_args(tokens[1:])
+            self._print_main_view()
+            return
         if lead == "sort":
             sorted_screen = cli._apply_sort_choice(tokens, self.screen)
             if sorted_screen:
@@ -559,6 +572,8 @@ class WebGame:
             field = self._tune_field
             terminal.header("Tune", f"{self._tune_car_id} / {field.label}")
             self._print_status_menu("tune")
+            if field.help:
+                terminal.print(f"  {field.help}")
             if field.options:
                 if any(option.description for option in field.options):
                     rows = [[index, option.label, option.description] for index, option in enumerate(field.options, start=1)]

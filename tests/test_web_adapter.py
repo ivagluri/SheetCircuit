@@ -486,6 +486,34 @@ class WebSaveLoadTests(TestCase):
         self.assertIsNone(meta(game)["js_request"])
 
 
+class WebCompendiumTests(TestCase):
+    def test_hotkey_opens_index(self) -> None:
+        game = make_game()
+        out = game.handle_input("c")
+        self.assertEqual(meta(game)["screen"], "compendium")
+        self.assertIn("Chapters", out)
+
+    def test_drill_into_chapter_then_section_then_back(self) -> None:
+        game = make_game()
+        game.handle_input("c")
+        out = game.handle_input("1")  # Cars chapter
+        self.assertTrue(meta(game)["screen"].startswith("compendium:cars"))
+        self.assertIn("Sections", out)
+        game.handle_input("compendium cars tune")
+        self.assertEqual(meta(game)["screen"], "compendium:cars/Tune")
+        out = game.handle_input("b")  # back to the Cars chapter
+        self.assertEqual(meta(game)["screen"], "compendium:cars")
+        game.handle_input("b")  # back to the index
+        out = game.handle_input("b")  # out of the compendium entirely
+        self.assertEqual(meta(game)["screen"], "garage")
+
+    def test_direct_jump_by_field_name(self) -> None:
+        game = make_game()
+        out = game.handle_input("compendium final_drive")
+        self.assertIn("final_drive", out)
+        self.assertTrue(meta(game)["screen"].startswith("compendium?"))
+
+
 class WebStdinGuardTests(TestCase):
     def test_stdin_guard_raises_instead_of_blocking(self) -> None:
         import sys

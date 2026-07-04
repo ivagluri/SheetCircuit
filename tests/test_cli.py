@@ -263,6 +263,37 @@ class CliTests(TestCase):
         self.assertEqual(_race_command("Cool Down"), "cool_down")
 
 
+class CompendiumCliTests(TestCase):
+    def test_hotkey_and_drilldown_navigation(self) -> None:
+        state = new_career()
+        _, screen = run_menu_choice(state, "c", "garage")
+        self.assertEqual(screen, "compendium")
+        _, screen = run_menu_choice(state, "1", screen)  # Cars
+        self.assertEqual(screen, "compendium:cars")
+        _, screen = run_menu_choice(state, "tune", screen)  # by name
+        self.assertEqual(screen, "compendium:cars/Tune")
+        _, screen = run_menu_choice(state, "b", screen)
+        self.assertEqual(screen, "compendium:cars")
+        _, screen = run_menu_choice(state, "b", screen)
+        self.assertEqual(screen, "compendium")
+        _, screen = run_menu_choice(state, "b", screen)  # leave the compendium
+        self.assertEqual(screen, "garage")
+
+    def test_direct_jump_token(self) -> None:
+        state = new_career()
+        _, screen = run_menu_choice(state, "compendium final_drive", "garage")
+        self.assertEqual(screen, "compendium?car.tune.final_drive")
+
+    def test_render_index_lists_chapters(self) -> None:
+        state = new_career()
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            cli._render_screen(state, "compendium", "")
+        out = buffer.getvalue()
+        self.assertIn("Chapters", out)
+        self.assertIn("Cars", out)
+
+
 if __name__ == "__main__":
     import unittest
 

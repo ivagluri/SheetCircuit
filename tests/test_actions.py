@@ -10,8 +10,10 @@ from game.actions import (
     advance_to_lap_end_action,
     buy_car_action,
     car_detail_screen,
+    compendium_screen,
     drivers_screen,
     driver_detail_screen,
+    tune_fields_for_car,
     events_screen,
     event_detail_screen,
     finish_race_action,
@@ -580,6 +582,52 @@ class ActionLayerTests(unittest.TestCase):
         self.assertIn("Go All Out", [option.label for option in options])
         self.assertTrue(all(option.description for option in options))
         self.assertTrue(all(option.key for option in options))
+
+
+class CompendiumScreenTests(unittest.TestCase):
+    def test_index_lists_all_chapters(self) -> None:
+        screen = compendium_screen()
+        titles = [row[1] for row in screen.tables[0].rows]
+        self.assertEqual(titles, ["Cars", "Drivers", "Tracks", "Events"])
+
+    def test_chapter_view_lists_sections(self) -> None:
+        screen = compendium_screen(("cars",))
+        self.assertEqual(screen.title, "Cars")
+        section_titles = [row[1] for row in screen.tables[0].rows]
+        self.assertIn("Tune", section_titles)
+
+    def test_section_view_has_effect_and_editable_columns(self) -> None:
+        screen = compendium_screen(("cars", "Tune"))
+        headers = screen.tables[0].headers
+        self.assertIn("Effect", headers)
+        self.assertIn("Editable", headers)
+        labels = [row[1] for row in screen.tables[0].rows]
+        self.assertIn("final_drive", labels)
+
+    def test_direct_jump_resolves_field_by_name(self) -> None:
+        screen = compendium_screen(query="final_drive")
+        self.assertEqual(screen.title, "final_drive")
+        self.assertTrue(screen.messages[0])  # effect summary present
+
+    def test_unknown_query_falls_back_to_index(self) -> None:
+        screen = compendium_screen(query="no_such_field")
+        self.assertEqual(screen.tables[0].title, "Chapters")
+
+
+class DriverAndTuneHelpTests(unittest.TestCase):
+    def test_driver_detail_has_help_column_with_text(self) -> None:
+        driver = load_drivers()[0]
+        screen = driver_detail_screen(driver.id)
+        self.assertEqual(screen.tables[0].headers, ["Stat", "Value", "Help"])
+        pace_row = next(row for row in screen.tables[0].rows if row[0] == "Pace")
+        self.assertTrue(pace_row[2].strip())
+
+    def test_tune_field_data_carries_help(self) -> None:
+        state = new_career()
+        car_id = state.garage[0].identity.id
+        fields = {field.name: field for field in tune_fields_for_car(state, car_id)}
+        self.assertTrue(fields["final_drive"].help.strip())
+        self.assertTrue(fields["engine_map"].help.strip())
 
 
 if __name__ == "__main__":

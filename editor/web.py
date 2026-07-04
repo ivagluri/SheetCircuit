@@ -26,6 +26,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from compendium import registry
 from editor import app as editor_app
 from editor.app import (
     CreatorApp,
@@ -613,6 +614,10 @@ class WebCreator:
         lines = [f"{spec.label}  current: {self.app._fmt(current)}"]
         if spec.help:
             lines.append(f"  {spec.help}")
+        domain = self.schema.kind if self.schema else ""
+        entry = registry.entry_for(domain, spec.path) if domain else None
+        if entry and entry.prose:
+            lines.append(f"  {entry.prose}")
         if spec.choices:
             lines.extend(f"  [{i + 1}] {choice}" for i, choice in enumerate(spec.choices))
             if spec.free_choices:

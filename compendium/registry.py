@@ -68,3 +68,11 @@ def _build_tune_lookup() -> dict[str, Entry]:
 
 
 TUNE_LOOKUP: dict[str, Entry] = _build_tune_lookup()
+
+
+def entry_for(domain: str, path: tuple[str, ...], *, segment: bool = False) -> Entry | None:
+    """Look up an entry by its schema location — used by the creator to surface
+    a field's compendium prose at point of use. ``segment=True`` addresses a
+    track segment field (id prefix ``track.segment``)."""
+    prefix = f"{domain}.segment" if segment else domain
+    return ENTRIES_BY_ID.get(f"{prefix}.{'.'.join(path)}")

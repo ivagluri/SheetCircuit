@@ -11,11 +11,16 @@ from constants import PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ
 _RACE_SPEEDS = (1.0, 2.0, 4.0, 8.0)
 
 from game.actions import (
+    COMPENDIUM_PREFIX,
     advance_race_action,
     advance_to_lap_end_action,
     buy_car_action,
     car_detail_screen,
+    compendium_nav,
+    compendium_screen,
+    compendium_token_from_args,
     driver_detail_screen,
+    parse_compendium_token,
     drivers_screen,
     event_detail_screen,
     events_screen,
@@ -95,6 +100,10 @@ def command_loop(state: GameState) -> None:
 
 
 def run_menu_choice(state: GameState, raw: str, current_screen: str = "garage") -> tuple[GameState, str]:
+    if current_screen.startswith(COMPENDIUM_PREFIX):
+        nav = compendium_nav(current_screen, raw)
+        if nav is not None:
+            return state, nav or "garage"
     if raw.strip().isdigit() or "_" in raw.strip():
         detail_screen = _screen_selection(state, current_screen, raw.strip())
         if detail_screen is not None:
@@ -102,9 +111,11 @@ def run_menu_choice(state: GameState, raw: str, current_screen: str = "garage") 
             return state, current_screen
     command = menu_command(raw) if len(raw.strip()) == 1 else None
     command = command or raw.strip()
-    if command in {"garage", "drivers", "events", "market", "help"}:
+    if command in {"garage", "drivers", "events", "market", "help", "compendium"}:
         return state, command
     tokens = shlex.split(raw.strip())
+    if tokens and tokens[0].lower() == "compendium":
+        return state, compendium_token_from_args(tokens[1:])
     if tokens and tokens[0].lower() == "sort":
         sorted_screen = _apply_sort_choice(tokens, current_screen)
         return state, sorted_screen or current_screen
@@ -154,6 +165,8 @@ def run_command(state: GameState, raw: str) -> GameState:
     command = tokens[0]
     if command == "help":
         _show_help()
+    elif command == "compendium":
+        _show_compendium(compendium_token_from_args(tokens[1:]))
     elif command == "garage":
         _show_garage(state)
     elif command == "drivers":
@@ -232,8 +245,9 @@ def run_command(state: GameState, raw: str) -> GameState:
 
 
 def _render_screen(state: GameState, screen: str, subtitle: str = "") -> None:
+    label = COMPENDIUM_PREFIX if screen.startswith(COMPENDIUM_PREFIX) else screen
     terminal.header("SheetCircuit", subtitle)
-    terminal.print(status_bar(state.money, state.week, len(state.garage), screen, state.team_xp))
+    terminal.print(status_bar(state.money, state.week, len(state.garage), label, state.team_xp))
     terminal.menu(menu_bar())
     if screen == "garage":
         _show_garage(state)
@@ -245,8 +259,23 @@ def _render_screen(state: GameState, screen: str, subtitle: str = "") -> None:
         _show_market()
     elif screen == "help":
         _show_help()
+    elif screen.startswith(COMPENDIUM_PREFIX):
+        _show_compendium(screen)
     else:
         _show_garage(state)
+
+
+def _show_compendium(screen: str) -> None:
+    path, query = parse_compendium_token(screen)
+    data = compendium_screen(path, query)
+    terminal.print(data.title)
+    _render_action_screen(data)
+    if query:
+        terminal.print("'b' back to the index  |  a hotkey (G/D/E/…) to leave")
+    elif path:
+        terminal.print("Enter a number/name to open  |  'b' up a level  |  'compendium <field>' to jump")
+    else:
+        terminal.print("Enter a number/name to open a chapter  |  'compendium <field>' to jump to a field")
 
 
 def _show_garage(state: GameState) -> None:
@@ -632,6 +661,8 @@ def _tune_section_editor(state: GameState, car_id: str, section: str, draft: dic
             terminal.print(f"Unknown tune field: {raw}")
             terminal.pause()
             continue
+        if selected_field.help:
+            terminal.print(f"  {selected_field.help}")
         try:
             value = _prompt_field_value(selected_field)
             if value is None:

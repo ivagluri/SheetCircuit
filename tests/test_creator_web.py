@@ -357,6 +357,14 @@ class ImportDeleteTests(CreatorWebCase):
         self.assertIn("not found", out)
 
 
+class CompendiumProseTests(CreatorWebCase):
+    def test_car_field_detail_shows_compendium_prose(self) -> None:
+        self.new_car()
+        out = self.drive("1", "5")  # Basics → weight_distribution_front (has prose)
+        self.assertEqual(self.meta()["mode"], MODE_FIELD)
+        self.assertIn("sweet spot", out)
+
+
 class EventRestrictionRoundTripTests(TestCase):
     """The creator now exposes all five restriction keys the engine honours;
     shipped events using the previously JSON-only keys must survive an editor
