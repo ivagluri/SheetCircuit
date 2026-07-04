@@ -87,6 +87,22 @@ _PROMPT_LABELS = {
 
 _CANCEL_WORDS = {"q", "quit", "cancel"}
 
+# Picker modes whose table is backed by a sortable screen: typing `sort …` inside the
+# picker re-sorts it with the same grammar as the main screens (shared sort state).
+# Absent modes (the tune flow — deliberately, and race/value prompts) keep their
+# normal input handling. MODE_EXT is dynamic: it sorts whichever of garage/market
+# the extended view was opened from.
+_PICKER_SORT_SCREENS = {
+    MODE_BUY: "market",
+    MODE_SELL: "garage",
+    MODE_REPAIR: "garage",
+    MODE_RACE_CAR: "garage",
+    MODE_HIRE: "drivers",
+    MODE_FIRE: "drivers",
+    MODE_RACE_DRIVER: "drivers",
+    MODE_RACE_EVENT: "events",
+}
+
 
 class _RaisingStdin(io.TextIOBase):
     """Stdin replacement that fails loudly if any code path ever blocks on input."""
@@ -263,6 +279,8 @@ class WebGame:
     # ------------------------------------------------------------ dispatch
 
     def _dispatch(self, raw: str) -> None:
+        if self.mode != MODE_MENU and self._picker_sort(raw):
+            return
         handler = {
             MODE_MENU: self._menu_input,
             MODE_BUY: self._buy_input,
@@ -279,6 +297,28 @@ class WebGame:
             MODE_RACE_DRIVER: self._race_driver_input,
         }[self.mode]
         handler(raw)
+
+    def _picker_sort(self, raw: str) -> bool:
+        """Handle `sort …` inside a sortable picker; True when the input was consumed.
+
+        Mirrors cli._choose: same grammar as the main screens, applied to the picker's
+        backing screen, then the picker view reprints in the new order. Modes not in
+        _PICKER_SORT_SCREENS (the tune flow) fall through untouched."""
+        tokens = shlex.split(raw) if raw.strip() else []
+        if not tokens or tokens[0].lower() != "sort":
+            return False
+        sort_screen = _PICKER_SORT_SCREENS.get(self.mode)
+        if sort_screen is None and self.mode == MODE_EXT:
+            sort_screen = self.screen
+        if sort_screen is None:
+            return False
+        if len(tokens) == 1:
+            self._print_mode_view()
+            cli._show_sort_help(sort_screen)
+            return True
+        cli._apply_sort_choice(tokens, sort_screen)
+        self._print_mode_view()
+        return True
 
     def _menu_input(self, raw: str) -> None:
         if not raw:

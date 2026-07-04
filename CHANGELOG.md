@@ -3,6 +3,16 @@
 Work on the `refactor/track-agnostic-sim` branch: making the simulation track-agnostic,
 de-pinned from the sample catalog, and honest about time. Newest first.
 
+## UI consistency
+
+- **Sort everywhere you choose** — every picker prompt now accepts the same `sort`
+  grammar as the main screens (buy, sell, repair, hire, fire, ext, and all three
+  race-entry steps), in both the terminal CLI and the browser adapter. Sorting inside
+  a picker feeds the same per-screen sort state, so the order sticks when you return
+  to the matching main screen. `actions.race_entry_screen` gained a `sort_spec`
+  pass-through for API parity. The tune flow is deliberately exempt (the tune fields
+  list keeps its authored subsystem grouping).
+
 ## Simulation audit
 
 - **Breathing follow gap; audit docs retired** — a failed pass now holds the car in a

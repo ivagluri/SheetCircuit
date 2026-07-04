@@ -57,6 +57,54 @@ class CliTests(TestCase):
         self.assertIn(strongest.identity.name, output.getvalue())
         cli._SCREEN_SORTS.clear()
 
+    def test_race_picker_steps_accept_sort(self) -> None:
+        # `sort` works inside the race entry picker with the main-screen grammar and
+        # feeds the same shared sort state (the events screen stays sorted after).
+        from game.loader import load_events
+        from game.sorting import SortSpec, sort_items
+
+        state = new_career()
+        cli._SCREEN_SORTS.clear()
+        top_fee_event = sort_items("events", load_events(), SortSpec("fee", True))[0]
+        scripted_input = ["sort fee desc", "1", "q"]
+
+        with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
+            run_command(state, "race")
+
+        self.assertIn("sorted by Entry Fee desc", output.getvalue())
+        self.assertIn(f"Event: {top_fee_event.name}", output.getvalue())
+        self.assertIn("events", cli._SCREEN_SORTS)
+        cli._SCREEN_SORTS.clear()
+
+    def test_hire_picker_accepts_sort(self) -> None:
+        from game.loader import load_drivers
+        from game.sorting import SortSpec, sort_items
+
+        state = new_career()
+        cli._SCREEN_SORTS.clear()
+        hired_ids = {d.id for d in state.hired_drivers}
+        available = [d for d in load_drivers() if d.id not in hired_ids]
+        priciest = sort_items("drivers", available, SortSpec("salary", True))[0]
+
+        with patch("builtins.input", side_effect=["sort salary desc", "1"]), contextlib.redirect_stdout(io.StringIO()) as output:
+            run_command(state, "hire")
+
+        self.assertIn("sorted by Salary desc", output.getvalue())
+        self.assertIn(priciest.id, {d.id for d in state.hired_drivers})
+        cli._SCREEN_SORTS.clear()
+
+    def test_tune_picker_keeps_fixed_order(self) -> None:
+        # The tune flow is deliberately exempt from picker sorting.
+        state = new_career()
+        cli._SCREEN_SORTS.clear()
+
+        with patch("builtins.input", side_effect=["sort hp desc", "q"]), contextlib.redirect_stdout(io.StringIO()) as output:
+            run_command(state, "tune")
+
+        self.assertIn("This list has a fixed order.", output.getvalue())
+        self.assertNotIn("garage", cli._SCREEN_SORTS)
+        cli._SCREEN_SORTS.clear()
+
     def test_race_command_guides_selection_and_runs_event(self) -> None:
         state = new_career()
         starting_mileage = state.garage[0].condition.mileage

@@ -95,7 +95,9 @@ market_car_extended_screen(car_id)         # full spec sheet (market)
 driver_detail_screen(driver_id)
 event_detail_screen(event_id, state=None)  # adds an "Est. Time" row (play/real) when state given
 estimate_race_times(car, driver, event, track, parts=None) -> (canonical_s, play_s)
-race_entry_screen(state, step="events")    # guided race picker (events/cars/drivers)
+race_entry_screen(state, step="events", sort_spec=None)  # guided race picker
+                                           # (events/cars/drivers); sort_spec applies
+                                           # to the step's own list
 tune_fields_screen(state, car_id)
 race_screen(session, tick=None, error="",  # pinned constant-size panels incl. "Track" strip
             log_event_chars=None)          # (vertical dot mini-map; magnified gaps, no two rows
@@ -163,7 +165,13 @@ The market screen is the single place to browse and buy cars. From the market sc
 List-screen commands (parsed in `interfaces/cli.run_*` before menu hotkeys):
 
 ```text
-sort <field> [asc|desc]   re-sort the current list screen (see game/sorting.py)
+sort <field> [asc|desc]   re-sort the current list screen (see game/sorting.py); the same
+                          grammar works at every picker prompt (buy/sell/repair/hire/fire/
+                          ext and all three race-entry steps) against the picker's backing
+                          screen, sharing the same sort state (cli._choose(sort_screen=,
+                          refresh=); web._picker_sort). The tune flow is deliberately
+                          exempt (its car step is a plain picker; the tune fields list
+                          keeps its authored subsystem grouping)
 ext [id|number]           full car spec sheet on garage/market (car_extended_screen)
 hire / hire <id|number>   drivers screen: picker or direct hire (hire_driver_action)
 fire / fire <id|number>   drivers screen: picker or direct fire (fire_driver_action)

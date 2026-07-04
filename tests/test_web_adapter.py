@@ -11,7 +11,10 @@ from game.loader import load_drivers, load_events
 from interfaces.web import (
     MODE_MENU,
     MODE_RACE,
+    MODE_RACE_CAR,
+    MODE_RACE_EVENT,
     MODE_RACE_RESULT,
+    MODE_TUNE_CAR,
     WebGame,
     install_stdin_guard,
 )
@@ -108,6 +111,30 @@ class WebPickerTests(TestCase):
         self.assertEqual(len(game.state.garage), 2)
         self.assertLess(game.state.money, money)
         cli._SCREEN_SORTS.clear()
+
+    def test_race_picker_event_step_accepts_sort(self) -> None:
+        from game.loader import load_events
+        from game.sorting import SortSpec, sort_items
+
+        game = make_game()
+        top_fee_event = sort_items("events", load_events(), SortSpec("fee", True))[0]
+        game.handle_input("race")
+        out = game.handle_input("sort fee desc")
+        self.assertIn("sorted by Entry Fee desc", out)
+        self.assertEqual(meta(game)["mode"], MODE_RACE_EVENT)
+        game.handle_input("1")
+        self.assertEqual(meta(game)["mode"], MODE_RACE_CAR)
+        self.assertEqual(game._entry_event_id, top_fee_event.id)
+        cli._SCREEN_SORTS.clear()
+
+    def test_tune_car_step_ignores_sort(self) -> None:
+        # The tune flow is deliberately exempt from picker sorting.
+        game = make_game()
+        game.handle_input("tune")
+        out = game.handle_input("sort hp desc")
+        self.assertIn("Unknown car", out)
+        self.assertEqual(meta(game)["mode"], MODE_TUNE_CAR)
+        self.assertNotIn("garage", cli._SCREEN_SORTS)
 
     def test_sell_flow_increases_money(self) -> None:
         game = make_game()

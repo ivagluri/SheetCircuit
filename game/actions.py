@@ -544,18 +544,20 @@ def event_detail_screen(event_id: str, state: GameState | None = None) -> Screen
     )
 
 
-def race_entry_screen(state: GameState, step: str = "events") -> ScreenData:
+def race_entry_screen(state: GameState, step: str = "events", sort_spec: SortSpec | None = None) -> ScreenData:
+    """Guided race picker. ``sort_spec`` applies to the step's own list (events,
+    garage cars, or drivers), same as the standalone screens."""
     if step == "cars":
-        return garage_screen(state)
+        return garage_screen(state, sort_spec)
     if step == "drivers":
-        drivers = state.hired_drivers or load_drivers()
-        screen = drivers_screen(state)
+        drivers = sort_items("drivers", state.hired_drivers or load_drivers(), sort_spec)
+        screen = drivers_screen(state, sort_spec)
         screen.tables[0].rows = [
             [index, driver.id, driver.name, driver.pace, driver.consistency, driver.feedback, f"${driver.salary}"]
             for index, driver in enumerate(drivers, start=1)
         ]
         return screen
-    return events_screen()
+    return events_screen(sort_spec)
 
 
 def _table_title(title: str, screen: str, sort_spec: SortSpec | None) -> str:

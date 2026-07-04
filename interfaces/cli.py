@@ -283,15 +283,24 @@ def _show_extended_car(state: GameState, screen: str, car_token: str | None) -> 
             terminal.pause()
             return
     else:
-        car = _choose(cars, get_id, "Extended view (number or ID)")
+        def show():
+            terminal.clear()
+            _render_screen(state, screen)
+            return _sorted_market() if screen == "market" else _sorted_garage(state)
+
+        car = _choose(cars, get_id, "Extended view (number or ID)", sort_screen=screen, refresh=show)
         if car is None:
             return
     _show_detail_screen(state, get_screen(car), screen)
 
 
 def _buy_on_market(state: GameState) -> None:
-    market = _sorted_market()
-    car = _choose(market, lambda item: item.identity.id, "Buy (number or ID)")
+    def show():
+        terminal.clear()
+        _render_screen(state, "market")
+        return _sorted_market()
+
+    car = _choose(_sorted_market(), lambda item: item.identity.id, "Buy (number or ID)", sort_screen="market", refresh=show)
     if car is None:
         return
     result = buy_car_action(state, car.identity.id)
@@ -460,7 +469,7 @@ def _show_help() -> None:
             ["fire", "Choose a driver to release"],
             ["fire <driver_id>", "Release a specific driver"],
             ["enter <event_id> <car_id> <driver_id>", "Start a race directly"],
-            ["sort <field> (asc|desc)", "Sort the current screen"],
+            ["sort <field> (asc|desc)", "Sort the visible list (works in pickers too)"],
             ["sort <screen> <field> (asc|desc)", "Sort garage, drivers, events, or market"],
             ["sort clear", "Clear sorting on the current screen"],
             ["save [path]", "Save game, default saves/save1.json"],
@@ -508,17 +517,28 @@ def _show_race_help() -> None:
     )
 
 
+_PICKER_SUBTITLE = "Choose {noun} by number or ID; 'sort <field>' re-orders; q cancels."
+
+
+def _garage_picker_show(state: GameState, title: str, subtitle: str, screen_label: str):
+    """Render a garage-table picker view and return the sorted cars; reusable as the
+    _choose refresh so 'sort' re-orders the list in place."""
+    def show():
+        terminal.clear()
+        terminal.header(title, subtitle)
+        terminal.print(status_bar(state.money, state.week, len(state.garage), screen_label))
+        terminal.menu(menu_bar())
+        terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+        return _sorted_garage(state)
+    return show
+
+
 def _sell_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty.")
         return
-    cars = _sorted_garage(state)
-    terminal.clear()
-    terminal.header("Sell Car", "Choose a garage car by number or ID; q cancels.")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "sell"))
-    terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
-    car = _choose(cars, lambda item: item.identity.id, "Sell")
+    show = _garage_picker_show(state, "Sell Car", _PICKER_SUBTITLE.format(noun="a garage car"), "sell")
+    car = _choose(show(), lambda item: item.identity.id, "Sell", sort_screen="garage", refresh=show)
     if car is None:
         return
     result = sell_car_action(state, car.identity.id)
@@ -530,13 +550,8 @@ def _repair_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty.")
         return
-    cars = _sorted_garage(state)
-    terminal.clear()
-    terminal.header("Repair", "Choose a garage car by number or ID; q cancels.")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "repair"))
-    terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
-    car = _choose(cars, lambda item: item.identity.id, "Repair")
+    show = _garage_picker_show(state, "Repair", _PICKER_SUBTITLE.format(noun="a garage car"), "repair")
+    car = _choose(show(), lambda item: item.identity.id, "Repair", sort_screen="garage", refresh=show)
     if car is None:
         return
     result = repair_car_action(state, car.identity.id)
@@ -548,13 +563,10 @@ def _tune_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty.")
         return
-    cars = _sorted_garage(state)
-    terminal.clear()
-    terminal.header("Tune", "Choose car, field, and value. q cancels.")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "tune"))
-    terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
-    car = _choose(cars, lambda item: item.identity.id, "Car")
+    # Deliberately not sortable: the tune flow keeps its plain picker (and the tune
+    # fields list keeps its authored subsystem grouping).
+    _garage_picker_show(state, "Tune", "Choose car, field, and value. q cancels.", "tune")()
+    car = _choose(_sorted_garage(state), lambda item: item.identity.id, "Car")
     if car is None:
         return
     terminal.clear()
@@ -632,18 +644,24 @@ def _load_picker(state: GameState) -> GameState:
 
 
 def _hire_picker(state: GameState) -> None:
-    all_drivers = load_drivers()
-    hired_ids = {d.id for d in state.hired_drivers}
-    available = sort_items("drivers", [d for d in all_drivers if d.id not in hired_ids], _screen_sort("drivers"))
-    if not available:
+    def available_drivers():
+        hired_ids = {d.id for d in state.hired_drivers}
+        return sort_items("drivers", [d for d in load_drivers() if d.id not in hired_ids], _screen_sort("drivers"))
+
+    if not available_drivers():
         terminal.print("No drivers available to hire.")
         return
-    terminal.clear()
-    terminal.header("Hire Driver", "Choose a driver by number or ID; q cancels.")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "hire"))
-    terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(available))
-    driver = _choose(available, lambda item: item.id, "Hire")
+
+    def show():
+        terminal.clear()
+        terminal.header("Hire Driver", _PICKER_SUBTITLE.format(noun="a driver"))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "hire"))
+        terminal.menu(menu_bar())
+        available = available_drivers()
+        terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(available))
+        return available
+
+    driver = _choose(show(), lambda item: item.id, "Hire", sort_screen="drivers", refresh=show)
     if driver is None:
         return
     result = hire_driver_action(state, driver.id)
@@ -655,13 +673,17 @@ def _fire_picker(state: GameState) -> None:
     if not state.hired_drivers:
         terminal.print("No drivers on your team.")
         return
-    drivers = _sorted_hired_drivers(state)
-    terminal.clear()
-    terminal.header("Release Driver", "Choose a driver by number or ID; q cancels.")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "fire"))
-    terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
-    driver = _choose(drivers, lambda item: item.id, "Release")
+
+    def show():
+        terminal.clear()
+        terminal.header("Release Driver", _PICKER_SUBTITLE.format(noun="a driver"))
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "fire"))
+        terminal.menu(menu_bar())
+        drivers = _sorted_hired_drivers(state)
+        terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
+        return drivers
+
+    driver = _choose(show(), lambda item: item.id, "Release", sort_screen="drivers", refresh=show)
     if driver is None:
         return
     result = fire_driver_action(state, driver.id)
@@ -673,44 +695,65 @@ def _race_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty. Buy a car first.")
         return
-    events = _sorted_events()
-    drivers = sort_items("drivers", state.hired_drivers or load_drivers(), _screen_sort("drivers"))
     tracks = {track.id: track for track in load_tracks()}
 
-    terminal.clear()
-    terminal.header("Race Entry", "Choose an event, car, and driver. Enter a number or ID; q cancels.")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
-    terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Available Events", "events"), ["#", "ID", "Event", "Track", "Class", "Fee", "Opp"], event_rows(events, tracks))
-    event = _choose(events, lambda item: item.id, "Event")
+    def show_events():
+        terminal.clear()
+        terminal.header("Race Entry", "Choose an event, car, and driver. Enter a number or ID; 'sort <field>' re-orders; q cancels.")
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
+        terminal.menu(menu_bar())
+        events = _sorted_events()
+        terminal.table(_sort_table_title("Available Events", "events"), ["#", "ID", "Event", "Track", "Class", "Fee", "Opp"], event_rows(events, tracks))
+        return events
+
+    event = _choose(show_events(), lambda item: item.id, "Event", sort_screen="events", refresh=show_events)
     if event is None:
         return
-    terminal.clear()
-    terminal.header("Race Entry", f"Event: {event.name}")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
-    terminal.menu(menu_bar())
-    cars = _sorted_garage(state)
-    terminal.table(_sort_table_title("Your Cars", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
-    car = _choose(cars, lambda item: item.identity.id, "Car")
+
+    show_cars = _garage_picker_show(state, "Race Entry", f"Event: {event.name}", "race entry")
+    car = _choose(show_cars(), lambda item: item.identity.id, "Car", sort_screen="garage", refresh=show_cars)
     if car is None:
         return
-    terminal.clear()
-    terminal.header("Race Entry", f"{event.name} / {car.identity.name}")
-    terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
-    terminal.menu(menu_bar())
-    terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
-    driver = _choose(drivers, lambda item: item.id, "Driver")
+
+    def show_drivers():
+        terminal.clear()
+        terminal.header("Race Entry", f"{event.name} / {car.identity.name}")
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
+        terminal.menu(menu_bar())
+        drivers = sort_items("drivers", state.hired_drivers or load_drivers(), _screen_sort("drivers"))
+        terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"], driver_rows(drivers))
+        return drivers
+
+    driver = _choose(show_drivers(), lambda item: item.id, "Driver", sort_screen="drivers", refresh=show_drivers)
     if driver is None:
         return
     _run_race(state, event.id, car.identity.id, driver.id)
 
 
-def _choose(items: list[object], get_id, label: str):
+def _choose(items: list[object], get_id, label: str, sort_screen: str | None = None, refresh=None):
+    """Prompt until an item is picked (or cancelled). Every picker list is sortable
+    with the same grammar as the main screens: pass the backing sort screen plus a
+    ``refresh`` that re-renders the picker's table and returns the re-sorted items."""
     while True:
         raw = terminal.prompt(label).strip()
         if raw.lower() in {"q", "quit", "cancel"}:
             terminal.print("Cancelled.")
             return None
+        tokens = shlex.split(raw) if raw else []
+        if tokens and tokens[0].lower() == "sort":
+            if sort_screen is None or refresh is None:
+                terminal.print("This list has a fixed order.")
+                continue
+            if len(tokens) == 1:
+                _show_sort_help(sort_screen)
+                continue
+            try:
+                _apply_sort_choice(tokens, sort_screen)
+            except ValueError as exc:
+                terminal.print(exc)
+                continue
+            items = refresh()
+            continue
         if raw.isdigit():
             index = int(raw) - 1
             if 0 <= index < len(items):
