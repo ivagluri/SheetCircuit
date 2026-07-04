@@ -99,8 +99,6 @@ Validation run:
 - `python3 -m unittest tests.test_actions tests.test_opponents tests.test_segment_resolution tests.test_supercar_tracks tests.test_wired_systems tests.test_economy`
 - `python3 -m unittest discover -s tests`
 
-## Remaining Milestones
-
 ### Milestone 5: Event List And Detail UI
 
 Commit: `55d7910 Show event progression status`
@@ -194,13 +192,33 @@ Validation run:
 
 ### Milestone 9: Full Test And Tuning Pass
 
-Scope:
+Commit: `dc8f34b Tune progression thresholds and rebuild web`
 
-- Run full unit suite.
-- Run probe output and inspect progression pacing.
-- Adjust constants only if obvious rough edges appear.
-- Rebuild web bundle only if code/data changes require it at delivery point.
-- Commit final tuning/doc updates if any.
+Added:
+
+- Full unit suite validation
+- Full compile check
+- Probe output inspection
+- Seed event distribution/pacing check
+- Upper-threshold tuning:
+  - Level 5: `850 -> 650`
+  - Level 6: `1300 -> 850`
+- Rationale: with the current V1 event catalog, all E/D/C first wins reach 686 XP;
+  the old Level 6 threshold left S events behind a long repeat grind because B/A
+  event content is deferred.
+- Rebuilt static web bundles:
+  - `web/sheetcircuit.html`
+  - `web/creator.html`
+
+Validation run:
+
+- `python3 -m unittest tests.test_progression`
+- `python3 tools/probe_progression.py`
+- seed event distribution/pacing script
+- `python3 tools/build_web.py`
+- `python3 tools/build_web.py --target creator`
+- `python3 -m unittest discover -s tests`
+- `python3 -m compileall .`
 
 ## Agreed XP Rules
 
@@ -212,8 +230,8 @@ TEAM_LEVEL_THRESHOLDS = {
     2: 100,
     3: 250,
     4: 500,
-    5: 850,
-    6: 1300,
+    5: 650,
+    6: 850,
 }
 
 TEAM_XP_BY_CLASS = {
@@ -272,12 +290,15 @@ incidents, prize, Team XP, driver XP, and condition deltas.
 
 ## Verification Baseline
 
-After Milestone 2:
+Final Milestone 9 validation:
 
 ```bash
-python3 -m unittest tests.test_save_load tests.test_web_adapter.WebSaveLoadTests
 python3 -m unittest tests.test_progression
+python3 tools/probe_progression.py
+python3 tools/build_web.py
+python3 tools/build_web.py --target creator
 python3 -m unittest discover -s tests
+python3 -m compileall .
 ```
 
-Full suite result: 329 tests passing.
+Full suite result: 338 tests passing.
