@@ -175,14 +175,22 @@ Validation run:
 
 ### Milestone 8: Progression Probe Tool
 
-Scope:
+Commit: `60b71d0 Add progression probe tool`
 
-- Add `tools/probe_progression.py`.
-- Print XP payouts by class, event kind, finish, and repeat win count.
-- Optionally simulate simple career paths through event tiers.
-- Keep it quick and dependency-free.
-- Update AGENT_MAP.
-- Commit milestone.
+Added:
+
+- `tools/probe_progression.py`
+- Team Level threshold output
+- Team XP payout tables by class, event kind, finish, and repeat win count
+- simple ladder-path simulation through event tiers
+- subprocess smoke test for the probe
+- AGENT_MAP run-command/tool entries
+
+Validation run:
+
+- `python3 tools/probe_progression.py`
+- `python3 -m unittest tests.test_progression`
+- `python3 -m unittest discover -s tests`
 
 ### Milestone 9: Full Test And Tuning Pass
 
