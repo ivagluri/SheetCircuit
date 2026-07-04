@@ -251,6 +251,8 @@ class TrackAndEventTests(CreatorWebCase):
         self.assertIsNotNone(request)
         payload = json.loads(request["download"]["content"])
         self.assertEqual(payload["laps"], 8)
+        self.assertEqual(payload["min_team_level"], 1)
+        self.assertEqual(payload["event_kind"], "ladder")
         self.assertNotIn("race_mode", payload)
         self.assertNotIn("race_value", payload)
         self.assertEqual(payload["restrictions"], {})
@@ -263,17 +265,22 @@ class TrackAndEventTests(CreatorWebCase):
         (self.root / "events" / "web_evt.json").write_text(json.dumps({
             "id": "web_evt", "name": "Evt", "track_id": "maple_short",
             "car_class_limit": "E", "entry_fee": 100, "prize_money": [500],
+            "min_team_level": 2, "event_kind": "open_invitational",
             "opponent_count": 3, "duration_s": 600.0, "restrictions": {"max_power_hp": 90},
         }))
         self.drive("f", "1")
         self.assertEqual(self.creator.draft["race_mode"], "duration_s")
         self.assertEqual(self.creator.draft["race_value"], 600.0)
+        self.assertEqual(self.creator.draft["min_team_level"], 2)
+        self.assertEqual(self.creator.draft["event_kind"], "open_invitational")
         self.assertEqual(self.creator.draft["restr_max_power_hp"], 90)
         self.creator.handle_input("w")  # unchanged → target exists → overwrite prompt
         self.assertEqual(self.meta()["mode"], MODE_OVERWRITE)
         self.creator.handle_input("y")
         payload = json.loads(self.creator.js_request["download"]["content"])
         self.assertEqual(payload["duration_s"], 600.0)
+        self.assertEqual(payload["min_team_level"], 2)
+        self.assertEqual(payload["event_kind"], "open_invitational")
         self.assertEqual(payload["restrictions"], {"max_power_hp": 90})
 
     def test_track_save_refreshes_event_choices_and_sim_tracks(self) -> None:

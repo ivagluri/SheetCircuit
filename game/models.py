@@ -249,6 +249,8 @@ class Event:
     prize_money: list[int]
     opponent_count: int
     restrictions: dict
+    min_team_level: int = 1
+    event_kind: str = "ladder"
     rival_skill: int | None = None
     # Race length lives on the event, not the track: one track hosts a 5-lap sprint and a
     # 24h enduro. Exactly one of these is set (validated in the loader). distance_km is

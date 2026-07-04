@@ -3,6 +3,8 @@
   "name": "Beater Enduro",
   "track_id": "red_valley_club",
   "car_class_limit": "E",
+  "min_team_level": 1,
+  "event_kind": "open_invitational",
   "entry_fee": 150,
   "prize_money": [
     1800,

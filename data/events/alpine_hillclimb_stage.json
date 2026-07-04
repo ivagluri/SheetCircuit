@@ -3,6 +3,8 @@
   "name": "Alpine Hillclimb",
   "track_id": "alpine_hillclimb",
   "car_class_limit": "D",
+  "min_team_level": 2,
+  "event_kind": "ladder",
   "entry_fee": 400,
   "prize_money": [
     3500,

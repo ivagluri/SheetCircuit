@@ -64,6 +64,8 @@ def event_draft_to_json(draft: dict) -> dict:
         "name": draft["name"],
         "track_id": draft["track_id"],
         "car_class_limit": draft["car_class_limit"],
+        "min_team_level": int(draft.get("min_team_level", 1)),
+        "event_kind": str(draft.get("event_kind", "ladder")),
         "entry_fee": int(draft["entry_fee"]),
         "prize_money": list(draft["prize_money"]),
         "opponent_count": int(draft["opponent_count"]),
@@ -87,7 +89,17 @@ def event_draft_to_json(draft: dict) -> dict:
 def event_json_to_draft(event: dict) -> dict:
     """Inverse of event_draft_to_json: load a stored event into the flattened draft."""
     draft = copy.deepcopy(EVENT_SCHEMA.template)
-    for key in ("id", "name", "track_id", "car_class_limit", "entry_fee", "prize_money", "opponent_count"):
+    for key in (
+        "id",
+        "name",
+        "track_id",
+        "car_class_limit",
+        "min_team_level",
+        "event_kind",
+        "entry_fee",
+        "prize_money",
+        "opponent_count",
+    ):
         if key in event:
             draft[key] = event[key]
     draft["rival_skill"] = event.get("rival_skill") or 0
@@ -331,7 +343,8 @@ def event_preview(draft: dict) -> list[str]:
     lines = [
         f"[bold]{event.name or '(unnamed)'}[/bold] on [cyan]{track.name}[/cyan]",
         race,
-        f"class ≤ {event.car_class_limit}   field {event.opponent_count}   fee ${event.entry_fee}   restrictions: {restr}",
+        f"class ≤ {event.car_class_limit}   team Lv {event.min_team_level}   {event.event_kind}   "
+        f"field {event.opponent_count}   fee ${event.entry_fee}   restrictions: {restr}",
     ]
     if fmt.laps is not None:
         span = _real_play_span(track, laps=fmt.laps)

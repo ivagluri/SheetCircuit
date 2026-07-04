@@ -3,6 +3,8 @@
   "name": "Clubman Trial",
   "track_id": "red_valley_club",
   "car_class_limit": "D",
+  "min_team_level": 2,
+  "event_kind": "ladder",
   "entry_fee": 500,
   "prize_money": [
     4000,

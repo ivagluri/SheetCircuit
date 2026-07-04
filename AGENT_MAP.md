@@ -32,11 +32,14 @@ constants.py
   All tuning constants, progression XP thresholds, command modifiers, validation ranges.
 
 data/
-  JSON seed data: cars, drivers, tracks, events, parts.
+  JSON seed data: cars, drivers, tracks, events, parts. Event JSON carries
+  explicit progression metadata (`min_team_level`, `event_kind`).
 
 game/
-  models.py          Dataclasses for cars, tracks, events, race state, telemetry.
-  loader.py          JSON loading, validation, track weight derivation.
+  models.py          Dataclasses for cars, tracks, events (including progression
+                     metadata), race state, telemetry.
+  loader.py          JSON loading, validation, track weight derivation. Event loading
+                     defaults `min_team_level` from class and validates `event_kind`.
   game_state.py      GameState, new_game(), new_career(). Stores money/week,
                      team_xp, garage, hired_drivers, event_progress.
   save_load.py       Versioned JSON save/load (schema v2 includes team progression).
@@ -161,6 +164,11 @@ Team XP awards come from `team_xp_award(class, event_kind, position, is_dnf,
 event_progress_before)`: base XP by event class, finish multiplier, event-kind
 multiplier, repeat-win smoothing, plus a one-time first-win bonus. Keep this module
 UI-free and simulation-free so pacing can be tested without running races.
+
+Each `Event` has `min_team_level` and `event_kind`. The loader infers missing
+`min_team_level` from `TEAM_LEVEL_BY_CLASS` and defaults missing `event_kind` to
+`ladder`, but seed data is explicitly annotated. Valid event kinds are defined by
+`constants.EVENT_KINDS`; `beater_enduro` is the level-1 `open_invitational`.
 
 ## Main Game Loop
 

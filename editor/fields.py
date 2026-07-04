@@ -15,8 +15,10 @@ from typing import Any, Sequence
 from constants import (
     CONDITION_MODIFIERS,
     ENGINE_MAP_POWER,
+    EVENT_KINDS,
     SEGMENT_TAG_WEIGHTS,
     SURFACE_MODIFIERS,
+    TEAM_LEVEL_THRESHOLDS,
     TIRE_COMPOUNDS,
     TUNE_FIELD_RANGES,
 )
@@ -27,6 +29,7 @@ CONDITIONS = list(CONDITION_MODIFIERS)             # dry / damp / wet
 ENGINE_MAPS = list(ENGINE_MAP_POWER)               # safe / balanced / hot / ...
 SEGMENT_TAGS = list(SEGMENT_TAG_WEIGHTS)           # the 12 segment tags
 CAR_CLASSES = ["E", "D", "C", "B", "A", "S"]
+TEAM_LEVELS = list(range(min(TEAM_LEVEL_THRESHOLDS), max(TEAM_LEVEL_THRESHOLDS) + 1))
 DRIVETRAINS = ["RWD", "FWD", "AWD"]
 LAYOUTS = ["front_engine", "mid_engine", "rear_engine", "front_mid", "rear_mid"]
 ASPIRATIONS = ["NA", "turbo", "supercharged", "twin_turbo"]
@@ -419,6 +422,8 @@ EVENT_TEMPLATE: dict[str, Any] = {
     "name": "",
     "track_id": "",
     "car_class_limit": "E",
+    "min_team_level": 1,
+    "event_kind": "ladder",
     "entry_fee": 250,
     "prize_money": [1500, 900, 500, 200],
     "opponent_count": 7,
@@ -436,6 +441,8 @@ EVENT_SECTIONS: list[Section] = [
         _f(("name",), "name", "str", "e.g. 'Maple Weekender'"),
         _f(("track_id",), "track_id", "enum", "which track this race runs on", choices=_track_ids()),
         _f(("car_class_limit",), "car_class_limit", "enum", "highest car class allowed to enter", choices=CAR_CLASSES),
+        _f(("min_team_level",), "min_team_level", "int", "team level required to enter", 1, max(TEAM_LEVELS)),
+        _f(("event_kind",), "event_kind", "enum", "XP progression kind", choices=EVENT_KINDS),
         _f(("entry_fee",), "entry_fee ($)", "int", "", 0, None),
         _f(("opponent_count",), "opponent_count", "int", "size of the rival field", 0, 40),
         _f(("prize_money",), "prize_money", "ints", "payouts by finishing position, comma-separated"),

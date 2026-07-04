@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 import unittest
 
-from game.loader import DataLoadError, load_cars, load_drivers, load_events, load_parts, load_tracks
+from game.loader import DataLoadError, event_from_dict, load_cars, load_drivers, load_events, load_parts, load_tracks
 from game.models import Car, Driver, Event, Part, Track
 
 
@@ -65,6 +65,49 @@ class ModelLoadTests(unittest.TestCase):
             loaded_ids = {car.identity.id for car in load_cars(source_root)}
             self.assertIn("extra_k660", loaded_ids)
             self.assertEqual(len(loaded_ids), len(original) + 1)
+
+    def test_event_progression_defaults_are_inferred_and_normalized(self) -> None:
+        payload = {
+            "id": "progression_default",
+            "name": "Progression Default",
+            "track_id": "maple_short",
+            "car_class_limit": "D",
+            "entry_fee": 0,
+            "prize_money": [0],
+            "opponent_count": 3,
+            "restrictions": {},
+            "laps": 3,
+        }
+
+        defaulted = event_from_dict(payload)
+        explicit = event_from_dict({
+            **payload,
+            "min_team_level": "4",
+            "event_kind": " Open_Invitational ",
+        })
+
+        self.assertEqual(defaulted.min_team_level, 2)
+        self.assertEqual(defaulted.event_kind, "ladder")
+        self.assertEqual(explicit.min_team_level, 4)
+        self.assertEqual(explicit.event_kind, "open_invitational")
+
+    def test_event_progression_fields_are_validated(self) -> None:
+        payload = {
+            "id": "bad_progression",
+            "name": "Bad Progression",
+            "track_id": "maple_short",
+            "car_class_limit": "E",
+            "entry_fee": 0,
+            "prize_money": [0],
+            "opponent_count": 3,
+            "restrictions": {},
+            "laps": 3,
+        }
+
+        with self.assertRaisesRegex(DataLoadError, "event_kind"):
+            event_from_dict({**payload, "event_kind": "bonus"})
+        with self.assertRaisesRegex(DataLoadError, "min_team_level"):
+            event_from_dict({**payload, "min_team_level": 0})
 
     def test_bad_track_segment_sum_raises(self) -> None:
         with TemporaryDataRoot(copy_seed=True) as source_root:

@@ -3,6 +3,8 @@
   "name": "Granite Peak Hillclimb",
   "track_id": "granite_peak_hillclimb",
   "car_class_limit": "C",
+  "min_team_level": 3,
+  "event_kind": "ladder",
   "entry_fee": 600,
   "prize_money": [
     5000,

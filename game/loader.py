@@ -15,6 +15,8 @@ from constants import (
     ELEVATION_FUEL_PER_M,
     ELEVATION_HEAT_PER_M,
     ELEVATION_REF_M,
+    EVENT_KIND_LADDER,
+    EVENT_KINDS,
     NET_CLIMB_LAYOUTS,
     OVERTAKE_DIFFICULTY_TAG_DELTA,
     SEGMENT_TAG_RATES,
@@ -25,6 +27,7 @@ from constants import (
     TRACK_LENGTH_TOLERANCE,
     WEATHER_WET_SHARE,
 )
+from game.progression import min_team_level_for_class
 from game.models import (
     AeroStats,
     BrakeStats,
@@ -136,6 +139,39 @@ def event_from_dict(data: dict[str, Any], path: Path | None = None) -> Event:
     source = path or Path("<memory>")
     event_data = dict(data)
     event_data.setdefault("rival_skill", None)
+    try:
+        class_limit = event_data["car_class_limit"]
+    except KeyError as exc:
+        raise DataLoadError(f"Missing event field {exc!s} in {source}") from exc
+    if event_data.get("min_team_level") is None:
+        try:
+            event_data["min_team_level"] = min_team_level_for_class(class_limit)
+        except ValueError as exc:
+            raise DataLoadError(
+                f"Event {event_data.get('id', '?')} in {source} has unknown car_class_limit: {class_limit}"
+            ) from exc
+    else:
+        try:
+            event_data["min_team_level"] = int(event_data["min_team_level"])
+        except (TypeError, ValueError) as exc:
+            raise DataLoadError(
+                f"Event {event_data.get('id', '?')} in {source} has invalid min_team_level: "
+                f"{event_data.get('min_team_level')!r}"
+            ) from exc
+        if event_data["min_team_level"] < 1:
+            raise DataLoadError(
+                f"Event {event_data.get('id', '?')} in {source} has min_team_level below 1: "
+                f"{event_data['min_team_level']}"
+            )
+    event_kind = event_data.get("event_kind") or EVENT_KIND_LADDER
+    normalized_kind = str(event_kind).strip().lower()
+    if normalized_kind not in EVENT_KINDS:
+        expected = ", ".join(EVENT_KINDS)
+        raise DataLoadError(
+            f"Event {event_data.get('id', '?')} in {source} has unknown event_kind "
+            f"{event_kind!r}; expected one of: {expected}"
+        )
+    event_data["event_kind"] = normalized_kind
     for field_name in ("laps", "distance_km", "duration_s"):
         event_data.setdefault(field_name, None)
     specified = [name for name in ("laps", "distance_km", "duration_s") if event_data[name] is not None]

@@ -3,6 +3,8 @@
   "name": "Lightweight Challenge",
   "track_id": "maple_short",
   "car_class_limit": "E",
+  "min_team_level": 1,
+  "event_kind": "ladder",
   "entry_fee": 300,
   "prize_money": [
     2500,

@@ -3,6 +3,8 @@
   "name": "Glenmoor Trophy",
   "track_id": "glenmoor_esses",
   "car_class_limit": "S",
+  "min_team_level": 6,
+  "event_kind": "ladder",
   "entry_fee": 1500,
   "prize_money": [
     14000,
