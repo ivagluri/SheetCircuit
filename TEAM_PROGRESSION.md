@@ -103,20 +103,26 @@ Validation run:
 
 ### Milestone 5: Event List And Detail UI
 
-Scope:
+Commit: `55d7910 Show event progression status`
 
-- Event rows should show requirement/status and best result.
-- Event detail should show:
-  - event kind
-  - team requirement
-  - available/locked status
-  - current team level and XP needed if locked
-  - best result/event progress if any
-- Locked events remain selectable for detail.
-- Keep table formatting compatible with CLI/web text adapter.
-- Add focused action/screen tests.
-- Update AGENT_MAP.
-- Commit milestone.
+Added:
+
+- Shared `game/event_display.py` helpers for event kind, team requirement/status,
+  XP-to-unlock, and compact best-progress text
+- Event list columns for requirement, status, and best result in action-layer,
+  CLI, and web event tables
+- Event detail rows for kind, team requirement, locked/open status, current team
+  level/XP, and XP needed when locked
+- Event detail progress table with starts, best result, wins, podiums, and best
+  time
+- Locked events remain visible and selectable for detail
+- Focused action-layer tests for list/detail progression UI
+- AGENT_MAP entry for shared event display helpers
+
+Validation run:
+
+- `python3 -m unittest tests.test_actions tests.test_cli tests.test_web_adapter`
+- `python3 -m unittest discover -s tests`
 
 ### Milestone 6: Post-Race Summary And Progress Commit
 
