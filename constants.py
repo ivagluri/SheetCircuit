@@ -12,8 +12,8 @@ TEAM_LEVEL_THRESHOLDS: dict[int, int] = {
     2: 100,
     3: 250,
     4: 500,
-    5: 850,
-    6: 1300,
+    5: 650,
+    6: 850,
 }
 TEAM_LEVEL_BY_CLASS: dict[str, int] = {
     "E": 1,

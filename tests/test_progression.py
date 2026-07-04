@@ -26,6 +26,8 @@ class ProgressionTests(unittest.TestCase):
         self.assertEqual(team_level_for_xp(100), 2)
         self.assertEqual(team_level_for_xp(249), 2)
         self.assertEqual(team_level_for_xp(250), 3)
+        self.assertEqual(team_level_for_xp(849), 5)
+        self.assertEqual(team_level_for_xp(850), 6)
         self.assertEqual(team_level_for_xp(1300), 6)
         self.assertEqual(team_level_for_xp(9999), 6)
 
