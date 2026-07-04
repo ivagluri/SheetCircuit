@@ -44,6 +44,26 @@ class ActionLayerTests(unittest.TestCase):
         self.assertTrue(market.tables[0].rows)
         self.assertIn("tables", asdict(garage))
 
+    def test_events_screen_shows_requirement_status_and_best_result(self) -> None:
+        state = GameState(event_progress={
+            "sunday_cup": {
+                "starts": 2,
+                "best_position": 1,
+                "wins": 1,
+                "podiums": 2,
+                "best_time_s": 410.2,
+            }
+        })
+
+        screen = events_screen(state)
+        rows = {row[1]: row for row in screen.tables[0].rows}
+
+        self.assertEqual(screen.tables[0].headers[5:8], ["Req", "Status", "Best"])
+        self.assertEqual(rows["sunday_cup"][5:8], ["Lv 1", "Open", "Win"])
+        self.assertEqual(rows["clubman_trial"][5], "Lv 2")
+        self.assertTrue(str(rows["clubman_trial"][6]).startswith("Locked"))
+        self.assertEqual(rows["clubman_trial"][7], "No starts")
+
     def test_car_screens_can_be_sorted_by_price_and_power(self) -> None:
         price_sorted = market_screen(parse_sort_spec("market", "price"))
         power_sorted = market_screen(parse_sort_spec("market", "hp"))
@@ -282,6 +302,34 @@ class ActionLayerTests(unittest.TestCase):
 
         event_rows = next(table for table in screen.tables if table.title == "Event").rows
         self.assertIn("Est. Time", [row[0] for row in event_rows])
+
+    def test_event_detail_shows_progression_status_and_progress(self) -> None:
+        state = GameState(event_progress={
+            "clubman_trial": {
+                "starts": 3,
+                "best_position": 2,
+                "wins": 0,
+                "podiums": 2,
+                "best_time_s": 389.4,
+            }
+        })
+
+        locked = event_detail_screen("clubman_trial", state)
+        event_rows = dict(next(table for table in locked.tables if table.title == "Event").rows)
+        progress_rows = dict(next(table for table in locked.tables if table.title == "Event Progress").rows)
+
+        self.assertEqual(event_rows["Kind"], "Ladder")
+        self.assertEqual(event_rows["Team Requirement"], "Team Lv 2")
+        self.assertEqual(event_rows["Status"], "Locked (100 XP)")
+        self.assertEqual(event_rows["XP Needed"], "100 XP")
+        self.assertEqual(progress_rows["Best Result"], "P2 podium")
+        self.assertEqual(progress_rows["Best Time"], "389.4s")
+
+        invitational_rows = dict(next(
+            table for table in event_detail_screen("beater_enduro", state).tables
+            if table.title == "Event"
+        ).rows)
+        self.assertEqual(invitational_rows["Kind"], "Open Invitational")
 
     def test_garage_and_market_show_pr_and_type(self) -> None:
         state = new_career()

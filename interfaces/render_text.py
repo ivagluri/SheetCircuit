@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from game.effective_stats import class_rating, derived_class, performance_type
+from game.event_display import event_best_text, event_requirement_text, team_status_text
 from game.game_state import GameState
 from game.models import Car, Driver, Event, Part, RaceCarState, RaceSession, Track
 from game.sorting import SortSpec, sort_items
@@ -88,7 +89,12 @@ def driver_rows(drivers: list[Driver], sort_spec: SortSpec | None = None) -> lis
     ]
 
 
-def event_rows(events: list[Event], tracks: dict[str, Track], sort_spec: SortSpec | None = None) -> list[list[object]]:
+def event_rows(
+    events: list[Event],
+    tracks: dict[str, Track],
+    sort_spec: SortSpec | None = None,
+    state: GameState | None = None,
+) -> list[list[object]]:
     sorted_events = sort_items("events", events, sort_spec)
     return [
         [
@@ -97,6 +103,9 @@ def event_rows(events: list[Event], tracks: dict[str, Track], sort_spec: SortSpe
             event.name,
             tracks[event.track_id].name if event.track_id in tracks else event.track_id,
             event.car_class_limit,
+            event_requirement_text(event),
+            team_status_text(state, event) if state is not None else "-",
+            event_best_text(state.event_progress.get(event.id)) if state is not None else "-",
             f"${event.entry_fee}",
             event.opponent_count,
         ]

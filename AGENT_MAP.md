@@ -57,6 +57,8 @@ game/
                      performance_type(). Secondary car/tune/durability stats fold
                      into the 7 effective axes via centered factors (see the
                      "orphan-stat reference points" block in constants).
+  event_display.py   Shared event UI text for progression requirement/status and
+                     best-progress summaries.
   opponents.py       Event entry validation and event-pace-aware AI grid generation.
   simulation.py      Lap-time formula and non-interactive full race simulation.
                      Resolution-invariant: noise (driver variance, rival jitter) scales by

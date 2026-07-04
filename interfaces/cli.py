@@ -240,7 +240,7 @@ def _render_screen(state: GameState, screen: str, subtitle: str = "") -> None:
     elif screen == "drivers":
         _show_drivers(state)
     elif screen == "events":
-        _show_events()
+        _show_events(state)
     elif screen == "market":
         _show_market()
     elif screen == "help":
@@ -257,8 +257,8 @@ def _show_drivers(state: GameState) -> None:
     _render_action_screen(drivers_screen(state, _screen_sort("drivers")))
 
 
-def _show_events() -> None:
-    _render_action_screen(events_screen(_screen_sort("events")))
+def _show_events(state: GameState) -> None:
+    _render_action_screen(events_screen(state, _screen_sort("events")))
 
 
 def _show_market() -> None:
@@ -775,7 +775,11 @@ def _race_picker(state: GameState) -> None:
         terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry"))
         terminal.menu(menu_bar())
         events = _sorted_events()
-        terminal.table(_sort_table_title("Available Events", "events"), ["#", "ID", "Event", "Track", "Class", "Fee", "Opp"], event_rows(events, tracks))
+        terminal.table(
+            _sort_table_title("Available Events", "events"),
+            ["#", "ID", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"],
+            event_rows(events, tracks, state=state),
+        )
         return events
 
     event = _choose(show_events(), lambda item: item.id, "Event", sort_screen="events", refresh=show_events)

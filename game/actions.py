@@ -9,11 +9,13 @@ from typing import Any
 from constants import CAR_MOD_FIELD_RANGES, ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TIRE_COMPOUNDS, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
 from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
 from game.effective_stats import class_breakdown, class_rating, compute_effective_stats, derived_class, performance_type
+from game.event_display import event_best_text, event_kind_label, event_progress_rows, event_requirement_text, team_status_text, xp_needed_for_team_level
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.market import list_market_cars
 from game.models import RaceSession, RaceTickResult
 from game.race_session import apply_player_command, enter_event, finish_event
+from game.progression import team_level_for_xp
 from game.simulation import calculate_lap_time
 from game.save_load import load_game, save_game
 from game.sorting import SortSpec, sort_items, sort_label
@@ -138,7 +140,10 @@ def drivers_screen(state: GameState, sort_spec: SortSpec | None = None) -> Scree
     return ScreenData(name="drivers", title="Drivers", tables=tables)
 
 
-def events_screen(sort_spec: SortSpec | None = None) -> ScreenData:
+def events_screen(state: GameState | None = None, sort_spec: SortSpec | None = None) -> ScreenData:
+    if isinstance(state, SortSpec) and sort_spec is None:
+        sort_spec = state
+        state = None
     tracks = {track.id: track for track in load_tracks()}
     events = sort_items("events", load_events(), sort_spec)
     return ScreenData(
@@ -147,7 +152,7 @@ def events_screen(sort_spec: SortSpec | None = None) -> ScreenData:
         tables=[
             TableData(
                 _table_title("Events", "events", sort_spec),
-                ["#", "ID", "Event", "Track", "Class", "Fee", "Opp"],
+                ["#", "ID", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"],
                 [
                     [
                         index,
@@ -155,6 +160,9 @@ def events_screen(sort_spec: SortSpec | None = None) -> ScreenData:
                         event.name,
                         tracks[event.track_id].name if event.track_id in tracks else event.track_id,
                         event.car_class_limit,
+                        event_requirement_text(event),
+                        team_status_text(state, event) if state is not None else "-",
+                        event_best_text(state.event_progress.get(event.id)) if state is not None else "-",
                         f"${event.entry_fee}",
                         event.opponent_count,
                     ]
@@ -512,7 +520,9 @@ def event_detail_screen(event_id: str, state: GameState | None = None) -> Screen
         race_desc = f"{race_format.duration_s / 3600:.1f} h (time)"
     rows = [
         ["ID", event.id],
+        ["Kind", event_kind_label(event.event_kind)],
         ["Class Limit", event.car_class_limit],
+        ["Team Requirement", f"Team Lv {event.min_team_level}"],
         ["Entry Fee", f"${event.entry_fee}"],
         ["Race", race_desc],
         ["Lap Length", f"{track.length_km} km"],
@@ -520,28 +530,42 @@ def event_detail_screen(event_id: str, state: GameState | None = None) -> Screen
         ["Prizes", ", ".join(f"${prize}" for prize in event.prize_money)],
     ]
     if state is not None:
+        current_team_level = team_level_for_xp(state.team_xp)
+        rows.append(["Status", team_status_text(state, event)])
+        rows.append(["Team", f"Team Lv {current_team_level} ({state.team_xp} XP)"])
+        if current_team_level < event.min_team_level:
+            rows.append(["XP Needed", f"{xp_needed_for_team_level(state.team_xp, event.min_team_level)} XP"])
         entry = _estimate_entry(state, event, track)
         if entry is not None:
             car, driver, eligible = entry
             canonical_s, play_s = estimate_race_times(car, driver, event, track)
             note = "" if eligible else " (best car, not eligible)"
             rows.append(["Est. Time", f"~{format_race_clock(play_s)} to play / ~{format_race_clock(canonical_s)} race{note}"])
+    tables = [
+        TableData(
+            "Event",
+            ["Field", "Value"],
+            rows,
+        ),
+        TableData(
+            "Restrictions",
+            ["Rule", "Value"],
+            [[key, value] for key, value in event.restrictions.items()],
+        ),
+    ]
+    if state is not None:
+        tables.append(
+            TableData(
+                "Event Progress",
+                ["Field", "Value"],
+                event_progress_rows(state.event_progress.get(event.id)),
+            )
+        )
     return ScreenData(
         name="event_detail",
         title=event.name,
         subtitle=track.name,
-        tables=[
-            TableData(
-                "Event",
-                ["Field", "Value"],
-                rows,
-            ),
-            TableData(
-                "Restrictions",
-                ["Rule", "Value"],
-                [[key, value] for key, value in event.restrictions.items()],
-            ),
-        ],
+        tables=tables,
     )
 
 
@@ -558,7 +582,7 @@ def race_entry_screen(state: GameState, step: str = "events", sort_spec: SortSpe
             for index, driver in enumerate(drivers, start=1)
         ]
         return screen
-    return events_screen(sort_spec)
+    return events_screen(state, sort_spec)
 
 
 def _table_title(title: str, screen: str, sort_spec: SortSpec | None) -> str:

@@ -70,7 +70,7 @@ MODE_RACE_RESULT = "race_result"
 
 _GARAGE_HEADERS = ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"]
 _DRIVER_HEADERS = ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Salary"]
-_EVENT_HEADERS = ["#", "ID", "Event", "Track", "Class", "Fee", "Opp"]
+_EVENT_HEADERS = ["#", "ID", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"]
 
 _PROMPT_LABELS = {
     MODE_MENU: "Choice",
@@ -573,7 +573,9 @@ class WebGame:
             terminal.header("Race Entry", "Choose an event, car, and driver. Enter a number or ID; q cancels.")
             self._print_status_menu("race entry")
             terminal.table(
-                cli._sort_table_title("Available Events", "events"), _EVENT_HEADERS, event_rows(cli._sorted_events(), tracks)
+                cli._sort_table_title("Available Events", "events"),
+                _EVENT_HEADERS,
+                event_rows(cli._sorted_events(), tracks, state=self.state),
             )
         elif self.mode == MODE_RACE_CAR:
             terminal.header("Race Entry", f"Event: {self._entry_event_id}")
