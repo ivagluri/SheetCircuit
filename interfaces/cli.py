@@ -543,8 +543,8 @@ def _show_race_help() -> None:
         ["Key", "Command", "Effect"],
         [[option.key, option.label, option.description] for option in race_command_options()]
         + [
-            ["N / next", "Next lap", "Fast-forward to the end of the current lap"],
-            ["F / >", "Faster", "Cycle presentation speed (1x/2x/4x/8x); no effect on the result"],
+            ["L / next", "Next lap", "Fast-forward to the end of the current lap"],
+            ["> / ff", "Faster", "Cycle presentation speed (1x/2x/4x/8x); no effect on the result"],
             ["X / end", "End", "Simulate remaining laps instantly and show result"],
             ["? / help", "Help", "Show race command help"],
         ],
@@ -910,9 +910,9 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
                     _render_race_screen(state, session, last_result, "")
                     terminal.print("Race simulated to completion.")
                     break
-                elif low in {"n", "next", "lap", "l"}:
+                elif low in {"next", "lap", "l"}:
                     skip_to_lap = True  # fast-forward over the rest of this lap
-                elif low in {"f", "ff", ">"}:
+                elif low in {"ff", ">"}:
                     speed_mult = _cycle_speed(speed_mult)
                 elif raw:
                     matched = _race_command(raw)
@@ -972,16 +972,18 @@ def _print_lap_bar(session, current_command: str, pending_command: str | None, s
         # Duration race: the bar tracks elapsed against the time cap, not within-lap position.
         elapsed = race_clock_elapsed(session)
         frac = min(elapsed / session.duration_s, 1.0) if session.duration_s else 1.0
-        label = f"{format_race_clock(elapsed)}/{format_race_clock(session.duration_s)} · Lap {session.current_lap}"
+        label = f"{format_race_clock(elapsed)}/{format_race_clock(session.duration_s)} · on lap {session.current_lap}"
     else:
+        # Lap race: the bar tracks within-lap position; laps are the finish condition, so
+        # they lead, with the leader's elapsed clock appended for a consistent time readout.
         frac = session.current_sub_tick / session.ticks_per_lap
         lap = min(session.current_lap + 1, session.total_laps)
-        label = f"Lap {lap}/{session.total_laps}"
+        label = f"Lap {lap}/{session.total_laps} · {format_race_clock(race_clock_elapsed(session))}"
     filled = int(frac * 24)
     bar = "█" * filled + "░" * (24 - filled)
     sys.stdout.write(
         f"  {label}  [{bar}] {int(frac * 100):3d}%  [{status}]  {speed_mult:g}x"
-        "  cmd+Enter  N=next lap  F=faster  X=end\n"
+        "  cmd+Enter  L=next lap  >=faster  X=end\n"
     )
     sys.stdout.flush()
 

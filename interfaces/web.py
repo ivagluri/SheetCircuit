@@ -876,9 +876,9 @@ class WebGame:
             terminal.print("Race simulated to completion.")
             self._finish_race()
             return
-        if low in {"n", "next", "lap", "l"}:
+        if low in {"next", "lap", "l"}:
             self._skip_to_lap = True
-        elif low in {"f", "ff", ">"}:
+        elif low in {"ff", ">"}:
             self._speed_mult = cli._cycle_speed(self._speed_mult)
         elif raw:
             matched = cli._race_command(raw)
