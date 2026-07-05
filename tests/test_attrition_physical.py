@@ -25,10 +25,10 @@ class PhysicalAttritionTests(unittest.TestCase):
         self.eff = compute_effective_stats(self.cars["kanto_k660"], self.parts)
         self.track = self.tracks["maple_short"]
 
-    def _run(self, eff, track, laps, seconds=90.0):
+    def _run(self, eff, track, laps, seconds=90.0, command="normal"):
         st = _initial_state("c", "d", "Y", True)
         for _ in range(laps):
-            _apply_lap_wear(st, eff, track, "normal", seconds=seconds)
+            _apply_lap_wear(st, eff, track, command, seconds=seconds)
         return st
 
     def test_fuel_and_tyre_wear_scale_with_distance(self) -> None:
@@ -48,12 +48,13 @@ class PhysicalAttritionTests(unittest.TestCase):
         self.assertAlmostEqual(big_used, small_used / 2, places=6)
 
     def test_fatigue_and_engine_heat_scale_with_time_not_distance(self) -> None:
-        # Engine heat is a balance against always-on passive cooling; use a thermally
-        # demanding car (the V12) whose load out-heats the airflow, so the time
+        # Engine heat is a balance against always-on passive cooling. At normal pace even
+        # the hottest car now holds its floor (so supercars don't cook at cruise), so drive
+        # the demand with go_all_out: the load out-heats the airflow and the time
         # dependence is visible above the operating floor.
         hot_eff = compute_effective_stats(self.cars["blackpool_twelve"], self.parts)
-        short = self._run(hot_eff, self.track, 1, seconds=60.0)
-        long = self._run(hot_eff, self.track, 1, seconds=180.0)
+        short = self._run(hot_eff, self.track, 1, seconds=60.0, command="go_all_out")
+        long = self._run(hot_eff, self.track, 1, seconds=180.0, command="go_all_out")
         # Same distance (1 lap), 3x the time => 3x the stress build.
         self.assertAlmostEqual(long.driver_stress, 3 * short.driver_stress, places=6)
         self.assertGreater(long.engine_temp - 90.0, short.engine_temp - 90.0)

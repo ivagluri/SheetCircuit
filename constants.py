@@ -156,8 +156,11 @@ NORM_AERO_MAX = 100
 TOP_SPEED_COEFF = 34.0
 
 TIRE_WEAR_PENALTY_MAX = 8.0
-TIRE_TEMP_PENALTY_MAX = 4.0
-ENGINE_TEMP_PENALTY_MAX = 3.0
+# Overheat is a two-band consequence (see telemetry failure model). The WARNING band --
+# past the overheat threshold, ramping to critical -- is this lap-time drag: holding a
+# hot pace clearly bleeds time before anything breaks, so backing off is the obvious play.
+TIRE_TEMP_PENALTY_MAX = 5.0
+ENGINE_TEMP_PENALTY_MAX = 5.0
 # Fuel load is lap time: a FULL tank is the reference (zero adjustment), and every litre
 # burned makes the car this many seconds per lap faster. Ties pit strategy to physics --
 # brimming the tank at a stop buys range but costs pace until it burns off.
@@ -198,16 +201,32 @@ TYRE_WEAR_PCT_PER_KM = 1.25        # × eff.tire_wear_rate × track tyre mult ->
 # character. push/go_all_out out-heat everyone; the cooling commands multiply the
 # passive rate (TIRE/ENGINE_COOLING_BOOST) and go strongly net-negative. Temps never
 # cool below their operating floor (TIRE_OPTIMAL_C / INITIAL_ENGINE_TEMP_C).
-TIRE_HEAT_PER_KM = 2.5             # tyre temp rises with work (distance × load)
-TIRE_COOL_PER_S = 0.026            # passive airflow cooling, always on (time)
+# Tyres are the *uniform* thermal brake: eff.tire_heat_rate is tight across the catalog
+# (~0.23-0.52), so every car crosses TIRE_OVERHEAT_C after a few laps at all-out and can
+# pull it back by lifting -- even a car whose engine runs cool. Rates are set so normal
+# holds near the floor, push warms slowly, and go_all_out reaches overheat in ~4 laps on
+# a mid car (faster on a hot-tyre car); a cooling command clears it in ~1-2 laps.
+TIRE_HEAT_PER_KM = 5.0             # tyre temp rises with work (distance × load)
+TIRE_COOL_PER_S = 0.055            # passive airflow cooling, always on (time)
 TIRE_COOLING_BOOST = 3.0           # save_tyres/cool_down/pit multiply passive cooling
 TIRE_OPTIMAL_C = 85.0              # operating floor; passive cooling stops here
 TIRE_OVERHEAT_C = 108.0
 TIRE_CRITICAL_C = 130.0
 
+# Engine is the *power-coupled* thermal brake and the star of the tactical-burst loop:
+# hold all-out and a mid car redlines in ~2 laps (critical by ~4), pushing the engine
+# past overheat where the failure/DNF cliff lives (see telemetry). Backing off to a
+# cooling command (ENGINE_COOLING_BOOST) recovers it in ~1 lap. The raw heat rate is
+# normalised + compressed (ENGINE_HEAT_REF/EXPONENT, clamped) so the ~5x catalog spread
+# doesn't make supercars cook at cruise or mid cars never heat -- a hotter/less-cooled
+# engine still heats faster within a bounded window, so cooling & engine-map stay levers.
 ENGINE_HEAT_PER_S = 0.06           # engine temp climbs with time at load
-ENGINE_COOL_PER_S = 0.012          # passive cooling, always on (time)
+ENGINE_COOL_PER_S = 0.074          # passive cooling, always on (time)
 ENGINE_COOLING_BOOST = 3.5         # save_fuel/cool_down/pit multiply passive cooling
+ENGINE_HEAT_REF = 20.0             # reference eff.engine_heat_rate (≈ catalog median)
+ENGINE_HEAT_EXPONENT = 0.6         # compress the raw-rate spread (<1 flattens it)
+ENGINE_HEAT_FACTOR_MIN = 0.7       # clamp the coolest engines (still heat at all-out)
+ENGINE_HEAT_FACTOR_MAX = 1.6       # clamp the hottest engines (still stable at cruise)
 ENGINE_OVERHEAT_C = 105.0
 ENGINE_CRITICAL_C = 120.0
 
@@ -217,16 +236,19 @@ DRIVER_STRESS_BUILD_PER_S = 0.042
 
 # In-race driver/pit-boss intents. Engine/ECU maps are NOT changed mid-race — those
 # live in the tuning menu (tune.engine_map). Each tuple is
-# (pace, tire_wear, fuel_burn, engine_heat, mistake_risk, stress); pace > 1 is faster,
-# the other columns are multipliers where > 1 means more of that effect.
+# (pace, tire_wear, fuel_burn, engine_heat, mistake_risk, stress, overtake); pace > 1 is
+# faster, the other columns are multipliers where > 1 means more of that effect. The
+# overtake column tilts a contest both ways: it multiplies an attacker's pass chance and
+# divides a defender's, so leaning on it makes the move AND makes it harder to be passed
+# (at the cost of heat/wear/risk) -- but only push/go_all_out carry a botched-pass risk.
 COMMAND_MODIFIERS: dict[str, tuple[float, ...]] = {
-    "normal": (1.00, 1.00, 1.00, 1.00, 1.00, 1.00),
-    "push": (1.06, 1.45, 1.25, 1.30, 1.45, 1.40),
-    "go_all_out": (1.11, 2.10, 1.55, 1.60, 2.30, 2.00),
-    "save_tyres": (0.96, 0.55, 1.00, 0.95, 0.85, 0.85),
-    "save_fuel": (0.93, 0.90, 0.48, 0.70, 0.80, 0.85),
-    "cool_down": (0.90, 0.70, 0.80, 0.72, 0.65, 0.65),
-    "pit": (0.72, 0.20, 1.00, 0.70, 0.40, 0.45),
+    "normal": (1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00),
+    "push": (1.06, 1.45, 1.25, 2.40, 1.45, 1.40, 1.25),
+    "go_all_out": (1.11, 2.10, 1.55, 4.00, 2.30, 2.00, 1.60),
+    "save_tyres": (0.96, 0.55, 1.00, 0.85, 0.85, 0.85, 0.85),
+    "save_fuel": (0.93, 0.90, 0.48, 0.55, 0.80, 0.85, 0.90),
+    "cool_down": (0.90, 0.70, 0.80, 0.50, 0.65, 0.65, 0.80),
+    "pit": (0.72, 0.20, 1.00, 0.50, 0.40, 0.45, 0.50),
 }
 COMMAND_PACE_INDEX = 0
 COMMAND_TIRE_WEAR_INDEX = 1
@@ -234,6 +256,14 @@ COMMAND_FUEL_BURN_INDEX = 2
 COMMAND_ENGINE_HEAT_INDEX = 3
 COMMAND_MISTAKE_INDEX = 4
 COMMAND_STRESS_INDEX = 5
+COMMAND_OVERTAKE_INDEX = 6
+
+# Botched pass: attempting a move at a hot pace can be thrown away -- the pass fails
+# (as any failed contest does) AND the attacker loses time (locked up / ran wide). Only
+# push/go_all_out carry it; per-lap chance, scaled by the tick slice like every contest
+# roll. A hook for driver racecraft to mitigate this later, mirroring the crash roll.
+OVERTAKE_BOTCH_PROB: dict[str, float] = {"push": 0.06, "go_all_out": 0.14}
+OVERTAKE_BOTCH_TIME = 2.5  # seconds lost when a hot pass is botched (== MISTAKE_TIME_MEDIUM)
 
 ENGINE_MAP_POWER: dict[str, float] = {
     "safe": 0.88,
@@ -266,7 +296,11 @@ MISTAKE_DNF_PROB = 0.04
 # rising sharply when the engine is past overheat (the physical pressure that makes heat
 # management and the AI's cooling rules matter). Applies to player and rivals alike.
 FAILURE_DNF_PROB = 0.06
-FAILURE_DNF_TEMP_PROB = 0.30
+# The DANGER band: once the engine is into the red, a mechanical issue is roughly a
+# coin-flip to end the race outright (0.06 + 0.45 at critical). Combined with the raised
+# failure rate at heat below, holding all-out into critical for several laps is a real
+# gamble, not a rounding error -- the teeth behind the tactical-burst loop.
+FAILURE_DNF_TEMP_PROB = 0.45
 # Go All Out can crash a car out. A composed/sympathetic driver trims that risk; this
 # is the hook for future driver skill levels to further mitigate it. The roll is scaled
 # by 1 - (consistency + mechanical_sympathy)/2 * DNF_DRIVER_RELIEF (clamped >= floor).
@@ -283,7 +317,7 @@ MISTAKE_STRESS_SCALE = 0.05
 MISTAKE_FATIGUE_SCALE = 0.05
 FAILURE_RELIABILITY_SCALE = 0.0008
 FAILURE_CONDITION_SCALE = 0.0005
-FAILURE_ENGINE_TEMP_SCALE = 0.08
+FAILURE_ENGINE_TEMP_SCALE = 0.12
 FAILURE_SYMPATHY_SCALE = 0.0003
 
 # --- Mid-race damage / driver energy ----------------------------------------

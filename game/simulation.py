@@ -26,7 +26,11 @@ from constants import (
     ENGINE_CRITICAL_C,
     ENGINE_COOL_PER_S,
     ENGINE_COOLING_BOOST,
+    ENGINE_HEAT_EXPONENT,
+    ENGINE_HEAT_FACTOR_MAX,
+    ENGINE_HEAT_FACTOR_MIN,
     ENGINE_HEAT_PER_S,
+    ENGINE_HEAT_REF,
     ENGINE_OVERHEAT_C,
     ENGINE_TEMP_PENALTY_MAX,
     FUEL_ECONOMY_FLOOR_L_PER_KM,
@@ -413,7 +417,17 @@ def _apply_lap_wear(
 
     # Engine heat: per second of running at load, against the same always-on passive
     # cooling balance (radiator airflow); the floor is normal operating temperature.
-    engine_gain = ENGINE_HEAT_PER_S * seconds * engine_heat_rate * effective.engine_heat_rate / PERCENT_MAX * modifiers[COMMAND_ENGINE_HEAT_INDEX]
+    # The car's raw engine_heat_rate spans ~5x across the catalog (a light four-pot vs a
+    # highly-stressed V12), which is far too wide to give a consistent "all-out redlines
+    # in a couple of laps" cadence -- calibrate it and a mid car never heats while a
+    # supercar cooks at cruise. So normalise it against a reference and compress the
+    # spread: a hotter engine still heats faster (cooling/engine-map stays a real build
+    # lever), but the window stays sane at both ends.
+    heat_factor = min(
+        ENGINE_HEAT_FACTOR_MAX,
+        max(ENGINE_HEAT_FACTOR_MIN, (effective.engine_heat_rate / ENGINE_HEAT_REF) ** ENGINE_HEAT_EXPONENT),
+    )
+    engine_gain = ENGINE_HEAT_PER_S * seconds * engine_heat_rate * heat_factor * modifiers[COMMAND_ENGINE_HEAT_INDEX]
     engine_cooling = ENGINE_COOL_PER_S * seconds
     if command in ENGINE_COOLING_COMMANDS:
         engine_cooling *= ENGINE_COOLING_BOOST

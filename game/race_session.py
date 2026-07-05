@@ -10,6 +10,7 @@ from constants import (
     AI_PIT_FUEL_PCT,
     AI_PIT_TIRE_PCT,
     COMMAND_MODIFIERS,
+    COMMAND_OVERTAKE_INDEX,
     CONDITION_HIT_FAILURE,
     CONDITION_HIT_MISTAKE,
     DRIVER_ENERGY_RECOVER_PIT,
@@ -27,6 +28,8 @@ from constants import (
     MAX_TICKS_PER_LAP,
     MIN_TICKS_PER_LAP,
     OVERTAKE_BASE_CHANCE_PER_LAP,
+    OVERTAKE_BOTCH_PROB,
+    OVERTAKE_BOTCH_TIME,
     OVERTAKE_CONTEST_MAX_S,
     OVERTAKE_FOLLOW_GAP_S,
     OVERTAKE_GAP_JITTER_S,
@@ -231,7 +234,7 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         (state for state in session.cars if not state.is_dnf),
         key=lambda state: state.total_time,
     )
-    road_ahead: list[tuple[float, object, object]] = []  # (pre-tick time, state, driver) of advanced cars
+    road_ahead: list[tuple[float, object, object, str]] = []  # (pre-tick time, state, driver, command) of advanced cars
     for state in field_order:
         pre_tick_time = state.total_time
         command = state.pace_mode if state.is_player else _ai_command(state, player_time)
@@ -286,7 +289,7 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         state.lap_elapsed += tick_time + extra_penalty
 
         if road_ahead and not state.is_dnf:
-            _contest_overtakes(session.track, rng, state, driver, pre_tick_time, road_ahead, seg_length)
+            _contest_overtakes(session.track, rng, state, driver, command, pre_tick_time, road_ahead, seg_length)
 
         if command == "pit" and is_lap_end:
             _apply_lap_wear(state, effective, session.track, "pit", driver_fitness=driver.fitness, seconds=tick_time)
@@ -315,7 +318,7 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
             # car is skipped on every later tick, so this is its last chance to speak.
             lap_log.extend(_unpublished_events(state))
         if not state.is_dnf:
-            road_ahead.append((pre_tick_time, state, driver))
+            road_ahead.append((pre_tick_time, state, driver, command))
 
     active = [state for state in session.cars if not state.is_dnf]
     if active:
@@ -430,13 +433,21 @@ def _apply_driver_progression(driver) -> str:
     return "  ".join(messages)
 
 
-def _pass_chance(track, attacker, defender) -> float:
+def _pass_chance(track, attacker, defender, attacker_cmd="normal", defender_cmd="normal") -> float:
     """Per-LAP chance sustained pressure converts into a pass, before slice scaling.
 
     Wide/easy tracks (low overtake_difficulty) let the quicker car through quickly;
-    narrow ones form trains. A racecraft edge (attacker vs defender) tilts the odds."""
+    narrow ones form trains. A racecraft edge (attacker vs defender) tilts the odds, and
+    pace tilts it too: leaning on it (push/go_all_out) multiplies the attacker's chance
+    while a defender leaning back cuts it -- so a battle is a two-sided pace decision, at
+    the cost of the heat/wear/risk those commands carry (and the botch risk, handled by
+    the caller)."""
     skill = 1.0 + (attacker.racecraft - defender.racecraft) * OVERTAKE_RACECRAFT_PER_POINT
-    return max(0.0, OVERTAKE_BASE_CHANCE_PER_LAP * (1.0 - track.overtake_difficulty) * skill)
+    pace = (
+        COMMAND_MODIFIERS[attacker_cmd][COMMAND_OVERTAKE_INDEX]
+        / COMMAND_MODIFIERS[defender_cmd][COMMAND_OVERTAKE_INDEX]
+    )
+    return max(0.0, OVERTAKE_BASE_CHANCE_PER_LAP * (1.0 - track.overtake_difficulty) * skill * pace)
 
 
 def _complete_pass(attacker, defender) -> None:
@@ -452,25 +463,29 @@ def _complete_pass(attacker, defender) -> None:
     defender.lap_elapsed -= delta
 
 
-def _contest_overtakes(track, rng, state, driver, pre_tick_time, road_ahead, seg_length: float) -> None:
+def _contest_overtakes(track, rng, state, driver, command, pre_tick_time, road_ahead, seg_length: float) -> None:
     """The car behind cannot simply drive through the cars ahead.
 
     ``road_ahead`` is the already-advanced field this tick as (pre-tick time, state,
-    driver) triples; ``pre_tick_time`` is the follower's own clock at tick start.
-    Walking up the road from the nearest car (largest time), every car this tick
+    driver, command) tuples; ``pre_tick_time`` is the follower's own clock at tick start
+    and ``command`` the follower's pace this tick. Walking up the road from the nearest
+    car (largest time), every car this tick
     would put the follower within the follow gap of (or past) must be dealt with: a
-    seeded roll against _pass_chance (scaled by the tick slice, so pass rates are
-    resolution-invariant) completes the pass -- a follower still nominally behind
+    seeded roll against _pass_chance -- tilted by both cars' pace (see _pass_chance),
+    scaled by the tick slice so pass rates are resolution-invariant -- completes the pass
+    -- a follower still nominally behind
     exchanges clocks with the defender (_complete_pass), so the move always reorders
     the road; a failed move holds the follower in dirty air just off the follow gap
     (a breathing band of [gap, gap + OVERTAKE_GAP_JITTER_S], so trains flutter
-    instead of freezing at one number) and ends its progress. Two exemptions: a car
+    instead of freezing at one number) and ends its progress -- and if that failed move
+    was a hot attempt (push/go_all_out) it may be *botched*, costing extra time on top of
+    the failed pass. Two exemptions: a car
     swept past with more margin than the
     contest window (it pitted, crashed wide, or is crawling on fumes) is not really
     defending, and a car that was NOT strictly ahead when the tick began (a standing
     start or dead heat) holds no road to defend -- there the field spreads on pace
     alone instead of freezing in processing order."""
-    for ahead_pre, ahead_state, ahead_driver in sorted(
+    for ahead_pre, ahead_state, ahead_driver, ahead_command in sorted(
         road_ahead, key=lambda entry: entry[1].total_time, reverse=True
     ):
         if ahead_pre >= pre_tick_time:
@@ -481,7 +496,7 @@ def _contest_overtakes(track, rng, state, driver, pre_tick_time, road_ahead, seg
             break  # clear of the nearest car ahead, so clear of everyone beyond it
         if margin > OVERTAKE_CONTEST_MAX_S:
             continue  # swept past a crippled car: free, keep driving up the road
-        if rng.random() < _pass_chance(track, driver, ahead_driver) * seg_length:
+        if rng.random() < _pass_chance(track, driver, ahead_driver, command, ahead_command) * seg_length:
             if state.total_time > ahead_state.total_time:
                 _complete_pass(state, ahead_state)
                 state.event_log.append(f"{state.label} passed {ahead_state.label}.")
@@ -495,7 +510,7 @@ def _contest_overtakes(track, rng, state, driver, pre_tick_time, road_ahead, seg
         # settled car -- on either side of it (a queue has formed) -- stack behind that
         # car instead. One ascending sweep resolves the chain because the held time
         # only ever moves backward.
-        for _settled_pre, settled_state, _settled_driver in sorted(
+        for _settled_pre, settled_state, _settled_driver, _settled_command in sorted(
             road_ahead, key=lambda entry: entry[1].total_time
         ):
             settled_time = settled_state.total_time
@@ -503,6 +518,14 @@ def _contest_overtakes(track, rng, state, driver, pre_tick_time, road_ahead, seg
                 held = settled_time + OVERTAKE_FOLLOW_GAP_S
         state.lap_elapsed += held - state.total_time
         state.total_time = held
+        # Botched hot pass: a failed move at push/go_all_out can be thrown away, losing
+        # time on top of the failed attempt (the pass already didn't stick). Scaled by
+        # the tick slice like every contest roll so it is resolution-invariant.
+        botch = OVERTAKE_BOTCH_PROB.get(command, 0.0)
+        if botch and rng.random() < botch * seg_length:
+            state.total_time += OVERTAKE_BOTCH_TIME
+            state.lap_elapsed += OVERTAKE_BOTCH_TIME
+            state.event_log.append(f"{state.label} ran wide attacking {ahead_state.label} (+{OVERTAKE_BOTCH_TIME:.0f}s).")
         break
 
 
