@@ -1549,13 +1549,13 @@ def _condition_delta(before: float, after: float, suffix: str) -> str:
 
 def race_command_options() -> list[OptionData]:
     return [
-        OptionData("normal", "Normal", "N", "Balanced race pace"),
-        OptionData("push", "Push", "P", "Lean on it: faster, more wear/heat/risk"),
-        OptionData("go_all_out", "Go All Out", "O", "Max pace, heavy wear/heat, crash risk"),
-        OptionData("save_tyres", "Save Tyres", "T", "Ease off to save and cool tyres"),
-        OptionData("save_fuel", "Save Fuel", "F", "Short-shift to save fuel and cool the engine"),
-        OptionData("cool_down", "Cool Down", "C", "Back right off, cool engine and tyres"),
-        OptionData("pit", "Pit", "I", "Pit once: lose pit time, restore tyres and fuel"),
+        OptionData("normal", "Normal", "N", "Balanced cruise; temps hold steady"),
+        OptionData("push", "Push", "P", "Faster + better overtaking; warms the car, small botch risk"),
+        OptionData("go_all_out", "Go All Out", "O", "Max pace + best overtaking; overheats in a lap or two, DNF gamble if held"),
+        OptionData("save_tyres", "Save Tyres", "T", "Ease off: cool and save the tyres"),
+        OptionData("save_fuel", "Save Fuel", "F", "Short-shift: save fuel and cool the engine"),
+        OptionData("cool_down", "Cool Down", "C", "Back right off: recover engine + tyre temps fast"),
+        OptionData("pit", "Pit", "I", "Pit once: lose pit time, fresh tyres and fuel"),
     ]
 
 

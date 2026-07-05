@@ -234,7 +234,9 @@ ENGINE_COOL_PER_S = 0.074          # passive cooling, always on (time)
 ENGINE_COOLING_BOOST = 3.5         # save_fuel/cool_down/pit multiply passive cooling
 ENGINE_HEAT_REF = 20.0             # reference eff.engine_heat_rate (≈ catalog median)
 ENGINE_HEAT_EXPONENT = 0.6         # compress the raw-rate spread (<1 flattens it)
-ENGINE_HEAT_FACTOR_MIN = 0.7       # clamp the coolest engines (still heat at all-out)
+ENGINE_HEAT_FACTOR_MIN = 0.82      # clamp the coolest engines: even a light, well-cooled
+                                   # engine overheats within ~3 laps of all-out, so there is
+                                   # no free sprint -- it just holds a little longer than a hot one
 ENGINE_HEAT_FACTOR_MAX = 1.6       # clamp the hottest engines (still stable at cruise)
 ENGINE_OVERHEAT_C = 105.0
 ENGINE_CRITICAL_C = 120.0

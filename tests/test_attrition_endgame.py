@@ -23,9 +23,10 @@ from constants import (
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
 from game.loader import load_cars, load_parts, load_tracks
+from game.loader import load_drivers
 from game.race_session import _ai_command, apply_player_command, enter_event, simulate_tick
 from game.simulation import _apply_lap_wear, _initial_state, calculate_lap_time
-from game.telemetry import failure_dnf_chance
+from game.telemetry import failure_chance, failure_dnf_chance
 
 
 class AttritionEndgameTests(unittest.TestCase):
@@ -159,6 +160,41 @@ class AttritionEndgameTests(unittest.TestCase):
         hot = _initial_state("c", "d", "Y", True)
         hot.engine_temp = 118.0
         self.assertGreater(failure_dnf_chance(hot), failure_dnf_chance(cool))
+
+    # --- Tactical-pace exploit is closed ------------------------------------
+
+    def _stint(self, car_id, commands, seed=5):
+        """Run a fixed command-per-lap stint; return (cumulative time, peak failure risk).
+
+        Lap-level (no field), so it isolates the pace-vs-consequence tradeoff the tactical
+        knobs are built on: the pace gain of a hot command against the thermal + wear +
+        risk it accrues."""
+        driver = load_drivers()[0]
+        eff = compute_effective_stats(self.cars[car_id], self.parts)
+        st = _initial_state(car_id, driver.id, "Y", True)
+        import random
+        rng = random.Random(seed)
+        total = 0.0
+        peak_fail = 0.0
+        for command in commands:
+            total += calculate_lap_time(eff, self.track, driver=driver, state=st, rng=rng, command=command)
+            _apply_lap_wear(st, eff, self.track, command, seconds=79.0)
+            peak_fail = max(peak_fail, failure_chance(st, eff, driver, command))
+        return total, peak_fail
+
+    def test_holding_all_out_is_slower_and_riskier_than_a_managed_rhythm(self) -> None:
+        # THE core guard: the old exploit was that all-out was ~free pace. Over a full
+        # race, holding it must be no faster than a managed rhythm (cruise + a final-lap
+        # burst) -- the thermal/wear/risk consequences must out-weigh the ~1s/lap gain --
+        # and it must be visibly riskier. A cool-running kei and a mid coupe both.
+        laps = 8
+        naive = ["go_all_out"] * laps
+        managed = ["normal"] * (laps - 1) + ["go_all_out"]  # smart burst is still fine
+        for car_id in ("kanto_k660", "musashi_s13_aero"):
+            naive_time, naive_fail = self._stint(car_id, naive)
+            managed_time, managed_fail = self._stint(car_id, managed)
+            self.assertGreater(naive_time, managed_time, f"{car_id}: holding all-out should be slower")
+            self.assertGreater(naive_fail, managed_fail * 1.5, f"{car_id}: holding all-out should be riskier")
 
     def test_mechanical_failure_can_retire_the_car(self) -> None:
         session = self._session(ticks_per_lap=4)  # first tick is mid-lap
