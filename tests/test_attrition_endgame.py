@@ -14,6 +14,7 @@ import unittest
 from unittest import mock
 
 from constants import (
+    ENGINE_OVERHEAT_C,
     FUEL_EMPTY_PACE_FRACTION,
     TIRE_CRITICAL_C,
     TIRE_OPTIMAL_C,
@@ -114,6 +115,30 @@ class AttritionEndgameTests(unittest.TestCase):
         state.total_time = 100.0
         self.assertEqual(_ai_command(state, player_time=100.5), "push")
         self.assertEqual(_ai_command(state, player_time=200.0), "normal")
+
+    def test_ai_sends_it_when_right_on_someone(self) -> None:
+        # Within the attack gap (and healthy), a rival throws a full all-out move --
+        # it will cook the car and then lift, a two-sided burst rather than a hold.
+        state = _initial_state("c", "d", "R", False)
+        state.total_time = 100.0
+        self.assertEqual(_ai_command(state, player_time=100.2), "go_all_out")
+
+    def test_ai_survival_beats_mid_race_attack(self) -> None:
+        # Right on someone but overheating mid-race: self-preservation wins (no send-it
+        # until the final lap), so the rival lifts instead of cooking itself.
+        state = _initial_state("c", "d", "R", False)
+        state.total_time = 100.0
+        state.engine_temp = ENGINE_OVERHEAT_C + 5
+        self.assertEqual(_ai_command(state, player_time=100.2), "save_fuel")
+
+    def test_ai_final_lap_sends_it_even_when_hot(self) -> None:
+        # Last lap of a fight: the gloves come off -- all-out even in the red.
+        state = _initial_state("c", "d", "R", False)
+        state.total_time = 100.0
+        state.engine_temp = ENGINE_OVERHEAT_C + 10
+        self.assertEqual(_ai_command(state, player_time=100.5, laps_remaining=1), "go_all_out")
+        # But not if there is no fight to be had.
+        self.assertNotEqual(_ai_command(state, player_time=500.0, laps_remaining=1), "go_all_out")
 
     def test_ai_pit_restores_the_car_and_is_logged(self) -> None:
         session = self._session(ticks_per_lap=1)

@@ -36,6 +36,8 @@ from constants import (
     OVERTAKE_RACECRAFT_PER_POINT,
     PERCENT_MAX,
     PRESENTATION_SPEED_FACTOR,
+    RIVAL_ATTACK_GAP_S,
+    RIVAL_FINAL_LAP_ATTACK,
     RIVAL_LAP_JITTER_S,
     RIVAL_REACTIVE_GAP_S,
     SALARY_WEEKLY_ENABLED,
@@ -235,9 +237,12 @@ def simulate_tick(session: RaceSession) -> RaceTickResult:
         key=lambda state: state.total_time,
     )
     road_ahead: list[tuple[float, object, object, str]] = []  # (pre-tick time, state, driver, command) of advanced cars
+    # Laps left for the AI's last-lap send-it. Only meaningful for a fixed-lap race; a
+    # duration race has no fixed final lap, so rivals rely on the battle-gap rhythm.
+    laps_remaining = None if session.duration_s is not None else session.total_laps - session.current_lap
     for state in field_order:
         pre_tick_time = state.total_time
-        command = state.pace_mode if state.is_player else _ai_command(state, player_time)
+        command = state.pace_mode if state.is_player else _ai_command(state, player_time, laps_remaining)
         driver = _get(session.driver_roster, state.driver_id, "driver")
         effective = session.effective_stats.get(state.car_id)
         if effective is None:  # sessions built without the cache (tests, old saves)
@@ -537,13 +542,26 @@ def _unpublished_events(state, limit: int = 3) -> list[str]:
     return new_events[-limit:]
 
 
-def _ai_command(state, player_time: float) -> str:
-    """Rule-based rival pit boss: survive first, then race.
+def _ai_command(state, player_time: float, laps_remaining: int | None = None) -> str:
+    """Rule-based rival pit boss: survive first, then race -- with the same tactical
+    burst the player has.
 
-    Pit when tyres or fuel won't last, lift to the matching cooling command when a
-    temperature is past its overheat threshold, push when locked in a close battle,
-    otherwise hold pace. Mirrors the tools the player has, so long races no longer
-    systematically cook the AI."""
+    In a close battle a healthy rival *sends it* (go_all_out) when right on someone,
+    leans in (push) when merely near, and otherwise holds pace. All-out cooks the car
+    within a lap or two, so the survival rules below then pull it back to a cooling
+    command -- a two-sided push/recover rhythm, not a permanent hold. On the final lap of
+    a fight the gloves come off: it throws everything at the flag even if the car is in
+    the red, because there is nothing left to save it for (and it may cook itself, gated
+    by its own reliability/skill). Otherwise it pits when tyres/fuel won't last and lifts
+    to the matching cooling command when a temperature is past overheat."""
+    gap = abs(state.total_time - player_time)
+    battling = gap <= RIVAL_REACTIVE_GAP_S
+    final_lap = laps_remaining is not None and laps_remaining <= RIVAL_FINAL_LAP_ATTACK
+
+    # Last-lap send-it: a fight with the flag in sight overrides self-preservation.
+    if final_lap and battling:
+        return "go_all_out"
+    # Survival first: pit if consumables won't last, lift if a temperature is in the red.
     if state.fuel_pct <= AI_PIT_FUEL_PCT or state.tire_pct <= AI_PIT_TIRE_PCT:
         return "pit"
     tires_hot = state.tire_temp >= TIRE_OVERHEAT_C
@@ -554,7 +572,10 @@ def _ai_command(state, player_time: float) -> str:
         return "save_tyres"
     if engine_hot:
         return "save_fuel"
-    if abs(state.total_time - player_time) <= RIVAL_REACTIVE_GAP_S:
+    # Healthy and racing: attack hard when right on someone, lean in when near.
+    if gap <= RIVAL_ATTACK_GAP_S:
+        return "go_all_out"
+    if battling:
         return "push"
     return AI_COMMAND
 

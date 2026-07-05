@@ -419,7 +419,12 @@ RIVAL_MATCH_POOL_FACTOR = 2.0
 # per-lap spread (std ~= amp/sqrt(3) ~= 0.14s) is identical at any tick count. Cosmetic; the
 # instant sim carries none, so this is not anchored to it.
 RIVAL_LAP_JITTER_S = 0.25
-RIVAL_REACTIVE_GAP_S = 1.0       # opponents push only in an immediate battle within this gap (interactive)
+RIVAL_REACTIVE_GAP_S = 1.0       # opponents lean in (push) within this gap of a rival (interactive)
+RIVAL_ATTACK_GAP_S = 0.4         # right on someone: a healthy rival sends it (go_all_out) mid-race,
+                                 # overheating within a lap or two and then lifting -- a two-sided
+                                 # burst rhythm rather than a permanent hold
+RIVAL_FINAL_LAP_ATTACK = 1       # laps_remaining <= this: a battling rival throws everything at it,
+                                 # ignoring heat -- nothing left to save the car for
 LOW_FEEDBACK_THRESHOLD = 50
 HIGH_FEEDBACK_THRESHOLD = 75
 
