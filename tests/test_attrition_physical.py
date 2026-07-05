@@ -14,7 +14,7 @@ import unittest
 
 from game.effective_stats import compute_effective_stats
 from game.loader import load_cars, load_parts, load_tracks
-from game.simulation import _apply_lap_wear, _initial_state
+from game.simulation import _apply_lap_wear, _initial_state, calculate_lap_time
 
 
 class PhysicalAttritionTests(unittest.TestCase):
@@ -71,6 +71,26 @@ class PhysicalAttritionTests(unittest.TestCase):
             km += self.track.length_km
         self.assertGreater(km, 40)
         self.assertLess(km, 2000)
+
+    def test_tyre_grip_penalty_is_progressive(self) -> None:
+        # The wear penalty cliffs: the last third of a set's life costs disproportionately
+        # more than the first, so heavy wear is a real pit pressure while a lightly-worn
+        # sprint set stays cheap. Compare lap-time drag purely from tyre condition.
+        def drag(tire_pct: float) -> float:
+            fresh = _initial_state("c", "d", "Y", True)
+            worn = _initial_state("c", "d", "Y", True)
+            worn.tire_pct = tire_pct
+            return calculate_lap_time(self.eff, self.track, state=worn) - calculate_lap_time(self.eff, self.track, state=fresh)
+
+        light = drag(80.0)   # a hard-run sprint set
+        mid = drag(50.0)
+        shot = drag(15.0)    # near end of life
+        # Monotonic and convex: each further third of wear costs more than the previous.
+        self.assertLess(light, mid)
+        self.assertLess(mid, shot)
+        self.assertGreater(shot - mid, mid - light)
+        # A lightly-worn sprint set never justifies a ~20s stop over a handful of laps.
+        self.assertLess(light * 5, self.track.pit_lane_loss_s)
 
     def test_integration_invariant_holds(self) -> None:
         # One whole-lap call wears the car the same as walking the segment profiles.

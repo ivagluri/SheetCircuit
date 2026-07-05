@@ -155,7 +155,16 @@ NORM_SPEED_REF_KMH = 250
 NORM_AERO_MAX = 100
 TOP_SPEED_COEFF = 34.0
 
-TIRE_WEAR_PENALTY_MAX = 8.0
+# Worn tyres lose grip and lap time, and they lose it *progressively*: the penalty is a
+# blend of a linear term (a steady tax that already bites in a sprint, so flogging a set
+# all race leaves you a little slower at the flag -- but never enough to make a ~20s stop
+# worth it) and a convex term that cliffs as the set nears the end of its life, so the
+# last third of wear hurts far more than the first (the real "these are gone, pit now"
+# pressure in an enduro). Permanent within a stint: unlike heat you cannot lift to
+# recover it, so sustained attack costs grip you keep paying for to the flag.
+TIRE_WEAR_PENALTY_MAX = 12.0
+TIRE_WEAR_LINEAR_SHARE = 0.7        # fraction of the penalty that scales linearly with wear
+TIRE_WEAR_PROGRESSION_EXP = 3.0     # exponent of the convex (end-of-life cliff) term
 # Overheat is a two-band consequence (see telemetry failure model). The WARNING band --
 # past the overheat threshold, ramping to critical -- is this lap-time drag: holding a
 # hot pace clearly bleeds time before anything breaks, so backing off is the obvious play.

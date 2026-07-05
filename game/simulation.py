@@ -61,7 +61,9 @@ from constants import (
     TIRE_OVERHEAT_C,
     TIRE_TEMP_PENALTY_MAX,
     TYRE_WEAR_PCT_PER_KM,
+    TIRE_WEAR_LINEAR_SHARE,
     TIRE_WEAR_PENALTY_MAX,
+    TIRE_WEAR_PROGRESSION_EXP,
     WEAR_PER_RACE_BASE,
     WEAR_PER_RACE_MAX,
     WEAR_PER_RACE_MIN,
@@ -210,7 +212,13 @@ def _blended_pace(driver: Driver | None, wet_weight: float) -> float:
 def _state_penalty(state: RaceCarState | None, effective: EffectiveCarStats, base_lap_time: float) -> float:
     if state is None:
         return 0.0
-    penalty = (PERCENT_MAX - state.tire_pct) / PERCENT_MAX * TIRE_WEAR_PENALTY_MAX
+    # Progressive tyre-grip tax: a linear tax (bites steadily, incl. in a sprint) plus a
+    # convex end-of-life cliff (the last third of wear hurts far more). See constants.
+    wear = (PERCENT_MAX - state.tire_pct) / PERCENT_MAX
+    penalty = TIRE_WEAR_PENALTY_MAX * (
+        TIRE_WEAR_LINEAR_SHARE * wear
+        + (1.0 - TIRE_WEAR_LINEAR_SHARE) * wear ** TIRE_WEAR_PROGRESSION_EXP
+    )
     # Fuel load: a full tank is the reference; every litre burned lightens the car and
     # buys pace, so brimming at a stop costs lap time until it burns off.
     burned_l = (PERCENT_MAX - state.fuel_pct) / PERCENT_MAX * effective.fuel_capacity_l
