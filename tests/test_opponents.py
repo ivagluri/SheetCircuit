@@ -51,6 +51,19 @@ class OpponentGenerationTests(unittest.TestCase):
         with self.assertRaises(EventEntryError):
             validate_event_entry(self.cars["detroit_v8"], event, self.parts)
 
+    def test_open_track_day_accepts_every_seed_car(self) -> None:
+        event = self.events["open_track_day"]
+
+        self.assertEqual(event.entry_fee, 0)
+        self.assertEqual(event.car_class_limit, "S")
+        self.assertEqual(event.min_team_level, 1)
+        self.assertEqual(event.event_kind, "practice")
+        self.assertEqual(event.restrictions, {})
+        self.assertGreater(event.prize_money[event.opponent_count], 0)
+        for car in self.cars.values():
+            with self.subTest(car=car.identity.id):
+                validate_event_entry(car, event, self.parts)
+
     def test_enter_event_uses_generated_opponent_ids(self) -> None:
         state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])
         session = enter_event(state, "sunday_cup", "kanto_k660", "driver_novak", seed=2)
@@ -157,6 +170,18 @@ class OpponentGenerationTests(unittest.TestCase):
         ]
 
         self.assertLess(min(rival_laps), player_lap - track.base_lap_time * 0.03)
+
+    def test_practice_event_matches_slow_player_without_class_floor(self) -> None:
+        event = self.events["open_track_day"]
+        track = self.tracks[event.track_id]
+        opponent_cars, _drivers, entries = build_opponent_grid(
+            event, "torino_500r", self.drivers["driver_novak"], self.cars, self.parts, track, seed=1
+        )
+        player_lap = calculate_lap_time(compute_effective_stats(self.cars["torino_500r"], self.parts), track)
+
+        for car_id, _driver_id in entries:
+            rival_lap = calculate_lap_time(compute_effective_stats(opponent_cars[car_id], self.parts), track)
+            self.assertLessEqual(abs(rival_lap - player_lap), track.base_lap_time * 0.03)
 
     def test_higher_rival_skill_makes_race_harder(self) -> None:
         low_skill_events = deepcopy(list(self.events.values()))

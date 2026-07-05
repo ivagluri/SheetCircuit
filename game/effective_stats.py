@@ -39,6 +39,7 @@ from constants import (
 )
 from game.loader import load_parts
 from game.models import Car, EffectiveCarStats, Part, TuneSetup
+from game.parts import normalize_part_ids
 
 
 def clamp(value: float, low: float = PERCENT_MIN, high: float = PERCENT_MAX) -> float:
@@ -78,10 +79,12 @@ def _combine_factor(*factors: float) -> float:
 def apply_part_modifiers(car: Car, parts: list[Part] | None = None) -> Car:
     modified = deepcopy(car)
     part_map = {part.id: part for part in (parts if parts is not None else load_parts())}
-    for part_id in modified.installed_parts:
+    for part_id in normalize_part_ids(modified.installed_parts):
         part = part_map[part_id]
         for path, delta in part.modifiers.items():
             _apply_delta(modified, path, delta)
+        for path, value in part.overrides.items():
+            _apply_override(modified, path, value)
     return modified
 
 
@@ -89,6 +92,12 @@ def _apply_delta(car: Car, path: str, delta: int | float) -> None:
     target_name, attr_name = path.split(".", maxsplit=1)
     target = getattr(car, target_name)
     setattr(target, attr_name, getattr(target, attr_name) + delta)
+
+
+def _apply_override(car: Car, path: str, value: int | float | str) -> None:
+    target_name, attr_name = path.split(".", maxsplit=1)
+    target = getattr(car, target_name)
+    setattr(target, attr_name, value)
 
 
 def set_tune(car: Car, tune_setup: TuneSetup) -> Car:

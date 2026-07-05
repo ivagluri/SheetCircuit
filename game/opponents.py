@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from constants import (
     CLASS_RIVAL_SKILL,
+    EVENT_KIND_PRACTICE,
     EVENT_PACE_FLOOR_PERCENTILE,
     RIVAL_MATCH_LAP_BAND_FRAC,
     RIVAL_MATCH_EXPANSION_FACTOR,
@@ -103,8 +104,11 @@ def _event_peer_pool(
         (car, _natural_lap(car, parts, track))
         for car in eligible
     ]
-    floor_lap = _event_floor_lap([lap for _car, lap in profiles], event.car_class_limit)
-    anchor_lap = min(player_lap, floor_lap)
+    if event.event_kind == EVENT_KIND_PRACTICE:
+        anchor_lap = player_lap
+    else:
+        floor_lap = _event_floor_lap([lap for _car, lap in profiles], event.car_class_limit)
+        anchor_lap = min(player_lap, floor_lap)
     profiles.sort(key=lambda profile: (abs(profile[1] - anchor_lap), derived_rating(profile[0], parts), profile[0].identity.id))
 
     band = anchor_lap * RIVAL_MATCH_LAP_BAND_FRAC

@@ -132,6 +132,7 @@ CAR_TEMPLATE: dict[str, Any] = {
         "tire_condition": 100.0, "mileage": 0,
     },
     "installed_parts": [],
+    "owned_parts": [],
     "tune": {
         "tire_pressure_front": 2.20, "tire_pressure_rear": 2.20, "final_drive": 4.00,
         "gear_bias": 0.0, "brake_bias": 0.58, "brake_pressure": 1.00,

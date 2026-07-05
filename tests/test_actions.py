@@ -9,6 +9,7 @@ from game.actions import (
     advance_race_action,
     advance_to_lap_end_action,
     buy_car_action,
+    buy_part_action,
     car_detail_screen,
     compendium_screen,
     drivers_screen,
@@ -26,7 +27,10 @@ from game.actions import (
     start_race_action,
     tune_car_action,
     tune_fields_screen,
+    upgrades_part_screen,
+    upgrades_slot_screen,
 )
+from game.effective_stats import compute_effective_stats
 from game.game_state import GameState, new_career
 from game.loader import load_cars, load_drivers
 from game.sorting import parse_sort_spec
@@ -96,12 +100,14 @@ class ActionLayerTests(unittest.TestCase):
 
         screen = tune_editor_screen(state, car_id)
         sections = [row[1] for row in screen.tables[0].rows]
-        self.assertEqual(sections, ["Tyres", "Drivetrain", "Brakes", "Chassis", "Suspension", "Aero"])
+        self.assertEqual(sections, ["Tyres", "ECU", "Brakes", "Suspension", "Transmission", "Differential", "Aero"])
         self.assertTrue(any(line.startswith("PR ") for line in screen.messages))
 
         staged = tune_editor_screen(state, car_id, {"engine_map": "hot", "final_drive": 4.2})
-        drivetrain_row = next(row for row in staged.tables[0].rows if row[1] == "Drivetrain")
-        self.assertEqual(drivetrain_row[3], "2 staged")
+        ecu_row = next(row for row in staged.tables[0].rows if row[1] == "ECU")
+        transmission_row = next(row for row in staged.tables[0].rows if row[1] == "Transmission")
+        self.assertEqual(ecu_row[3], "1 staged")
+        self.assertEqual(transmission_row[3], "1 staged")
         self.assertIn("2 staged changes (not applied)", staged.subtitle)
 
     def test_tune_section_screen_shows_staged_values_and_deltas(self) -> None:
@@ -109,21 +115,23 @@ class ActionLayerTests(unittest.TestCase):
 
         state = new_career()
         car_id = state.garage[0].identity.id
+        buy_part_action(state, car_id, "sports_ecu", install=True)
 
-        screen = tune_section_screen(state, car_id, "Drivetrain", {"engine_map": "qualifying"})
+        screen = tune_section_screen(state, car_id, "ECU", {"engine_map": "qualifying"})
         engine_row = next(row for row in screen.tables[0].rows if row[1] == "Engine Map")
         self.assertEqual(engine_row[3], "qualifying")
         # A power-map change must surface as a before→after delta in the readout.
         self.assertTrue(any("→" in line for line in screen.messages))
         # Section is addressable by 1-based index too.
         by_index = tune_section_screen(state, car_id, 2)
-        self.assertEqual(by_index.tables[0].title, "Drivetrain")
+        self.assertEqual(by_index.tables[0].title, "ECU")
 
     def test_apply_tune_draft_is_atomic(self) -> None:
         from game.actions import apply_tune_draft
 
         state = new_career()
         car = state.garage[0]
+        buy_part_action(state, car.identity.id, "sports_ecu", install=True)
 
         with self.assertRaises(TuningError):
             apply_tune_draft(state, car.identity.id, {"engine_map": "hot", "brake_bias": 99.0})
@@ -140,60 +148,43 @@ class ActionLayerTests(unittest.TestCase):
         state = new_career()
         car = state.garage[0]
 
-        stage_tune_value(state, car.identity.id, "brake_bias", 0.6)  # valid: no exception
-        self.assertNotEqual(car.tune.brake_bias, 0.6)  # and nothing applied
+        stage_tune_value(state, car.identity.id, "tire_pressure_front", 2.2)  # valid: no exception
+        self.assertNotEqual(car.tune.tire_pressure_front, 2.2)  # and nothing applied
         with self.assertRaises(TuningError):
             stage_tune_value(state, car.identity.id, "brake_bias", 99.0)
 
-    def test_hard_mod_stats_stage_and_apply_onto_car_sections(self) -> None:
-        # The creator's knobs (minus intrinsic properties) are in-game tunable: applying
-        # a draft writes hard mods straight into the car's stat sections, alongside
-        # ordinary TuneSetup knobs, in one atomic pass.
-        from game.actions import apply_tune_draft
-
+    def test_upgrade_buy_install_and_uninstall_are_separate_from_ownership(self) -> None:
         state = new_career()
         car = state.garage[0]
-        original_tune = deepcopy(car.tune)
+        base_grip = compute_effective_stats(car).grip
+        money = state.money
 
-        apply_tune_draft(state, car.identity.id, {
-            "base_grip": 70,
-            "tire_compound": "semi_slick",
-            "weight_distribution_front": 0.5,
-            "brake_bias": 0.6,
-        })
+        buy = buy_part_action(state, car.identity.id, "sport_tires_1")
+        self.assertIn("sport_tires_1", car.owned_parts)
+        self.assertNotIn("sport_tires_1", car.installed_parts)
+        self.assertEqual(state.money, money - 1400)
+        self.assertEqual(buy.screen.name, "upgrades_slot")
+        self.assertEqual(compute_effective_stats(car).grip, base_grip)
 
-        self.assertEqual(car.tires.base_grip, 70)
-        self.assertEqual(car.tires.tire_compound, "semi_slick")
-        self.assertEqual(car.chassis.weight_distribution_front, 0.5)
-        self.assertEqual(car.tune.brake_bias, 0.6)
-        # Only the staged setup knob moved; the rest of the tune is untouched.
-        original_tune.brake_bias = 0.6
-        self.assertEqual(car.tune, original_tune)
+        from game.actions import install_part_action, uninstall_part_action
+        install_part_action(state, car.identity.id, "sport_tires_1")
+        self.assertIn("sport_tires_1", car.installed_parts)
+        self.assertGreater(compute_effective_stats(car).grip, base_grip)
 
-    def test_hard_mod_draft_is_atomic_with_setup_knobs(self) -> None:
-        from game.actions import apply_tune_draft
+        uninstall_part_action(state, car.identity.id, "tires")
+        self.assertIn("sport_tires_1", car.owned_parts)
+        self.assertNotIn("sport_tires_1", car.installed_parts)
+        self.assertEqual(state.money, money - 1400)
 
+    def test_locked_tune_fields_require_installed_hardware(self) -> None:
         state = new_career()
         car = state.garage[0]
-        original_grip = car.tires.base_grip
 
         with self.assertRaises(TuningError):
-            apply_tune_draft(state, car.identity.id, {"base_grip": 70, "brake_bias": 99.0})
-        self.assertEqual(car.tires.base_grip, original_grip)
-
-    def test_hard_mod_values_are_validated(self) -> None:
-        state = new_career()
-        car = state.garage[0]
-
-        for field, bad_value in [
-            ("base_grip", 101),
-            ("tire_width_front", 90),
-            ("weight_distribution_front", 0.9),
-            ("tire_compound", "checkered"),
-        ]:
-            with self.subTest(field=field):
-                with self.assertRaises(TuningError):
-                    tune_car_action(state, car.identity.id, field, bad_value)
+            tune_car_action(state, car.identity.id, "brake_bias", 0.62)
+        buy_part_action(state, car.identity.id, "brake_controller", install=True)
+        tune_car_action(state, car.identity.id, "brake_bias", 0.62)
+        self.assertEqual(car.tune.brake_bias, 0.62)
 
     def test_intrinsic_properties_are_not_tunable(self) -> None:
         # The creator can edit these; the in-game garage cannot: identity, the engine
@@ -211,26 +202,19 @@ class ActionLayerTests(unittest.TestCase):
                 with self.assertRaises(TuningError):
                     tune_car_action(state, car.identity.id, field, 1)
 
-    def test_hard_mod_preview_shows_stat_delta(self) -> None:
-        from game.actions import tune_section_screen
-
+    def test_upgrades_part_screen_lists_tyre_compounds(self) -> None:
         state = new_career()
         car = state.garage[0]
 
-        screen = tune_section_screen(state, car.identity.id, "Tyres", {"base_grip": 95})
-        grip_row = next(row for row in screen.tables[0].rows if row[1] == "Base Grip")
-        self.assertEqual(grip_row[3], 95)
-        self.assertTrue(any("→" in line for line in screen.messages))
-
-    def test_tire_compound_is_a_choice_field(self) -> None:
-        state = new_career()
-
-        screen = tune_fields_screen(state, state.garage[0].identity.id)
-        compound = next(field for field in screen.fields if field.name == "tire_compound")
-
-        self.assertEqual(compound.value_type, "choice")
-        self.assertEqual([option.value for option in compound.options],
-                         ["economy", "street", "sport", "semi_slick", "slick"])
+        screen = upgrades_part_screen(state, car.identity.id, "tires")
+        part_ids = [row[1] for row in screen.tables[0].rows]
+        self.assertEqual(part_ids, [
+            "economy_tires_1",
+            "street_tires_1",
+            "sport_tires_1",
+            "semi_slick_tires_1",
+            "slick_tires_1",
+        ])
 
     def test_tune_screen_surfaces_ranges_and_choice_options(self) -> None:
         state = new_career()
@@ -248,15 +232,13 @@ class ActionLayerTests(unittest.TestCase):
 
     def test_tune_screen_exposes_every_editable_field_with_continuous_numbering(self) -> None:
         from dataclasses import fields as dataclass_fields
-        from constants import CAR_MOD_FIELD_SECTIONS
         from game.models import TuneSetup
 
         state = new_career()
         screen = tune_fields_screen(state, state.garage[0].identity.id)
 
-        # Every editable TuneSetup field is offered, plus every garage-tweakable
-        # hard-mod stat (the creator's knobs minus the intrinsic properties).
-        expected = {f.name for f in dataclass_fields(TuneSetup)} | set(CAR_MOD_FIELD_SECTIONS)
+        # Career Tune is setup-only; permanent stat changes live in Upgrades.
+        expected = {f.name for f in dataclass_fields(TuneSetup)}
         self.assertEqual({field.name for field in screen.fields}, expected)
 
         # The grouped tables share one continuous 1..N numbering that indexes the
@@ -296,6 +278,23 @@ class ActionLayerTests(unittest.TestCase):
 
         self.assertEqual(result.session.event_id, "clubman_trial")
         self.assertEqual(state.money, 8000 - 500)
+
+    def test_open_track_day_is_zero_fee_no_xp_recovery_event(self) -> None:
+        state = new_career()
+        state.money = 0
+        car = state.garage[0]
+        driver = state.hired_drivers[0]
+
+        started = start_race_action(state, "open_track_day", car.identity.id, driver.id, seed=1)
+        self.assertEqual(state.money, 0)
+
+        finished_session = simulate_to_end_action(started.session).session
+        finished = finish_race_action(state, finished_session)
+
+        self.assertGreater(finished.prize_money, 0)
+        self.assertEqual(state.team_xp, 0)
+        self.assertEqual(driver.experience, 0)
+        self.assertEqual(finished.screen.messages[0], f"Race finished. Prize: ${finished.prize_money}")
 
     def test_event_detail_with_state_estimates_time_from_garage_car(self) -> None:
         # Regression: _estimate_entry passed EffectiveCarStats into class_rating (which
@@ -351,6 +350,7 @@ class ActionLayerTests(unittest.TestCase):
     def test_economy_and_tune_actions_mutate_state_and_return_screen(self) -> None:
         state = GameState()
         buy_result = buy_car_action(state, "kanto_k660")
+        buy_part_action(state, "kanto_k660", "brake_controller", install=True)
         tune_result = tune_car_action(state, "kanto_k660", "brake_bias", 0.62)
 
         self.assertEqual(buy_result.state.garage[0].identity.id, "kanto_k660")
@@ -588,7 +588,7 @@ class CompendiumScreenTests(unittest.TestCase):
     def test_index_lists_all_chapters(self) -> None:
         screen = compendium_screen()
         titles = [row[1] for row in screen.tables[0].rows]
-        self.assertEqual(titles, ["Cars", "Drivers", "Tracks", "Events"])
+        self.assertEqual(titles, ["Cars", "Parts", "Drivers", "Tracks", "Events"])
 
     def test_chapter_view_lists_sections(self) -> None:
         screen = compendium_screen(("cars",))

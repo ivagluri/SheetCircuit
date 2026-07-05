@@ -110,6 +110,27 @@ class SaveLoadTests(unittest.TestCase):
             with self.assertRaises(SaveVersionError):
                 load_game(save_path)
 
+    def test_schema_two_save_migrates_owned_parts_and_legacy_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            car = load_cars()[0]
+            car.installed_parts = ["basic_turbo_kit", "basic_intake_1"]
+            payload = {
+                "schema_version": SCHEMA_VERSION - 1,
+                "game_state": {
+                    "money": 1000,
+                    "week": 2,
+                    "garage": [asdict(car)],
+                    "hired_drivers": [],
+                },
+            }
+            save_path = Path(tmpdir) / "save.json"
+            save_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            loaded = load_game(save_path)
+
+            self.assertEqual(loaded.garage[0].installed_parts, ["turbo_kit_3", "intake_1"])
+            self.assertEqual(loaded.garage[0].owned_parts, ["turbo_kit_3", "intake_1"])
+
 
 if __name__ == "__main__":
     unittest.main()

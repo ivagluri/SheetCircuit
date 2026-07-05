@@ -22,6 +22,7 @@ from constants import (
     DNF_DRIVER_RELIEF,
     DNF_DRIVER_RELIEF_FLOOR,
     ENGINE_OVERHEAT_C,
+    EVENT_KIND_PRACTICE,
     MISTAKE_DNF_PROB,
     MISTAKE_TIME_MEDIUM,
     MISTAKE_TIME_SMALL,
@@ -397,7 +398,7 @@ def finish_event(game_state: GameState, session: RaceSession) -> FinishEventResu
         apply_post_race_wear(garage_car, session.track.length_km * session.current_lap, damage)
         car_condition_after = deepcopy(garage_car.condition)
     progression_message = ""
-    if not player.is_dnf:
+    if not player.is_dnf and (session.event is None or session.event.event_kind != EVENT_KIND_PRACTICE):
         hired_driver = next((d for d in game_state.hired_drivers if d.id == player.driver_id), None)
         if hired_driver is not None:
             progression_message = _apply_driver_progression(hired_driver)

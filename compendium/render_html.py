@@ -16,7 +16,7 @@ from html import escape
 from compendium import registry
 from compendium.model import Chapter, Entry, Section
 
-_EDITABLE_LABEL = {"creator": "creator", "tune_menu": "tune menu", "derived": "read-only"}
+_EDITABLE_LABEL = {"creator": "creator", "tune_menu": "tune menu", "upgrades": "upgrades", "derived": "read-only"}
 _COLUMNS = ["Field", "Range", "Units", "Ideal", "Effect", "Editable"]
 
 

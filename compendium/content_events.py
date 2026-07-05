@@ -50,7 +50,9 @@ FIELD_CONTENT: dict[str, dict[str, Any]] = {
     "event.track_id": {"effect": "Which track hosts the race (an existing track id)."},
     "event.car_class_limit": {"effect": "Highest car class allowed to enter (E through S)."},
     "event.min_team_level": {"effect": "Team level required before you can enter."},
-    "event.event_kind": {"effect": "ladder = counts toward progression; open_invitational = a one-off."},
+    "event.event_kind": {
+        "effect": "ladder = full progression; open_invitational = reduced progression; practice = no team or driver XP."
+    },
     "event.entry_fee": {"effect": "Cost to enter the race.", "units": "$"},
     "event.opponent_count": {"effect": "Number of rival cars making up the field."},
     "event.prize_money": {"effect": "Payouts by finishing position, as a comma-separated list.", "units": "$"},

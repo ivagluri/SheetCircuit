@@ -22,6 +22,7 @@ from game.actions import (
     advance_race_action,
     advance_to_lap_end_action,
     apply_tune_draft,
+    buy_part_action,
     buy_car_action,
     car_extended_screen,
     compendium_nav,
@@ -29,6 +30,7 @@ from game.actions import (
     fire_driver_action,
     finish_race_action,
     hire_driver_action,
+    install_part_action,
     market_car_extended_screen,
     repair_car_action,
     sell_car_action,
@@ -38,11 +40,15 @@ from game.actions import (
     tune_car_action,
     tune_editor_screen,
     tune_section_screen,
+    uninstall_part_action,
+    upgrades_part_screen,
+    upgrades_slot_screen,
 )
 from game.economy import EconomyError
 from game.game_state import GameState, new_career
-from game.loader import DataLoadError, load_drivers, load_tracks
-from game.save_load import SaveVersionError, game_state_from_dict, game_state_to_dict
+from game.loader import DataLoadError, load_drivers, load_parts, load_tracks
+from game.parts import SLOT_RULES, canonical_part_id, installed_part_for_slot, normalize_part_ids, part_map
+from game.save_load import PREVIOUS_SCHEMA_VERSION, SaveVersionError, _migrate_payload, game_state_from_dict, game_state_to_dict
 from game.simulation import SimulationError
 from game.sorting import sort_items
 from game.tuning import TuningError
@@ -60,6 +66,10 @@ MODE_REPAIR = "repair"
 MODE_HIRE = "hire"
 MODE_FIRE = "fire"
 MODE_EXT = "ext"
+MODE_UPGRADES_CAR = "upgrades_car"
+MODE_UPGRADES_SLOT = "upgrades_slot"
+MODE_UPGRADES_PART = "upgrades_part"
+MODE_UPGRADES_ACTION = "upgrades_action"
 MODE_TUNE_CAR = "tune_car"
 MODE_TUNE_SECTIONS = "tune_sections"
 MODE_TUNE_FIELD = "tune_field"
@@ -83,6 +93,10 @@ _PROMPT_LABELS = {
     MODE_HIRE: "Hire",
     MODE_FIRE: "Release",
     MODE_EXT: "Extended view (number or ID)",
+    MODE_UPGRADES_CAR: "Car",
+    MODE_UPGRADES_SLOT: "Slot",
+    MODE_UPGRADES_PART: "Part",
+    MODE_UPGRADES_ACTION: "Action",
     MODE_TUNE_CAR: "Car",
     MODE_TUNE_SECTIONS: "Section",
     MODE_TUNE_FIELD: "Field",
@@ -109,6 +123,7 @@ _PICKER_SORT_SCREENS = {
     MODE_BUY: "market",
     MODE_SELL: "garage",
     MODE_REPAIR: "garage",
+    MODE_UPGRADES_CAR: "garage",
     MODE_RACE_CAR: "garage",
     MODE_HIRE: "drivers",
     MODE_FIRE: "drivers",
@@ -153,6 +168,9 @@ class WebGame:
         self._speed_mult = 1.0
         self._skip_to_lap = False
         self._race_error = ""
+        self._upgrade_car_id: str | None = None
+        self._upgrade_slot: str = ""
+        self._upgrade_part_id: str = ""
         self._tune_car_id: str | None = None
         self._tune_section: str = ""
         self._tune_draft: dict[str, object] = {}
@@ -229,7 +247,9 @@ class WebGame:
                 raise DataLoadError("No saved game found.")
             data = json.loads(payload)
             version = data.get("schema_version")
-            if version != SCHEMA_VERSION:
+            if version == PREVIOUS_SCHEMA_VERSION:
+                data = _migrate_payload(data)
+            elif version != SCHEMA_VERSION:
                 raise SaveVersionError(f"Unsupported save schema_version {version}; expected {SCHEMA_VERSION}")
             self.state = game_state_from_dict(data["game_state"])
             self.mode = MODE_MENU
@@ -304,6 +324,10 @@ class WebGame:
             MODE_HIRE: self._hire_input,
             MODE_FIRE: self._fire_input,
             MODE_EXT: self._ext_input,
+            MODE_UPGRADES_CAR: self._upgrades_car_input,
+            MODE_UPGRADES_SLOT: self._upgrades_slot_input,
+            MODE_UPGRADES_PART: self._upgrades_part_input,
+            MODE_UPGRADES_ACTION: self._upgrades_action_input,
             MODE_TUNE_CAR: self._tune_car_input,
             MODE_TUNE_SECTIONS: self._tune_sections_input,
             MODE_TUNE_FIELD: self._tune_field_input,
@@ -395,7 +419,10 @@ class WebGame:
     def _command_input(self, command: str, tokens: list[str]) -> None:
         """The direct (typed) command forms plus picker entry, mirroring cli.run_command."""
         if command == "buy":
-            if len(tokens) == 3 and tokens[1] == "car":
+            if len(tokens) >= 4 and tokens[1] == "part":
+                install_now = len(tokens) >= 5 and tokens[4].lower() in {"install", "installed", "equip"}
+                result = buy_part_action(self.state, tokens[2], tokens[3], install=install_now)
+            elif len(tokens) == 3 and tokens[1] == "car":
                 result = buy_car_action(self.state, tokens[2])
             elif len(tokens) == 2:
                 market = cli._sorted_market()
@@ -410,6 +437,20 @@ class WebGame:
                 self.screen = "market"
                 self._print_main_view()
                 return
+            self.screen = "garage"
+            self._print_main_view()
+            terminal.print(result.message)
+        elif command == "install" and len(tokens) in {3, 4}:
+            car_id = tokens[2] if len(tokens) == 4 and tokens[1] == "part" else tokens[1]
+            part_id = tokens[3] if len(tokens) == 4 and tokens[1] == "part" else tokens[2]
+            result = install_part_action(self.state, car_id, part_id)
+            self.screen = "garage"
+            self._print_main_view()
+            terminal.print(result.message)
+        elif command in {"uninstall", "unequip"} and len(tokens) in {3, 4}:
+            car_id = tokens[2] if len(tokens) == 4 and tokens[1] == "part" else tokens[1]
+            slot = tokens[3] if len(tokens) == 4 and tokens[1] == "part" else tokens[2]
+            result = uninstall_part_action(self.state, car_id, slot)
             self.screen = "garage"
             self._print_main_view()
             terminal.print(result.message)
@@ -429,6 +470,8 @@ class WebGame:
                 terminal.print(result.message)
             else:
                 self._start_picker(MODE_REPAIR)
+        elif command == "upgrades":
+            self._start_picker(MODE_UPGRADES_CAR)
         elif command == "tune":
             if len(tokens) == 4:
                 result = tune_car_action(self.state, tokens[1], tokens[2], cli._parse_value(tokens[3]))
@@ -464,7 +507,7 @@ class WebGame:
     # ------------------------------------------------------------- pickers
 
     def _start_picker(self, mode: str) -> None:
-        if mode in {MODE_SELL, MODE_REPAIR, MODE_TUNE_CAR} and not self.state.garage:
+        if mode in {MODE_SELL, MODE_REPAIR, MODE_UPGRADES_CAR, MODE_TUNE_CAR} and not self.state.garage:
             self._print_main_view()
             terminal.print("Garage is empty.")
             return
@@ -544,6 +587,33 @@ class WebGame:
             terminal.header("Extended Specs", "Choose a car by number or ID; q cancels.")
             self._print_status_menu(self.screen)
             self._print_main_body_table()
+        elif self.mode == MODE_UPGRADES_CAR:
+            terminal.header("Upgrades", "Choose a car by number or ID; q cancels.")
+            self._print_status_menu("upgrades")
+            self._print_garage_table()
+        elif self.mode == MODE_UPGRADES_SLOT:
+            screen = upgrades_slot_screen(self.state, self._upgrade_car_id)
+            terminal.header(screen.title, screen.subtitle)
+            self._print_status_menu("upgrades")
+            cli._render_action_screen(screen)
+            terminal.print("number/name = open slot  |  B = back")
+        elif self.mode == MODE_UPGRADES_PART:
+            screen = upgrades_part_screen(self.state, self._upgrade_car_id, self._upgrade_slot)
+            terminal.header(screen.title, screen.subtitle)
+            self._print_status_menu("upgrades")
+            cli._render_action_screen(screen)
+            terminal.print("number/id = select part  |  U = unequip slot  |  B = back")
+        elif self.mode == MODE_UPGRADES_ACTION:
+            part = self._upgrade_part()
+            terminal.header("Upgrades", f"{self._upgrade_car_id} / {part.name}")
+            self._print_status_menu("upgrades")
+            terminal.table("Part", ["Field", "Value"], [
+                ["ID", part.id],
+                ["Slot", part.slot],
+                ["Stage", part.stage if part.stage else "-"],
+                ["Cost", f"${part.cost}"],
+            ])
+            terminal.print(self._upgrade_action_hint())
         elif self.mode == MODE_TUNE_CAR:
             terminal.header("Tune", "Choose car, field, and value. q cancels.")
             self._print_status_menu("tune")
@@ -662,6 +732,128 @@ class WebGame:
         self.mode = MODE_MENU
         self._print_detail(self._ext_screen(car))
 
+    def _upgrades_car_input(self, raw: str) -> None:
+        car = self._resolve(cli._sorted_garage(self.state), lambda item: item.identity.id, "Car", raw)
+        if car is None:
+            return
+        self._upgrade_car_id = car.identity.id
+        self._upgrade_slot = ""
+        self._upgrade_part_id = ""
+        self.mode = MODE_UPGRADES_SLOT
+        self._print_mode_view()
+
+    def _upgrades_slot_input(self, raw: str) -> None:
+        low = raw.lower()
+        if low in _TUNE_BACK_WORDS:
+            self._cancel()
+            return
+        slot = self._match_part_slot(raw)
+        if slot is None:
+            self._print_mode_view()
+            terminal.print(f"Unknown part slot: {raw}")
+            return
+        self._upgrade_slot = slot
+        self.mode = MODE_UPGRADES_PART
+        self._print_mode_view()
+
+    def _upgrades_part_input(self, raw: str) -> None:
+        low = raw.lower()
+        if low in _TUNE_BACK_WORDS:
+            self.mode = MODE_UPGRADES_SLOT
+            self._print_mode_view()
+            return
+        if low in {"u", "unequip", "uninstall"}:
+            try:
+                result = uninstall_part_action(self.state, self._upgrade_car_id, self._upgrade_slot)
+            except EconomyError as exc:
+                self._print_mode_view()
+                terminal.print(str(exc))
+                return
+            self._print_mode_view()
+            terminal.print(result.message)
+            return
+        part = self._match_slot_part(self._upgrade_slot, raw)
+        if part is None:
+            self._print_mode_view()
+            terminal.print(f"Unknown part: {raw}")
+            return
+        self._upgrade_part_id = part.id
+        self.mode = MODE_UPGRADES_ACTION
+        self._print_mode_view()
+
+    def _upgrades_action_input(self, raw: str) -> None:
+        low = raw.lower()
+        if low in {"", "q", "quit", "cancel", "back"}:
+            self.mode = MODE_UPGRADES_PART
+            self._print_mode_view()
+            return
+        part = self._upgrade_part()
+        owned, installed = self._upgrade_part_state(part)
+        try:
+            if installed and low in {"u", "unequip", "uninstall"}:
+                result = uninstall_part_action(self.state, self._upgrade_car_id, part.slot)
+            elif owned and low in {"i", "install", "equip"}:
+                result = install_part_action(self.state, self._upgrade_car_id, part.id)
+            elif not owned and low in {"b", "buy"}:
+                result = buy_part_action(self.state, self._upgrade_car_id, part.id)
+            elif not owned and low in {"i", "install", "equip"}:
+                result = buy_part_action(self.state, self._upgrade_car_id, part.id, install=True)
+            else:
+                self._print_mode_view()
+                terminal.print("No action taken.")
+                return
+        except EconomyError as exc:
+            self._print_mode_view()
+            terminal.print(str(exc))
+            return
+        self.mode = MODE_UPGRADES_PART
+        self._print_mode_view()
+        terminal.print(result.message)
+
+    def _match_part_slot(self, raw: str) -> str | None:
+        if raw.isdigit():
+            index = int(raw) - 1
+            if 0 <= index < len(SLOT_RULES):
+                return SLOT_RULES[index].id
+            return None
+        normalized = raw.lower()
+        return next(
+            (
+                rule.id
+                for rule in SLOT_RULES
+                if normalized in {rule.id.lower(), rule.label.lower()}
+            ),
+            None,
+        )
+
+    def _match_slot_part(self, slot: str, raw: str):
+        parts = [part for part in load_parts() if part.slot == slot]
+        if raw.isdigit():
+            index = int(raw) - 1
+            if 0 <= index < len(parts):
+                return parts[index]
+            return None
+        canonical = canonical_part_id(raw)
+        return next((part for part in parts if part.id.lower() == canonical.lower()), None)
+
+    def _upgrade_part(self):
+        return part_map(load_parts())[canonical_part_id(self._upgrade_part_id)]
+
+    def _upgrade_part_state(self, part) -> tuple[bool, bool]:
+        car = next(car for car in self.state.garage if car.identity.id == self._upgrade_car_id)
+        owned = part.id in normalize_part_ids(car.owned_parts)
+        installed = installed_part_for_slot(car, part.slot, load_parts())
+        return owned, installed is not None and installed.id == part.id
+
+    def _upgrade_action_hint(self) -> str:
+        part = self._upgrade_part()
+        owned, installed = self._upgrade_part_state(part)
+        if installed:
+            return "[u] unequip  [b] back"
+        if owned:
+            return "[i] install  [b] back"
+        return "[b] buy  [i] buy & install  [q] back"
+
     def _tune_car_input(self, raw: str) -> None:
         car = self._resolve(cli._sorted_garage(self.state), lambda item: item.identity.id, "Car", raw)
         if car is None:
@@ -703,6 +895,10 @@ class WebGame:
         if selected_field is None:
             self._print_mode_view()
             terminal.print(f"Unknown tune field: {raw}")
+            return
+        if selected_field.locked:
+            self._print_mode_view()
+            terminal.print(selected_field.lock_reason)
             return
         self._tune_field = selected_field
         self.mode = MODE_TUNE_VALUE
@@ -876,9 +1072,9 @@ class WebGame:
             terminal.print("Race simulated to completion.")
             self._finish_race()
             return
-        if low in {"next", "lap", "l"}:
+        if low in {"next", "lap", "l", "n"}:
             self._skip_to_lap = True
-        elif low in {"ff", ">"}:
+        elif low in {"ff", "f", ">"}:
             self._speed_mult = cli._cycle_speed(self._speed_mult)
         elif raw:
             matched = cli._race_command(raw)

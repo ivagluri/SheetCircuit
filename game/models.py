@@ -144,6 +144,7 @@ class Car:
     fuel: FuelStats
     condition: CarCondition
     installed_parts: list[str]
+    owned_parts: list[str]
     tune: TuneSetup
     value: int
 
@@ -154,8 +155,11 @@ class Part:
     name: str
     category: str
     cost: int
+    slot: str
+    stage: int
     modifiers: dict[str, int | float]
-    class_rating_delta: int
+    overrides: dict[str, int | float | str]
+    unlocks: list[str]
 
 
 @dataclass

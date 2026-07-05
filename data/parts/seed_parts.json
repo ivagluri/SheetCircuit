@@ -1,10 +1,489 @@
 [
-  {"id": "sport_brake_kit_1", "name": "Sport Brake Kit I", "category": "brakes", "cost": 1200, "modifiers": {"brakes.braking_power": 8, "brakes.brake_fade_resistance": 6, "brakes.brake_cooling": 5, "durability.brake_durability": 4, "chassis.weight_kg": 3}, "class_rating_delta": 14},
-  {"id": "street_tires_1", "name": "Street Performance Tires", "category": "tires", "cost": 800, "modifiers": {"tires.base_grip": 14, "tires.tire_heat_resistance": 8, "tires.tire_warmup": 10, "tires.tire_wear_resistance": -6}, "class_rating_delta": 18},
-  {"id": "sport_suspension_1", "name": "Sport Suspension Kit", "category": "suspension", "cost": 1500, "modifiers": {"suspension.handling": 10, "suspension.mechanical_grip": 8, "suspension.steering_precision": 6, "suspension.suspension_compliance": -5, "chassis.chassis_rigidity": 3}, "class_rating_delta": 20},
-  {"id": "basic_intake_1", "name": "Performance Intake", "category": "engine", "cost": 600, "modifiers": {"powertrain.power_hp": 8, "powertrain.throttle_response": 6, "powertrain.powerband": 5, "powertrain.engine_reliability": -2}, "class_rating_delta": 8},
-  {"id": "basic_turbo_kit", "name": "Basic Turbo Kit", "category": "engine", "cost": 3500, "modifiers": {"powertrain.power_hp": 55, "powertrain.torque_nm": 70, "powertrain.cooling": -8, "powertrain.engine_stress": 12, "fuel.fuel_efficiency": -3, "durability.engine_reliability": -5}, "class_rating_delta": 42},
-  {"id": "cooling_upgrade_1", "name": "Cooling Upgrade", "category": "engine", "cost": 900, "modifiers": {"powertrain.cooling": 15, "durability.cooling_capacity": 12, "durability.engine_reliability": 4}, "class_rating_delta": 5},
-  {"id": "weight_reduction_1", "name": "Weight Reduction Stage 1", "category": "chassis", "cost": 1800, "modifiers": {"chassis.weight_kg": -45, "chassis.chassis_rigidity": 2}, "class_rating_delta": 16},
-  {"id": "performance_exhaust_1", "name": "Performance Exhaust", "category": "engine", "cost": 750, "modifiers": {"powertrain.power_hp": 7, "powertrain.torque_nm": 12, "powertrain.powerband": 5, "chassis.weight_kg": -8}, "class_rating_delta": 9}
+  {
+    "id": "economy_tires_1",
+    "name": "Economy Tyres",
+    "category": "tires",
+    "cost": 450,
+    "slot": "tires",
+    "stage": 1,
+    "modifiers": {
+      "tires.base_grip": -6,
+      "tires.wet_grip": 4,
+      "tires.tire_wear_resistance": 14,
+      "tires.tire_heat_resistance": 10,
+      "tires.tire_warmup": -4
+    },
+    "overrides": {"tires.tire_compound": "economy"},
+    "unlocks": []
+  },
+  {
+    "id": "street_tires_1",
+    "name": "Street Performance Tyres",
+    "category": "tires",
+    "cost": 800,
+    "slot": "tires",
+    "stage": 1,
+    "modifiers": {
+      "tires.base_grip": 8,
+      "tires.wet_grip": 3,
+      "tires.tire_wear_resistance": 4,
+      "tires.tire_heat_resistance": 5,
+      "tires.tire_warmup": 2
+    },
+    "overrides": {"tires.tire_compound": "street"},
+    "unlocks": []
+  },
+  {
+    "id": "sport_tires_1",
+    "name": "Sport Tyres",
+    "category": "tires",
+    "cost": 1400,
+    "slot": "tires",
+    "stage": 1,
+    "modifiers": {
+      "tires.base_grip": 14,
+      "tires.wet_grip": 1,
+      "tires.tire_wear_resistance": -6,
+      "tires.tire_heat_resistance": 2,
+      "tires.tire_warmup": 7
+    },
+    "overrides": {"tires.tire_compound": "sport"},
+    "unlocks": []
+  },
+  {
+    "id": "semi_slick_tires_1",
+    "name": "Semi-Slick Tyres",
+    "category": "tires",
+    "cost": 2600,
+    "slot": "tires",
+    "stage": 1,
+    "modifiers": {
+      "tires.base_grip": 22,
+      "tires.wet_grip": -8,
+      "tires.tire_wear_resistance": -15,
+      "tires.tire_heat_resistance": -7,
+      "tires.tire_warmup": 10
+    },
+    "overrides": {"tires.tire_compound": "semi_slick"},
+    "unlocks": []
+  },
+  {
+    "id": "slick_tires_1",
+    "name": "Racing Slicks",
+    "category": "tires",
+    "cost": 4200,
+    "slot": "tires",
+    "stage": 1,
+    "modifiers": {
+      "tires.base_grip": 30,
+      "tires.wet_grip": -18,
+      "tires.tire_wear_resistance": -26,
+      "tires.tire_heat_resistance": -14,
+      "tires.tire_warmup": 14
+    },
+    "overrides": {"tires.tire_compound": "slick"},
+    "unlocks": []
+  },
+  {
+    "id": "sport_brake_kit_1",
+    "name": "Sport Brake Kit I",
+    "category": "brakes",
+    "cost": 1200,
+    "slot": "brakes",
+    "stage": 1,
+    "modifiers": {
+      "brakes.braking_power": 8,
+      "brakes.brake_fade_resistance": 6,
+      "brakes.brake_cooling": 5,
+      "durability.brake_durability": 4,
+      "chassis.weight_kg": 3
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "racing_brake_kit_2",
+    "name": "Racing Brake Kit II",
+    "category": "brakes",
+    "cost": 2600,
+    "slot": "brakes",
+    "stage": 2,
+    "modifiers": {
+      "brakes.braking_power": 18,
+      "brakes.brake_stability": 5,
+      "brakes.brake_fade_resistance": 14,
+      "brakes.brake_cooling": 13,
+      "durability.brake_durability": 7,
+      "chassis.weight_kg": 5
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "brake_controller",
+    "name": "Brake Balance Controller",
+    "category": "brakes",
+    "cost": 900,
+    "slot": "brake_controller",
+    "stage": 1,
+    "modifiers": {},
+    "overrides": {},
+    "unlocks": ["brake_controller"]
+  },
+  {
+    "id": "intake_1",
+    "name": "Sports Intake I",
+    "category": "engine",
+    "cost": 600,
+    "slot": "intake",
+    "stage": 1,
+    "modifiers": {
+      "powertrain.power_hp": 8,
+      "powertrain.throttle_response": 6,
+      "powertrain.powerband": 5,
+      "powertrain.engine_reliability": -2
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "intake_2",
+    "name": "Racing Intake II",
+    "category": "engine",
+    "cost": 1400,
+    "slot": "intake",
+    "stage": 2,
+    "modifiers": {
+      "powertrain.power_hp": 18,
+      "powertrain.throttle_response": 11,
+      "powertrain.powerband": 9,
+      "powertrain.engine_reliability": -4
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "exhaust_1",
+    "name": "Sports Exhaust I",
+    "category": "engine",
+    "cost": 750,
+    "slot": "exhaust",
+    "stage": 1,
+    "modifiers": {
+      "powertrain.power_hp": 7,
+      "powertrain.torque_nm": 12,
+      "powertrain.powerband": 5,
+      "chassis.weight_kg": -8
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "exhaust_2",
+    "name": "Racing Exhaust II",
+    "category": "engine",
+    "cost": 1900,
+    "slot": "exhaust",
+    "stage": 2,
+    "modifiers": {
+      "powertrain.power_hp": 17,
+      "powertrain.torque_nm": 25,
+      "powertrain.powerband": 10,
+      "chassis.weight_kg": -14,
+      "powertrain.engine_stress": 2
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "turbo_kit_1",
+    "name": "Turbo Kit Stage 1",
+    "category": "engine",
+    "cost": 1600,
+    "slot": "turbo",
+    "stage": 1,
+    "modifiers": {
+      "powertrain.power_hp": 22,
+      "powertrain.torque_nm": 30,
+      "powertrain.cooling": -3,
+      "powertrain.engine_stress": 5,
+      "fuel.fuel_efficiency": -1,
+      "durability.engine_reliability": -2
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "turbo_kit_2",
+    "name": "Turbo Kit Stage 2",
+    "category": "engine",
+    "cost": 2600,
+    "slot": "turbo",
+    "stage": 2,
+    "modifiers": {
+      "powertrain.power_hp": 38,
+      "powertrain.torque_nm": 50,
+      "powertrain.cooling": -5,
+      "powertrain.engine_stress": 8,
+      "fuel.fuel_efficiency": -2,
+      "durability.engine_reliability": -3
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "turbo_kit_3",
+    "name": "Turbo Kit Stage 3",
+    "category": "engine",
+    "cost": 3500,
+    "slot": "turbo",
+    "stage": 3,
+    "modifiers": {
+      "powertrain.power_hp": 55,
+      "powertrain.torque_nm": 70,
+      "powertrain.cooling": -8,
+      "powertrain.engine_stress": 12,
+      "fuel.fuel_efficiency": -3,
+      "durability.engine_reliability": -5
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "turbo_kit_4",
+    "name": "Turbo Kit Stage 4",
+    "category": "engine",
+    "cost": 7400,
+    "slot": "turbo",
+    "stage": 4,
+    "modifiers": {
+      "powertrain.power_hp": 78,
+      "powertrain.torque_nm": 95,
+      "powertrain.powerband": -4,
+      "powertrain.throttle_response": -3,
+      "powertrain.cooling": -12,
+      "powertrain.engine_stress": 18,
+      "fuel.fuel_efficiency": -5,
+      "durability.engine_reliability": -8
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "cooling_1",
+    "name": "Cooling Upgrade I",
+    "category": "engine",
+    "cost": 900,
+    "slot": "cooling",
+    "stage": 1,
+    "modifiers": {
+      "powertrain.cooling": 15,
+      "durability.cooling_capacity": 12,
+      "durability.engine_reliability": 4
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "cooling_2",
+    "name": "Racing Intercooler II",
+    "category": "engine",
+    "cost": 1800,
+    "slot": "cooling",
+    "stage": 2,
+    "modifiers": {
+      "powertrain.cooling": 28,
+      "durability.cooling_capacity": 22,
+      "durability.engine_reliability": 7,
+      "chassis.weight_kg": 4
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "sports_ecu",
+    "name": "Sports ECU",
+    "category": "engine",
+    "cost": 1100,
+    "slot": "ecu",
+    "stage": 1,
+    "modifiers": {
+      "powertrain.power_hp": 5,
+      "powertrain.throttle_response": 4,
+      "fuel.fuel_efficiency": -1
+    },
+    "overrides": {},
+    "unlocks": ["ecu"]
+  },
+  {
+    "id": "weight_reduction_1",
+    "name": "Weight Reduction Stage 1",
+    "category": "chassis",
+    "cost": 1800,
+    "slot": "weight_reduction",
+    "stage": 1,
+    "modifiers": {
+      "chassis.weight_kg": -45,
+      "chassis.chassis_rigidity": 2
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "weight_reduction_2",
+    "name": "Weight Reduction Stage 2",
+    "category": "chassis",
+    "cost": 3600,
+    "slot": "weight_reduction",
+    "stage": 2,
+    "modifiers": {
+      "chassis.weight_kg": -95,
+      "chassis.chassis_rigidity": 4,
+      "durability.overall_reliability": -2
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "weight_reduction_3",
+    "name": "Weight Reduction Stage 3",
+    "category": "chassis",
+    "cost": 6800,
+    "slot": "weight_reduction",
+    "stage": 3,
+    "modifiers": {
+      "chassis.weight_kg": -155,
+      "chassis.chassis_rigidity": 7,
+      "durability.overall_reliability": -4,
+      "durability.mechanical_sympathy_modifier": -1
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "sport_suspension_1",
+    "name": "Sport Suspension Kit I",
+    "category": "suspension",
+    "cost": 1500,
+    "slot": "sport_suspension",
+    "stage": 1,
+    "modifiers": {
+      "suspension.handling": 10,
+      "suspension.mechanical_grip": 8,
+      "suspension.steering_precision": 6,
+      "suspension.suspension_compliance": -5,
+      "chassis.chassis_rigidity": 3
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "sport_suspension_2",
+    "name": "Racing Suspension Kit II",
+    "category": "suspension",
+    "cost": 3200,
+    "slot": "sport_suspension",
+    "stage": 2,
+    "modifiers": {
+      "suspension.handling": 18,
+      "suspension.mechanical_grip": 15,
+      "suspension.steering_precision": 12,
+      "suspension.bump_absorption": 5,
+      "suspension.suspension_compliance": -7,
+      "chassis.chassis_rigidity": 5
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "custom_suspension",
+    "name": "Fully Custom Suspension",
+    "category": "suspension",
+    "cost": 2800,
+    "slot": "custom_suspension",
+    "stage": 1,
+    "modifiers": {
+      "suspension.handling": 5,
+      "suspension.mechanical_grip": 4,
+      "suspension.steering_precision": 5,
+      "suspension.suspension_compliance": -3
+    },
+    "overrides": {},
+    "unlocks": ["custom_suspension"]
+  },
+  {
+    "id": "custom_transmission",
+    "name": "Fully Custom Transmission",
+    "category": "drivetrain",
+    "cost": 2200,
+    "slot": "custom_transmission",
+    "stage": 1,
+    "modifiers": {
+      "powertrain.powerband": 6,
+      "powertrain.throttle_response": 3,
+      "durability.gearbox_reliability": -2
+    },
+    "overrides": {},
+    "unlocks": ["custom_transmission"]
+  },
+  {
+    "id": "custom_lsd",
+    "name": "Fully Custom LSD",
+    "category": "drivetrain",
+    "cost": 1600,
+    "slot": "custom_lsd",
+    "stage": 1,
+    "modifiers": {
+      "suspension.mechanical_grip": 4,
+      "suspension.handling": 3,
+      "durability.gearbox_reliability": -1
+    },
+    "overrides": {},
+    "unlocks": ["custom_lsd"]
+  },
+  {
+    "id": "fuel_cell_1",
+    "name": "Endurance Fuel Cell I",
+    "category": "fuel",
+    "cost": 1300,
+    "slot": "fuel_cell",
+    "stage": 1,
+    "modifiers": {
+      "fuel.fuel_capacity_l": 10,
+      "chassis.weight_kg": 6,
+      "durability.overall_reliability": 1
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "fuel_cell_2",
+    "name": "Endurance Fuel Cell II",
+    "category": "fuel",
+    "cost": 2600,
+    "slot": "fuel_cell",
+    "stage": 2,
+    "modifiers": {
+      "fuel.fuel_capacity_l": 22,
+      "chassis.weight_kg": 12,
+      "durability.overall_reliability": 2
+    },
+    "overrides": {},
+    "unlocks": []
+  },
+  {
+    "id": "aero_kit",
+    "name": "Adjustable Aero Kit",
+    "category": "aero",
+    "cost": 2400,
+    "slot": "aero_kit",
+    "stage": 1,
+    "modifiers": {
+      "aero.downforce": 15,
+      "aero.drag": 4,
+      "aero.high_speed_stability": 5
+    },
+    "overrides": {},
+    "unlocks": ["aero_kit"]
+  }
 ]

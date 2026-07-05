@@ -43,16 +43,22 @@ from game.actions import (
     sell_car_action,
     simulate_to_end_action,
     apply_tune_draft,
+    buy_part_action,
+    install_part_action,
+    uninstall_part_action,
     stage_tune_value,
     start_race_action,
     tune_car_action,
     tune_editor_screen,
     tune_section_screen,
+    upgrades_part_screen,
+    upgrades_slot_screen,
 )
 from game.economy import EconomyError
 from game.game_state import GameState, new_career
-from game.loader import load_drivers, load_events, load_tracks
+from game.loader import load_drivers, load_events, load_parts, load_tracks
 from game.market import list_market_cars
+from game.parts import SLOT_RULES, canonical_part_id, installed_part_for_slot, normalize_part_ids, part_map
 from game.sorting import SortSpec, is_sortable_screen, parse_sort_spec, sort_fields, sort_items, sort_label
 from game.simulation import SimulationError
 from game.tuning import TuningError
@@ -129,6 +135,9 @@ def run_menu_choice(state: GameState, raw: str, current_screen: str = "garage") 
     if command == "repair":
         _repair_picker(state)
         return state, "garage"
+    if command == "upgrades":
+        _upgrades_picker(state)
+        return state, "garage"
     if command == "tune":
         _tune_picker(state)
         return state, "garage"
@@ -203,6 +212,22 @@ def run_command(state: GameState, raw: str) -> GameState:
     elif command == "repair" and len(tokens) >= 2:
         repair_car_action(state, tokens[1])
         _show_garage(state)
+    elif command == "buy" and len(tokens) >= 4 and tokens[1] == "part":
+        install_now = len(tokens) >= 5 and tokens[4].lower() in {"install", "installed", "equip"}
+        result = buy_part_action(state, tokens[2], tokens[3], install=install_now)
+        terminal.print(result.message)
+    elif command == "install" and len(tokens) == 3:
+        result = install_part_action(state, tokens[1], tokens[2])
+        terminal.print(result.message)
+    elif command == "install" and len(tokens) == 4 and tokens[1] == "part":
+        result = install_part_action(state, tokens[2], tokens[3])
+        terminal.print(result.message)
+    elif command in {"uninstall", "unequip"} and len(tokens) == 3:
+        result = uninstall_part_action(state, tokens[1], tokens[2])
+        terminal.print(result.message)
+    elif command in {"uninstall", "unequip"} and len(tokens) == 4 and tokens[1] == "part":
+        result = uninstall_part_action(state, tokens[2], tokens[3])
+        terminal.print(result.message)
     elif command == "tune" and len(tokens) == 4:
         tune_car_action(state, tokens[1], tokens[2], _parse_value(tokens[3]))
         _show_garage(state)
@@ -212,6 +237,8 @@ def run_command(state: GameState, raw: str) -> GameState:
         _sell_picker(state)
     elif command == "repair":
         _repair_picker(state)
+    elif command == "upgrades":
+        _upgrades_picker(state)
     elif command == "tune":
         _tune_picker(state)
     elif command == "race":
@@ -470,6 +497,7 @@ def _show_help() -> None:
             ["M", "Market screen (view & buy)"],
             ["R", "Guided race entry"],
             ["X", "Guided car sale"],
+            ["U", "Guided upgrades"],
             ["T", "Guided tuning"],
             ["P", "Guided repair"],
             ["S", "Save game"],
@@ -496,6 +524,10 @@ def _show_help() -> None:
             ["sell car <car_id>", "Sell a specific garage car"],
             ["repair", "Choose an owned car to repair"],
             ["repair <car_id>", "Repair a specific garage car"],
+            ["upgrades", "Choose a car, part slot, and part to buy/install/unequip"],
+            ["buy part <car_id> <part_id> [install]", "Buy a part for one car; optional install-now"],
+            ["install part <car_id> <part_id>", "Install an owned part for free"],
+            ["unequip part <car_id> <slot_or_part_id>", "Unequip a slot back to stock with no refund"],
             ["tune", "Choose an owned car to tune"],
             ["tune <car_id> <field> <value>", "Set one tune field"],
             ["hire", "Choose a driver to hire"],
@@ -543,8 +575,8 @@ def _show_race_help() -> None:
         ["Key", "Command", "Effect"],
         [[option.key, option.label, option.description] for option in race_command_options()]
         + [
-            ["L / next", "Next lap", "Fast-forward to the end of the current lap"],
-            ["> / ff", "Faster", "Cycle presentation speed (1x/2x/4x/8x); no effect on the result"],
+            ["L / N / next", "Next lap", "Fast-forward to the end of the current lap"],
+            ["F / ff / >", "Faster", "Cycle presentation speed (1x/2x/4x/8x); no effect on the result"],
             ["X / end", "End", "Simulate remaining laps instantly and show result"],
             ["? / help", "Help", "Show race command help"],
         ],
@@ -591,6 +623,133 @@ def _repair_picker(state: GameState) -> None:
     result = repair_car_action(state, car.identity.id)
     terminal.print(result.message)
     terminal.pause()
+
+
+def _upgrades_picker(state: GameState) -> None:
+    if not state.garage:
+        terminal.print("Garage is empty.")
+        return
+    show = _garage_picker_show(state, "Upgrades", "Choose a car to upgrade. q cancels.", "upgrades")
+    car = _choose(show(), lambda item: item.identity.id, "Car", sort_screen="garage", refresh=show)
+    if car is None:
+        return
+    _upgrades_slot_picker(state, car.identity.id)
+
+
+def _upgrades_slot_picker(state: GameState, car_id: str) -> None:
+    while True:
+        screen = upgrades_slot_screen(state, car_id)
+        terminal.clear()
+        terminal.header(screen.title, screen.subtitle)
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "upgrades", state.team_xp))
+        terminal.menu(menu_bar())
+        _render_action_screen(screen)
+        terminal.print("number/name = open slot  |  B = back")
+        raw = terminal.prompt("Slot").strip()
+        if raw.lower() in {"b", "q", "cancel", ""}:
+            return
+        slot = _match_part_slot(raw)
+        if slot is None:
+            terminal.print(f"Unknown part slot: {raw}")
+            terminal.pause()
+            continue
+        _upgrades_part_picker(state, car_id, slot)
+
+
+def _upgrades_part_picker(state: GameState, car_id: str, slot: str) -> None:
+    while True:
+        screen = upgrades_part_screen(state, car_id, slot)
+        terminal.clear()
+        terminal.header(screen.title, screen.subtitle)
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "upgrades", state.team_xp))
+        terminal.menu(menu_bar())
+        _render_action_screen(screen)
+        terminal.print("number/id = select part  |  U = unequip slot  |  B = back")
+        raw = terminal.prompt("Part").strip()
+        low = raw.lower()
+        if low in {"b", "q", "cancel", ""}:
+            return
+        if low in {"u", "unequip", "uninstall"}:
+            try:
+                result = uninstall_part_action(state, car_id, slot)
+                terminal.print(result.message)
+            except EconomyError as exc:
+                terminal.print(exc)
+            terminal.pause()
+            continue
+        part = _match_slot_part(slot, raw)
+        if part is None:
+            terminal.print(f"Unknown part: {raw}")
+            terminal.pause()
+            continue
+        if _upgrade_part_action_prompt(state, car_id, part.id):
+            continue
+
+
+def _upgrade_part_action_prompt(state: GameState, car_id: str, part_id: str) -> bool:
+    car = next(car for car in state.garage if car.identity.id == car_id)
+    parts = load_parts()
+    part = part_map(parts)[canonical_part_id(part_id)]
+    owned = part.id in normalize_part_ids(car.owned_parts)
+    installed = installed_part_for_slot(car, part.slot, parts)
+    is_installed = installed is not None and installed.id == part.id
+    if is_installed:
+        prompt = "[u] unequip  [b] back"
+    elif owned:
+        prompt = "[i] install  [b] back"
+    else:
+        prompt = "[b] buy  [i] buy & install  [q] back"
+    raw = terminal.prompt(prompt).strip().lower()
+    if raw in {"", "q", "back", "cancel"}:
+        return False
+    try:
+        if is_installed and raw in {"u", "unequip", "uninstall"}:
+            result = uninstall_part_action(state, car_id, part.slot)
+        elif owned and raw in {"i", "install", "equip"}:
+            result = install_part_action(state, car_id, part.id)
+        elif not owned and raw in {"b", "buy"}:
+            result = buy_part_action(state, car_id, part.id)
+        elif not owned and raw in {"i", "install", "equip"}:
+            result = buy_part_action(state, car_id, part.id, install=True)
+        else:
+            terminal.print("No action taken.")
+            terminal.pause()
+            return False
+    except EconomyError as exc:
+        terminal.print(exc)
+        terminal.pause()
+        return True
+    terminal.print(result.message)
+    terminal.pause()
+    return True
+
+
+def _match_part_slot(raw: str) -> str | None:
+    if raw.isdigit():
+        index = int(raw) - 1
+        if 0 <= index < len(SLOT_RULES):
+            return SLOT_RULES[index].id
+        return None
+    normalized = raw.lower()
+    return next(
+        (
+            rule.id
+            for rule in SLOT_RULES
+            if normalized in {rule.id.lower(), rule.label.lower()}
+        ),
+        None,
+    )
+
+
+def _match_slot_part(slot: str, raw: str):
+    parts = [part for part in load_parts() if part.slot == slot]
+    if raw.isdigit():
+        index = int(raw) - 1
+        if 0 <= index < len(parts):
+            return parts[index]
+        return None
+    canonical = canonical_part_id(raw)
+    return next((part for part in parts if part.id.lower() == canonical.lower()), None)
 
 
 def _tune_picker(state: GameState) -> None:
@@ -661,6 +820,10 @@ def _tune_section_editor(state: GameState, car_id: str, section: str, draft: dic
         selected_field = _match_tune_field(screen.fields, raw)
         if selected_field is None:
             terminal.print(f"Unknown tune field: {raw}")
+            terminal.pause()
+            continue
+        if selected_field.locked:
+            terminal.print(selected_field.lock_reason)
             terminal.pause()
             continue
         if selected_field.help:
@@ -910,9 +1073,9 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
                     _render_race_screen(state, session, last_result, "")
                     terminal.print("Race simulated to completion.")
                     break
-                elif low in {"next", "lap", "l"}:
+                elif low in {"next", "lap", "l", "n"}:
                     skip_to_lap = True  # fast-forward over the rest of this lap
-                elif low in {"ff", ">"}:
+                elif low in {"ff", "f", ">"}:
                     speed_mult = _cycle_speed(speed_mult)
                 elif raw:
                     matched = _race_command(raw)
@@ -983,7 +1146,7 @@ def _print_lap_bar(session, current_command: str, pending_command: str | None, s
     bar = "█" * filled + "░" * (24 - filled)
     sys.stdout.write(
         f"  {label}  [{bar}] {int(frac * 100):3d}%  [{status}]  {speed_mult:g}x"
-        "  cmd+Enter  L=next lap  >=faster  X=end\n"
+        "  cmd+Enter  L/N=next lap  F/>=faster  X=end\n"
     )
     sys.stdout.flush()
 

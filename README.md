@@ -34,9 +34,10 @@ requirements.txt`.
   run their own pit strategy, passes must be earned through dirty air, and
   mistakes, damage, or an empty tank can wreck a run. Fast-forward laps, change
   presentation speed, or sim to the end at any point.
-- 11 events across 9 tracks — sprints, ovals, hillclimbs, rallies, top-speed
-  runs, and duration enduros. Tracks are pure geometry; race length lives on
-  the event, so one track can host both a sprint and an enduro.
+- 12 events across 9 tracks — sprints, ovals, hillclimbs, rallies, top-speed
+  runs, duration enduros, and a no-fee practice fallback. Tracks are pure
+  geometry; race length lives on the event, so one track can host both a sprint
+  and an enduro.
 
 ## Create your own content
 

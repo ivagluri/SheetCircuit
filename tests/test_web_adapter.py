@@ -235,9 +235,10 @@ class WebTuneTests(TestCase):
 
     def test_tune_option_field_by_number(self) -> None:
         game = make_game()
+        game.handle_input("buy part torino_500r sports_ecu install")
         game.handle_input("t")
         game.handle_input("1")
-        game.handle_input("2")  # Drivetrain
+        game.handle_input("2")  # ECU
         out = game.handle_input("engine map")
         self.assertEqual(meta(game)["prompt_label"], "Option")
         self.assertIn("Engine Map Options", out)
@@ -290,9 +291,10 @@ class WebTuneTests(TestCase):
 
     def test_tune_preview_shows_deltas(self) -> None:
         game = make_game()
+        game.handle_input("buy part torino_500r sports_ecu install")
         game.handle_input("t")
         game.handle_input("1")
-        game.handle_input("2")  # Drivetrain
+        game.handle_input("2")  # ECU
         game.handle_input("engine map")
         out = game.handle_input("4")  # qualifying: more power
         self.assertIn("→", out)  # before→after readout
@@ -302,9 +304,26 @@ class WebTuneTests(TestCase):
 
     def test_direct_tune_command(self) -> None:
         game = make_game()
+        game.handle_input("buy part torino_500r sports_ecu install")
         out = game.handle_input("tune torino_500r engine_map hot")
         self.assertIn("Updated engine_map", out)
         self.assertEqual(game.state.garage[0].tune.engine_map, "hot")
+
+    def test_upgrade_flow_buys_and_installs_part(self) -> None:
+        game = make_game()
+        out = game.handle_input("u")
+        self.assertEqual(meta(game)["mode"], "upgrades_car")
+        self.assertIn("Upgrades", out)
+        game.handle_input("1")
+        self.assertEqual(meta(game)["mode"], "upgrades_slot")
+        game.handle_input("brake_controller")
+        self.assertEqual(meta(game)["mode"], "upgrades_part")
+        game.handle_input("brake_controller")
+        self.assertEqual(meta(game)["mode"], "upgrades_action")
+        out = game.handle_input("i")
+        self.assertIn("Bought Brake Balance Controller and installed", out)
+        self.assertIn("brake_controller", game.state.garage[0].owned_parts)
+        self.assertIn("brake_controller", game.state.garage[0].installed_parts)
 
 
 class WebRaceTests(TestCase):

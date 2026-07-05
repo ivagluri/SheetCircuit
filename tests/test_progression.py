@@ -5,7 +5,7 @@ import subprocess
 import sys
 import unittest
 
-from constants import EVENT_KIND_LADDER, EVENT_KIND_OPEN_INVITATIONAL
+from constants import EVENT_KIND_LADDER, EVENT_KIND_OPEN_INVITATIONAL, EVENT_KIND_PRACTICE
 from game.progression import (
     empty_event_progress,
     is_team_level_unlocked,
@@ -108,6 +108,20 @@ class ProgressionTests(unittest.TestCase):
         self.assertEqual(award.first_win_bonus, 31)
         self.assertEqual(award.total_xp, 62)
 
+    def test_practice_awards_no_team_xp(self) -> None:
+        award = team_xp_award(
+            "S",
+            EVENT_KIND_PRACTICE,
+            position=1,
+            is_dnf=False,
+            event_progress_before={"wins": 0},
+        )
+
+        self.assertEqual(award.event_kind_multiplier, 0.00)
+        self.assertEqual(award.result_xp, 0)
+        self.assertEqual(award.first_win_bonus, 0)
+        self.assertEqual(award.total_xp, 0)
+
     def test_dnf_awards_no_team_xp(self) -> None:
         award = team_xp_award("C", position=1, is_dnf=True, event_progress_before={"wins": 0})
 
@@ -167,6 +181,7 @@ class ProgressionTests(unittest.TestCase):
 
         self.assertIn("Team XP Awards", result.stdout)
         self.assertIn("open_invitational", result.stdout)
+        self.assertIn("practice", result.stdout)
         self.assertIn("Simple Ladder Path", result.stdout)
         self.assertIn("Lv 6", result.stdout)
 

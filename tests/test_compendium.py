@@ -12,10 +12,12 @@ import unittest
 
 from dataclasses import fields as dataclass_fields
 
-from constants import CAR_MOD_FIELD_RANGES, TUNE_FIELD_RANGES
+from constants import TUNE_FIELD_RANGES
 from editor.fields import CAR_SECTIONS, EVENT_SECTIONS, SEGMENT_FIELDS, TRACK_SECTIONS
 from game.actions import _TUNE_FIELD_GROUPS
+from game.loader import load_parts
 from game.models import Driver
+from game.parts import SLOT_RULES
 from compendium import registry
 
 
@@ -67,10 +69,17 @@ class CompendiumCompletenessTests(unittest.TestCase):
             self.assertIn("tune_menu", entry.editable_in, name)
 
     def test_harvested_ranges_match_source_of_truth(self) -> None:
-        for name, expected in TUNE_FIELD_RANGES.items():
+        for name in registry.TUNE_LOOKUP:
+            if name not in TUNE_FIELD_RANGES:
+                continue
+            expected = TUNE_FIELD_RANGES[name]
             self.assertEqual(registry.TUNE_LOOKUP[name].value_range, expected, name)
-        for name, expected in CAR_MOD_FIELD_RANGES.items():
-            self.assertEqual(registry.TUNE_LOOKUP[name].value_range, expected, name)
+
+    def test_every_part_and_slot_has_entry(self) -> None:
+        for part in load_parts():
+            self.assertIn(f"part.{part.id}", registry.ENTRIES_BY_ID, part.id)
+        for rule in SLOT_RULES:
+            self.assertIn(f"part.slot.{rule.id}", registry.ENTRIES_BY_ID, rule.id)
 
 
 class DomainContentTests(unittest.TestCase):
@@ -89,6 +98,9 @@ class DomainContentTests(unittest.TestCase):
 
     def test_cars_fully_documented(self) -> None:
         self._assert_chapter_documented("cars")
+
+    def test_parts_fully_documented(self) -> None:
+        self._assert_chapter_documented("parts")
 
     def test_drivers_fully_documented(self) -> None:
         self._assert_chapter_documented("drivers")

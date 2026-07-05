@@ -8,10 +8,9 @@ tables below, consolidated from the rationale comments in ``constants.py`` and
 the field-help strings in ``editor.fields``.
 
 The ``editable_in`` tag is derived, not hand-maintained: a car field is
-tune-menu-editable iff it is a TuneSetup knob (a key of the schema's "Tune"
-section) or a garage hard-mod (a key of ``CAR_MOD_FIELD_SECTIONS``) — exactly
-the union that ``game.actions._TUNE_FIELD_GROUPS`` exposes in-game. Everything
-in the creator schema is creator-editable.
+tune-menu-editable iff it is one of the setup knobs exposed by the in-game Tune
+menu. Permanent hardware/stat changes live in Upgrades. Everything in the
+creator schema is creator-editable.
 """
 
 from __future__ import annotations
@@ -19,7 +18,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from constants import CAR_MOD_FIELD_SECTIONS
+from game.parts import TUNE_MENU_FIELD_NAMES
 from editor.fields import CAR_ARCHETYPES, CAR_SECTIONS
 from compendium.harvest import entry_from_spec
 from compendium.model import Chapter, Entry, Section
@@ -36,7 +35,7 @@ def _tune_section_keys() -> tuple[str, ...]:
 
 
 TUNE_SECTION_KEYS: tuple[str, ...] = _tune_section_keys()
-_TUNE_MENU_KEYS = set(TUNE_SECTION_KEYS) | set(CAR_MOD_FIELD_SECTIONS)
+_TUNE_MENU_KEYS = set(TUNE_MENU_FIELD_NAMES)
 
 
 def _editable_in(spec) -> tuple[str, ...]:
@@ -50,10 +49,9 @@ CHAPTER_INTRO: str = (
     "A car is described by many stats, but you rarely set them by hand: pick one of "
     "the five archetypes below in the creator and adjust from there. Most stats are "
     "intrinsic to how the car is *built* and are set only in the creator (engine, "
-    "weight, durability, fuel hardware). A smaller garage-tweakable subset — the "
-    "Tyre/Brake/Chassis/Suspension/Aero hard mods plus the whole Tune section — can "
-    "also be changed in-game from the Tune menu; those rows are marked "
-    "\"tune_menu\" in the Editable column. Three screens show overlapping slices of "
+    "weight, durability, fuel hardware). In career play, Upgrades buys and equips "
+    "hardware, while Tune adjusts setup knobs unlocked by that hardware; those setup "
+    "rows are marked \"tune_menu\" in the Editable column. Three screens show overlapping slices of "
     "this data: the car detail screen is a quick overview (power, weight, drivetrain, "
     "condition); the extended spec sheet (\"ext\") lists every stat below; and the "
     "in-game Tune menu shows only the garage-tweakable subset. Read each row as: what "
@@ -87,7 +85,8 @@ SECTION_INTROS: dict[str, str] = {
     "Tires": (
         "The contact patch: compound and width set the raw grip on offer, while the "
         "resistance ratings decide how long that grip lasts before wear and heat erode "
-        "it. Compound and width are garage hard mods; grip is a primary cornering axis."
+        "it. In career, compound changes are bought as tyre parts in Upgrades; grip is "
+        "a primary cornering axis."
     ),
     "Brakes": (
         "Stopping performance and how it holds up over a stint. Braking power is the "
@@ -119,10 +118,10 @@ SECTION_INTROS: dict[str, str] = {
         "Low condition quietly saps performance and reliability."
     ),
     "Tune": (
-        "The setup sheet — 22 knobs adjustable both in the creator and the in-game Tune "
-        "menu, with no lasting cost. Each has a neutral \"ideal\" (a stock street "
-        "setup): sitting at the ideal neither helps nor hurts, and tuning away from it "
-        "trades one quality for another. This is where you tailor a car to a track."
+        "The setup sheet — adjustable both in the creator and, where hardware allows, "
+        "the in-game Tune menu, with no lasting cost. Tyre pressures are always "
+        "available; ECU maps, brake balance, suspension geometry, gearing, LSD, and "
+        "downforce require installed adjustable parts."
     ),
 }
 

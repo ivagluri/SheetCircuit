@@ -48,6 +48,7 @@ from game.models import (
     TrackSegment,
     TuneSetup,
 )
+from game.parts import KNOWN_SLOTS, KNOWN_UNLOCKS, SLOT_RULE_BY_ID, VALID_STAT_SECTIONS, normalize_part_ids
 
 WEIGHT_DIMS = ["power", "top_speed", "acceleration", "grip", "braking", "handling", "aero"]
 RATE_NAMES = ["tire_wear", "fuel_burn", "engine_heat"]
@@ -112,6 +113,11 @@ def car_from_dict(data: dict[str, Any], path: Path | None = None) -> Car:
             "layout": data["layout"],
             "tags": data["tags"],
         }
+        installed_parts = normalize_part_ids(list(data.get("installed_parts", [])))
+        owned_parts = normalize_part_ids(list(data.get("owned_parts", installed_parts)))
+        for part_id in installed_parts:
+            if part_id not in owned_parts:
+                owned_parts.append(part_id)
         return Car(
             identity=_dataclass_from_dict(CarIdentity, identity_data, source),
             powertrain=_dataclass_from_dict(PowertrainStats, data["powertrain"], source),
@@ -123,7 +129,8 @@ def car_from_dict(data: dict[str, Any], path: Path | None = None) -> Car:
             durability=_dataclass_from_dict(DurabilityStats, data["durability"], source),
             fuel=_dataclass_from_dict(FuelStats, data["fuel"], source),
             condition=_dataclass_from_dict(CarCondition, data["condition"], source),
-            installed_parts=list(data.get("installed_parts", [])),
+            installed_parts=installed_parts,
+            owned_parts=owned_parts,
             tune=_dataclass_from_dict(TuneSetup, data["tune"], source),
             value=data["value"],
         )
@@ -204,7 +211,90 @@ def resolve_race(event: Event, track: Track) -> "RaceFormat":
 
 
 def part_from_dict(data: dict[str, Any], path: Path | None = None) -> Part:
-    return _dataclass_from_dict(Part, data, path or Path("<memory>"))
+    source = path or Path("<memory>")
+    if "class_rating_delta" in data:
+        raise DataLoadError(f"Part {data.get('id', '?')} in {source} still uses class_rating_delta")
+    part_data = dict(data)
+    part_data.setdefault("stage", 0)
+    part_data.setdefault("modifiers", {})
+    part_data.setdefault("overrides", {})
+    part_data.setdefault("unlocks", [])
+    try:
+        part = _dataclass_from_dict(Part, part_data, source)
+    except DataLoadError:
+        raise
+    if not isinstance(part.modifiers, dict):
+        raise DataLoadError(f"Part {part.id} in {source} has non-object modifiers")
+    if not isinstance(part.overrides, dict):
+        raise DataLoadError(f"Part {part.id} in {source} has non-object overrides")
+    if not isinstance(part.unlocks, list):
+        raise DataLoadError(f"Part {part.id} in {source} has non-list unlocks")
+    return part
+
+
+_PART_PATH_SECTIONS: dict[str, type] = {
+    "powertrain": PowertrainStats,
+    "chassis": ChassisStats,
+    "tires": TireStats,
+    "brakes": BrakeStats,
+    "suspension": SuspensionStats,
+    "aero": AeroStats,
+    "durability": DurabilityStats,
+    "fuel": FuelStats,
+}
+
+
+def _validate_parts(parts: list[Part]) -> None:
+    seen_ids: set[str] = set()
+    staged_slots: dict[str, set[int]] = {}
+    for part in parts:
+        if part.id in seen_ids:
+            raise DataLoadError(f"Duplicate part id: {part.id}")
+        seen_ids.add(part.id)
+        if part.slot not in KNOWN_SLOTS:
+            expected = ", ".join(sorted(KNOWN_SLOTS))
+            raise DataLoadError(f"Part {part.id} uses unknown slot {part.slot!r}; expected one of: {expected}")
+        rule = SLOT_RULE_BY_ID[part.slot]
+        if rule.staged:
+            if not isinstance(part.stage, int) or part.stage < 1:
+                raise DataLoadError(f"Staged part {part.id} must have stage >= 1")
+            stages = staged_slots.setdefault(part.slot, set())
+            if part.stage in stages:
+                raise DataLoadError(f"Duplicate stage {part.stage} in slot {part.slot}")
+            stages.add(part.stage)
+        elif part.stage not in (0, 1):
+            raise DataLoadError(f"Non-staged part {part.id} must use stage 0 or 1")
+        for path, delta in part.modifiers.items():
+            _validate_part_path(part.id, path, numeric=True)
+            if not isinstance(delta, (int, float)):
+                raise DataLoadError(f"Part {part.id} modifier {path} must be numeric")
+        for path, value in part.overrides.items():
+            _validate_part_path(part.id, path, numeric=False)
+            if not isinstance(value, (int, float, str)):
+                raise DataLoadError(f"Part {part.id} override {path} must be scalar")
+        for unlock in part.unlocks:
+            if unlock not in KNOWN_UNLOCKS:
+                expected = ", ".join(sorted(KNOWN_UNLOCKS))
+                raise DataLoadError(f"Part {part.id} uses unknown unlock {unlock!r}; expected one of: {expected}")
+    for slot, stages in staged_slots.items():
+        expected = set(range(1, max(stages) + 1))
+        if stages != expected:
+            raise DataLoadError(f"Staged slot {slot} has gaps: found {sorted(stages)}, expected {sorted(expected)}")
+
+
+def _validate_part_path(part_id: str, path: str, *, numeric: bool) -> None:
+    pieces = path.split(".")
+    if len(pieces) != 2:
+        raise DataLoadError(f"Part {part_id} uses invalid path {path!r}")
+    section_name, field_name = pieces
+    if section_name not in VALID_STAT_SECTIONS:
+        raise DataLoadError(f"Part {part_id} uses invalid stat section {section_name!r}")
+    section_cls = _PART_PATH_SECTIONS.get(section_name)
+    valid_fields = {field.name for field in fields(section_cls)} if section_cls is not None else set()
+    if field_name not in valid_fields:
+        raise DataLoadError(f"Part {part_id} uses invalid stat path {path!r}")
+    if numeric and path in {"tires.tire_compound", "powertrain.aspiration"}:
+        raise DataLoadError(f"Part {part_id} cannot numerically modify string path {path!r}")
 
 
 def _segment_tag_weights(segment: TrackSegment) -> dict[str, float]:
@@ -462,7 +552,9 @@ def load_events(data_root: Path = DATA_ROOT) -> list[Event]:
 
 
 def load_parts(data_root: Path = DATA_ROOT) -> list[Part]:
-    return _objects_from_dir("parts", part_from_dict, data_root)
+    parts = _objects_from_dir("parts", part_from_dict, data_root)
+    _validate_parts(parts)
+    return parts
 
 
 def load_all_data(data_root: Path = DATA_ROOT) -> dict[str, list[Any]]:

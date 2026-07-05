@@ -10,7 +10,7 @@ TITLE = "SheetCircuit Compendium"
 
 INTRO = (
     "A complete reference to every knob you can set when building cars, tracks, "
-    "events, and when tuning a car in the garage. You do not need any of this to "
+    "events, parts, and when tuning a car in the garage. You do not need any of this to "
     "play: the creator ships quick-setup archetypes and sensible defaults, and a "
     "stock car is already neutral and race-ready. This is here for when you want to "
     "understand exactly what a setting does and drill down."

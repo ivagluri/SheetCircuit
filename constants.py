@@ -1,6 +1,6 @@
 """Central tuning values for SheetCircuit."""
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 STARTING_MONEY = 8000
 STARTING_WEEK = 1
 
@@ -25,7 +25,8 @@ TEAM_LEVEL_BY_CLASS: dict[str, int] = {
 }
 EVENT_KIND_LADDER = "ladder"
 EVENT_KIND_OPEN_INVITATIONAL = "open_invitational"
-EVENT_KINDS = (EVENT_KIND_LADDER, EVENT_KIND_OPEN_INVITATIONAL)
+EVENT_KIND_PRACTICE = "practice"
+EVENT_KINDS = (EVENT_KIND_LADDER, EVENT_KIND_OPEN_INVITATIONAL, EVENT_KIND_PRACTICE)
 TEAM_XP_BY_CLASS: dict[str, int] = {
     "E": 25,
     "D": 45,
@@ -44,6 +45,7 @@ TEAM_XP_FINISH_MULTIPLIERS: dict[int | str, float] = {
 TEAM_XP_EVENT_KIND_MULTIPLIER: dict[str, float] = {
     EVENT_KIND_LADDER: 1.00,
     EVENT_KIND_OPEN_INVITATIONAL: 0.70,
+    EVENT_KIND_PRACTICE: 0.00,
 }
 # Indexed by wins already recorded for the event. The final value is reused for
 # all later repeats, so favorite events stay useful but stop being optimal farms.

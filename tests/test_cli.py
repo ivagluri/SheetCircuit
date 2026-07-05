@@ -5,6 +5,7 @@ import io
 from unittest import TestCase
 from unittest.mock import patch
 
+from game.economy import buy_part
 from game.game_state import new_career
 from game.loader import load_cars
 import interfaces.cli as cli
@@ -189,7 +190,7 @@ class CliTests(TestCase):
         state = new_career()
         scripted_input = [
             "1",           # car
-            "2",           # Drivetrain section
+            "2",           # ECU section
             "engine map",  # engine_map (choice field) within the section
             "",            # blank value: nothing staged
             "b",   # back to sections
@@ -204,9 +205,10 @@ class CliTests(TestCase):
 
     def test_tune_choice_field_staged_then_applied(self) -> None:
         state = new_career()
+        buy_part(state, state.garage[0].identity.id, "sports_ecu", install=True)
         scripted_input = [
             "1",           # car
-            "2",           # Drivetrain section
+            "2",           # ECU section
             "engine map",  # engine_map
             "3",           # hot
             "b",   # back to sections (still only staged)
@@ -224,9 +226,10 @@ class CliTests(TestCase):
 
     def test_tune_sections_and_fields_accept_display_labels(self) -> None:
         state = new_career()
+        buy_part(state, state.garage[0].identity.id, "sports_ecu", install=True)
         scripted_input = [
             "1",
-            "Drivetrain",
+            "ECU",
             "Engine Map",
             "Hot",
             "b",
@@ -241,6 +244,7 @@ class CliTests(TestCase):
 
     def test_tune_discard_leaves_car_untouched(self) -> None:
         state = new_career()
+        buy_part(state, state.garage[0].identity.id, "sports_ecu", install=True)
         scripted_input = [
             "1",
             "2",

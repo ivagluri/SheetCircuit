@@ -8,11 +8,15 @@ from typing import Any
 from constants import SCHEMA_VERSION
 from game.game_state import GameState
 from game.loader import DataLoadError, car_from_dict, driver_from_dict
+from game.parts import normalize_part_ids
 from game.progression import normalize_event_progress
 
 
 class SaveVersionError(ValueError):
     """Raised when a save file has an unsupported schema version."""
+
+
+PREVIOUS_SCHEMA_VERSION = 2
 
 
 def game_state_to_dict(game_state: GameState) -> dict[str, Any]:
@@ -71,6 +75,28 @@ def load_game(path: str | Path) -> GameState:
         raise DataLoadError(f"Could not read save {source}: {exc}") from exc
 
     version = payload.get("schema_version")
-    if version != SCHEMA_VERSION:
+    if version == PREVIOUS_SCHEMA_VERSION:
+        payload = _migrate_payload(payload)
+    elif version != SCHEMA_VERSION:
         raise SaveVersionError(f"Unsupported save schema_version {version}; expected {SCHEMA_VERSION}")
     return game_state_from_dict(payload["game_state"])
+
+
+def _migrate_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    migrated = dict(payload)
+    state = dict(migrated.get("game_state", {}))
+    garage = []
+    for car_data in state.get("garage", []):
+        car = dict(car_data)
+        installed = normalize_part_ids(list(car.get("installed_parts", [])))
+        owned = normalize_part_ids(list(car.get("owned_parts", installed)))
+        for part_id in installed:
+            if part_id not in owned:
+                owned.append(part_id)
+        car["installed_parts"] = installed
+        car["owned_parts"] = owned
+        garage.append(car)
+    state["garage"] = garage
+    migrated["game_state"] = state
+    migrated["schema_version"] = SCHEMA_VERSION
+    return migrated

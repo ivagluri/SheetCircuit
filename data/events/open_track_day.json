@@ -1,0 +1,23 @@
+{
+  "id": "open_track_day",
+  "name": "Open Track Day",
+  "track_id": "maple_short",
+  "car_class_limit": "S",
+  "min_team_level": 1,
+  "event_kind": "practice",
+  "entry_fee": 0,
+  "prize_money": [
+    500,
+    300,
+    200,
+    150,
+    100,
+    75,
+    50,
+    25
+  ],
+  "opponent_count": 7,
+  "restrictions": {},
+  "rival_skill": 20,
+  "laps": 3
+}

@@ -6,14 +6,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from constants import CAR_MOD_FIELD_RANGES, ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TIRE_COMPOUNDS, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
-from game.economy import buy_car, fire_driver, hire_driver, repair_car, sell_car
+from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
+from game.economy import buy_car, buy_part, fire_driver, hire_driver, install_part, repair_car, sell_car, uninstall_part
 from game.effective_stats import class_breakdown, class_rating, compute_effective_stats, derived_class, performance_type
 from game.event_display import event_best_text, event_kind_label, event_progress_rows, event_requirement_text, team_status_text, xp_needed_for_team_level
 from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.market import list_free_agents, list_market_cars
 from game.models import RaceSession, RaceTickResult
+from game.parts import (
+    SLOT_RULES,
+    TUNE_MENU_FIELD_GROUPS,
+    canonical_part_id,
+    installed_part_for_slot,
+    lock_reason_for_tune_field,
+    normalize_part_ids,
+    part_map,
+)
 from game.race_session import apply_player_command, enter_event, finish_event
 from game.progression import team_level_for_xp, team_xp_progress
 from game.simulation import calculate_lap_time
@@ -56,6 +65,8 @@ class FieldData:
     maximum: float | None = None
     options: list[OptionData] = field(default_factory=list)
     help: str = ""  # short effect summary; populated from the compendium registry
+    locked: bool = False
+    lock_reason: str = ""
 
 
 @dataclass
@@ -192,6 +203,92 @@ def market_screen(sort_spec: SortSpec | None = None) -> ScreenData:
     )
 
 
+def upgrades_car_screen(state: GameState, sort_spec: SortSpec | None = None) -> ScreenData:
+    screen = garage_screen(state, sort_spec)
+    screen.name = "upgrades_car"
+    screen.title = "Upgrades"
+    screen.subtitle = "Choose a car to buy, install, or unequip parts."
+    return screen
+
+
+def upgrades_slot_screen(state: GameState, car_id: str) -> ScreenData:
+    car = _garage_car_or_raise(state, car_id)
+    parts = load_parts()
+    installed = {
+        rule.id: installed_part_for_slot(car, rule.id, parts)
+        for rule in SLOT_RULES
+    }
+    by_id = part_map(parts)
+    owned_ids = set(normalize_part_ids(car.owned_parts))
+    rows = []
+    for index, rule in enumerate(SLOT_RULES, start=1):
+        installed_part = installed[rule.id]
+        owned_count = sum(1 for part in parts if part.slot == rule.id and part.id in owned_ids)
+        available_count = sum(1 for part in parts if part.slot == rule.id)
+        rows.append([
+            index,
+            rule.id,
+            rule.label,
+            installed_part.name if installed_part else "stock",
+            owned_count,
+            available_count,
+        ])
+    unknown_installed = [part_id for part_id in normalize_part_ids(car.installed_parts) if part_id not in by_id]
+    messages = []
+    if unknown_installed:
+        messages.append("Unknown installed parts ignored: " + ", ".join(unknown_installed))
+    return ScreenData(
+        name="upgrades_slot",
+        title="Upgrades",
+        subtitle=car.identity.name,
+        tables=[TableData("Part Slots", ["#", "Slot", "Name", "Installed", "Owned", "Catalog"], rows)],
+        messages=messages,
+    )
+
+
+def upgrades_part_screen(state: GameState, car_id: str, slot: str) -> ScreenData:
+    car = _garage_car_or_raise(state, car_id)
+    parts = [part for part in load_parts() if part.slot == slot]
+    if not parts:
+        valid = ", ".join(rule.id for rule in SLOT_RULES)
+        raise ValueError(f"Unknown part slot: {slot}. Try: {valid}")
+    owned_ids = set(normalize_part_ids(car.owned_parts))
+    installed_id = installed_part_for_slot(car, slot, load_parts())
+    rows = []
+    for index, part in enumerate(parts, start=1):
+        owned = part.id in owned_ids
+        installed = installed_id is not None and installed_id.id == part.id
+        rows.append([
+            index,
+            part.id,
+            part.name,
+            part.stage if part.stage else "-",
+            f"${part.cost}",
+            "installed" if installed else ("owned" if owned else "shop"),
+            _part_effect_summary(part),
+        ])
+    rule = next(rule for rule in SLOT_RULES if rule.id == slot)
+    installed_name = installed_id.name if installed_id else "stock"
+    return ScreenData(
+        name="upgrades_part",
+        title=f"Upgrades · {rule.label}",
+        subtitle=f"{car.identity.name} / installed: {installed_name}",
+        tables=[TableData(rule.label, ["#", "ID", "Part", "Stage", "Cost", "Status", "Effect"], rows)],
+        messages=[rule.description] if rule.description else [],
+    )
+
+
+def _part_effect_summary(part) -> str:
+    chunks: list[str] = []
+    if part.modifiers:
+        chunks.extend(f"{path} {delta:+g}" for path, delta in part.modifiers.items())
+    if part.overrides:
+        chunks.extend(f"{path}={value}" for path, value in part.overrides.items())
+    if part.unlocks:
+        chunks.append("unlocks " + ", ".join(part.unlocks))
+    return "; ".join(chunks) if chunks else "setup unlock"
+
+
 def car_detail_screen(state: GameState, car_id: str) -> ScreenData:
     car = next((garage_car for garage_car in state.garage if garage_car.identity.id == car_id), None)
     if car is None:
@@ -306,6 +403,7 @@ def _car_extended_screen(car, name: str) -> ScreenData:
                     ["PR", class_rating(car)],
                     ["Type", performance_type(car)],
                     ["Tags", ", ".join(i.tags)],
+                    ["Owned Parts", ", ".join(car.owned_parts) if car.owned_parts else "none"],
                     ["Installed Parts", ", ".join(car.installed_parts) if car.installed_parts else "none"],
                 ],
             ),
@@ -513,7 +611,7 @@ def driver_detail_screen(driver_id: str, state: GameState | None = None) -> Scre
 # compendium_nav(), called from the interfaces before their normal dispatch.
 
 COMPENDIUM_PREFIX = "compendium"
-_EDITABLE_LABEL = {"creator": "creator", "tune_menu": "tune menu", "derived": "read-only"}
+_EDITABLE_LABEL = {"creator": "creator", "tune_menu": "tune menu", "upgrades": "upgrades", "derived": "read-only"}
 
 
 def compendium_screen(path: tuple[str, ...] = (), query: str = "") -> ScreenData:
@@ -841,37 +939,11 @@ def _table_title(title: str, screen: str, sort_spec: SortSpec | None) -> str:
     return f"{title} (sorted by {sort_label(screen, sort_spec)})"
 
 
-# Every in-game tweakable knob, grouped by subsystem for the tune menu: the full
-# TuneSetup (setup knobs) plus the garage-tweakable car stats from
-# CAR_MOD_FIELD_SECTIONS (hard mods — same fields the creator edits, minus the
-# intrinsic properties; see the constants block for the boundary). Within each
-# section the hard mods lead (what the car has) and the setup knobs follow (how
-# it is adjusted); a single continuous numbering drives selection.
+# Setup-only tune knobs. Permanent stat/hardware changes live in Upgrades; several
+# advanced setup fields remain visible here but locked until matching installed
+# hardware unlocks them.
 _TUNE_FIELD_GROUPS: list[tuple[str, list[str]]] = [
-    ("Tyres", [
-        "tire_compound", "tire_width_front", "tire_width_rear", "base_grip", "wet_grip",
-        "tire_wear_resistance", "tire_heat_resistance", "tire_warmup",
-        "tire_pressure_front", "tire_pressure_rear", "camber_front", "camber_rear", "toe_front", "toe_rear",
-    ]),
-    ("Drivetrain", [
-        "fuel_efficiency",
-        "final_drive", "gear_bias", "differential_power", "differential_coast", "differential_preload", "engine_map",
-    ]),
-    ("Brakes", [
-        "braking_power", "brake_stability", "brake_cooling", "brake_fade_resistance",
-        "brake_bias", "brake_pressure",
-    ]),
-    ("Chassis", [
-        "weight_distribution_front", "center_of_gravity", "chassis_rigidity", "stability", "rotation",
-    ]),
-    ("Suspension", [
-        "handling", "mechanical_grip", "suspension_compliance", "curb_handling", "bump_absorption", "steering_precision",
-        "front_ride_height", "rear_ride_height", "suspension_stiffness_front", "suspension_stiffness_rear", "antiroll_front", "antiroll_rear",
-    ]),
-    ("Aero", [
-        "downforce", "drag", "aero_efficiency", "high_speed_stability",
-        "front_downforce", "rear_downforce",
-    ]),
+    (category, list(names)) for category, names in TUNE_MENU_FIELD_GROUPS
 ]
 
 
@@ -933,7 +1005,8 @@ def tune_section_screen(state: GameState, car_id: str, section: Any, draft: dict
     car = _garage_car_or_raise(state, car_id)
     draft = draft or {}
     category, names = _resolve_tune_section(section)
-    fields = [_field_data(name, _tune_current(car, name)) for name in names]
+    parts = load_parts()
+    fields = [_field_data(name, _tune_current(car, name), car=car, parts=parts) for name in names]
     rows = []
     for index, field_data in enumerate(fields, start=1):
         staged = _format_tune_value(draft[field_data.name]) if field_data.name in draft else ""
@@ -1025,7 +1098,8 @@ def tune_fields_for_car(state: GameState, car_id: str) -> list[FieldData]:
     if car is None:
         raise ValueError(f"Unknown garage car: {car_id}")
     names = [name for _category, group in _TUNE_FIELD_GROUPS for name in group]
-    return [_field_data(name, _tune_current(car, name)) for name in names]
+    parts = load_parts()
+    return [_field_data(name, _tune_current(car, name), car=car, parts=parts) for name in names]
 
 
 def _tune_current(car, name: str) -> Any:
@@ -1033,7 +1107,8 @@ def _tune_current(car, name: str) -> Any:
     return getattr(tune_target(car, name), name)
 
 
-def _field_data(name: str, current: Any) -> FieldData:
+def _field_data(name: str, current: Any, *, car=None, parts=None) -> FieldData:
+    lock_reason = lock_reason_for_tune_field(car, name, parts or load_parts()) if car is not None else ""
     if name == "engine_map":
         return FieldData(
             name=name,
@@ -1045,20 +1120,10 @@ def _field_data(name: str, current: Any) -> FieldData:
                 for value in sorted(ENGINE_MAP_POWER)
             ],
             help=_tune_help(name),
+            locked=False,
+            lock_reason=lock_reason,
         )
-    if name == "tire_compound":
-        return FieldData(
-            name=name,
-            label=_field_label(name),
-            current=current,
-            value_type="choice",
-            options=[
-                OptionData(value=value, label=value.replace("_", " ").title())
-                for value in TIRE_COMPOUNDS
-            ],
-            help=_tune_help(name),
-        )
-    minimum, maximum = TUNE_FIELD_RANGES.get(name) or CAR_MOD_FIELD_RANGES[name]
+    minimum, maximum = TUNE_FIELD_RANGES[name]
     value_type = "integer" if isinstance(current, int) else "number"
     return FieldData(
         name=name,
@@ -1068,6 +1133,8 @@ def _field_data(name: str, current: Any) -> FieldData:
         minimum=minimum,
         maximum=maximum,
         help=_tune_help(name),
+        locked=bool(lock_reason),
+        lock_reason=lock_reason,
     )
 
 
@@ -1078,34 +1145,6 @@ def _tune_help(name: str) -> str:
 
 
 _TUNE_FIELD_LABELS: dict[str, str] = {
-    "tire_compound": "Tyre Compound",
-    "tire_width_front": "Tyre Width (F)",
-    "tire_width_rear": "Tyre Width (R)",
-    "base_grip": "Base Grip",
-    "wet_grip": "Wet Grip",
-    "tire_wear_resistance": "Wear Resistance",
-    "tire_heat_resistance": "Heat Resistance",
-    "tire_warmup": "Warmup",
-    "braking_power": "Braking Power",
-    "brake_stability": "Brake Stability",
-    "brake_cooling": "Brake Cooling",
-    "brake_fade_resistance": "Fade Resistance",
-    "weight_distribution_front": "Weight Dist (F)",
-    "center_of_gravity": "Centre of Gravity",
-    "chassis_rigidity": "Chassis Rigidity",
-    "stability": "Stability",
-    "rotation": "Rotation",
-    "handling": "Handling",
-    "mechanical_grip": "Mechanical Grip",
-    "suspension_compliance": "Compliance",
-    "curb_handling": "Curb Handling",
-    "bump_absorption": "Bump Absorption",
-    "steering_precision": "Steering Precision",
-    "downforce": "Downforce (Base)",
-    "drag": "Drag",
-    "aero_efficiency": "Aero Efficiency",
-    "high_speed_stability": "High-Speed Stability",
-    "fuel_efficiency": "Fuel Efficiency",
     "tire_pressure_front": "Tyre Pressure (F)",
     "tire_pressure_rear": "Tyre Pressure (R)",
     "camber_front": "Camber (F)",
@@ -1159,6 +1198,10 @@ def _engine_map_desc(value: str) -> str:
 
 
 def _allowed_text(field: FieldData) -> str:
+    if field.name == "engine_map" and field.lock_reason:
+        return field.lock_reason
+    if field.locked:
+        return field.lock_reason
     if field.options:
         return ", ".join(option.label for option in field.options)
     return f"{field.minimum:g}-{field.maximum:g}"
@@ -1575,6 +1618,28 @@ def fire_driver_action(state: GameState, driver_id: str) -> ActionResult:
 def buy_car_action(state: GameState, car_id: str) -> ActionResult:
     buy_car(state, car_id)
     return ActionResult(state=state, message=f"Bought {car_id}.", screen=garage_screen(state))
+
+
+def buy_part_action(state: GameState, car_id: str, part_id: str, *, install: bool = False) -> ActionResult:
+    parts = part_map(load_parts())
+    canonical = canonical_part_id(part_id)
+    name = parts[canonical].name if canonical in parts else part_id
+    buy_part(state, car_id, part_id, install=install)
+    suffix = " and installed" if install else ""
+    return ActionResult(state=state, message=f"Bought {name}{suffix} for {car_id}.", screen=upgrades_slot_screen(state, car_id))
+
+
+def install_part_action(state: GameState, car_id: str, part_id: str) -> ActionResult:
+    parts = part_map(load_parts())
+    canonical = canonical_part_id(part_id)
+    name = parts[canonical].name if canonical in parts else part_id
+    install_part(state, car_id, part_id)
+    return ActionResult(state=state, message=f"Installed {name} on {car_id}.", screen=upgrades_slot_screen(state, car_id))
+
+
+def uninstall_part_action(state: GameState, car_id: str, slot_or_part_id: str) -> ActionResult:
+    uninstall_part(state, car_id, slot_or_part_id)
+    return ActionResult(state=state, message=f"Unequipped {slot_or_part_id} from {car_id}.", screen=upgrades_slot_screen(state, car_id))
 
 
 def sell_car_action(state: GameState, car_id: str) -> ActionResult:

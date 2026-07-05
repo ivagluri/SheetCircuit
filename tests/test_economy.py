@@ -4,7 +4,8 @@ from copy import deepcopy
 import unittest
 
 from constants import REPAIR_COST_PER_POINT
-from game.economy import EconomyError, buy_car, repair_car, sell_car
+from game.economy import EconomyError, buy_car, buy_part, install_part, repair_car, sell_car, uninstall_part
+from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
 from game.loader import load_cars
 from game.market import list_market_cars
@@ -90,6 +91,44 @@ class EconomyTests(unittest.TestCase):
         affordable = next(car for car in market if car.value <= state.money)
         buy_car(state, affordable.identity.id)
         self.assertEqual(state.garage[0].identity.id, affordable.identity.id)
+
+    def test_part_buy_install_and_uninstall_have_no_refund(self) -> None:
+        car = deepcopy(self.cars["kanto_k660"])
+        state = GameState(money=5000, garage=[car])
+        base_power = compute_effective_stats(car).power
+
+        buy_part(state, car.identity.id, "turbo_kit_1")
+        money_after_buy = state.money
+        self.assertIn("turbo_kit_1", car.owned_parts)
+        self.assertNotIn("turbo_kit_1", car.installed_parts)
+        self.assertEqual(compute_effective_stats(car).power, base_power)
+
+        install_part(state, car.identity.id, "turbo_kit_1")
+        self.assertGreater(compute_effective_stats(car).power, base_power)
+        self.assertEqual(state.money, money_after_buy)
+
+        uninstall_part(state, car.identity.id, "turbo")
+        self.assertEqual(state.money, money_after_buy)
+        self.assertNotIn("turbo_kit_1", car.installed_parts)
+        self.assertIn("turbo_kit_1", car.owned_parts)
+
+    def test_part_duplicate_stage_skip_and_insufficient_funds_are_rejected(self) -> None:
+        car = deepcopy(self.cars["kanto_k660"])
+        state = GameState(money=5000, garage=[car])
+
+        with self.assertRaises(EconomyError):
+            buy_part(state, car.identity.id, "turbo_kit_2")
+        self.assertEqual(car.owned_parts, [])
+
+        buy_part(state, car.identity.id, "turbo_kit_1")
+        with self.assertRaises(EconomyError):
+            buy_part(state, car.identity.id, "turbo_kit_1")
+
+        poor = GameState(money=1, garage=[deepcopy(self.cars["kanto_k660"])])
+        with self.assertRaises(EconomyError):
+            buy_part(poor, "kanto_k660", "sport_tires_1")
+        self.assertEqual(poor.money, 1)
+        self.assertEqual(poor.garage[0].owned_parts, [])
 
 
 if __name__ == "__main__":
