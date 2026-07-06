@@ -217,6 +217,10 @@ class ActionLayerTests(unittest.TestCase):
             "Semi-Slick Tyres",
             "Racing Slicks",
         ])
+        effect_text = " ".join(str(row[5]) for row in screen.tables[0].rows)
+        self.assertIn("Compound: Sport", effect_text)
+        self.assertNotIn("tires.", effect_text)
+        self.assertFalse(any("\n" in str(row[5]) for row in screen.tables[0].rows))
 
     def test_tune_screen_surfaces_ranges_and_choice_options(self) -> None:
         state = new_career()

@@ -14,6 +14,7 @@ from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.market import list_free_agents, list_market_cars
 from game.models import RaceSession, RaceTickResult
+from game.part_effects import compact_part_effect_summary
 from game.parts import (
     SLOT_RULES,
     TUNE_MENU_FIELD_GROUPS,
@@ -260,7 +261,7 @@ def upgrades_part_screen(state: GameState, car_id: str, slot: str) -> ScreenData
             part.stage if part.stage else "-",
             f"${part.cost}",
             "installed" if installed else ("owned" if owned else "shop"),
-            _part_effect_summary(part),
+            _part_effect_summary(part, parts),
         ])
     rule = next(rule for rule in SLOT_RULES if rule.id == slot)
     installed_name = installed_id.name if installed_id else "stock"
@@ -273,15 +274,8 @@ def upgrades_part_screen(state: GameState, car_id: str, slot: str) -> ScreenData
     )
 
 
-def _part_effect_summary(part) -> str:
-    chunks: list[str] = []
-    if part.modifiers:
-        chunks.extend(f"{path} {delta:+g}" for path, delta in part.modifiers.items())
-    if part.overrides:
-        chunks.extend(f"{path}={value}" for path, value in part.overrides.items())
-    if part.unlocks:
-        chunks.append("unlocks " + ", ".join(part.unlocks))
-    return "; ".join(chunks) if chunks else "setup unlock"
+def _part_effect_summary(part, catalog=None) -> str:
+    return compact_part_effect_summary(part, catalog)
 
 
 def car_detail_screen(state: GameState, car_id: str) -> ScreenData:
