@@ -5,7 +5,7 @@ written on the `refactor/track-agnostic-sim` branch.)
 
 ## UI polish
 
-- **Readable upgrade effects** — the upgrade shop and parts compendium no longer expose
+- **Readable upgrade effects** (`67e97ba` → `e33b37f`) — the upgrade shop and parts compendium no longer expose
   raw stat paths like `powertrain.power_hp`; part rows now show compact mechanical
   summaries such as `Power +`, `Drag --`, and `unlocks Engine Map`, while selected-part
   prompts show separate rows for improvements, reductions, numeric overrides, and
