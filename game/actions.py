@@ -104,11 +104,10 @@ def garage_screen(state: GameState, sort_spec: SortSpec | None = None) -> Screen
         tables=[
             TableData(
                 _table_title("Garage", "garage", sort_spec),
-                ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"],
+                ["#", "Car", "Class", "PR", "Type", "Condition", "Power"],
                 [
                     [
                         index,
-                        car.identity.id,
                         car.identity.name,
                         derived_class(car),
                         class_rating(car),
@@ -127,11 +126,11 @@ def drivers_screen(state: GameState, sort_spec: SortSpec | None = None) -> Scree
     hired_ids = {d.id for d in state.hired_drivers}
     hired = sort_items("drivers", state.hired_drivers, sort_spec)
     available = sort_items("drivers", [d for d in list_free_agents(state) if d.id not in hired_ids], sort_spec)
-    headers = ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"]
+    headers = ["#", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"]
 
     def _rows(drivers):
         return [
-            [index, d.id, d.name, d.pace, d.consistency, d.feedback, d.potential, f"${d.salary}"]
+            [index, d.name, d.pace, d.consistency, d.feedback, d.potential, f"${d.salary}"]
             for index, d in enumerate(drivers, start=1)
         ]
 
@@ -154,11 +153,10 @@ def events_screen(state: GameState | None = None, sort_spec: SortSpec | None = N
         tables=[
             TableData(
                 _table_title("Events", "events", sort_spec),
-                ["#", "ID", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"],
+                ["#", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"],
                 [
                     [
                         index,
-                        event.id,
                         event.name,
                         tracks[event.track_id].name if event.track_id in tracks else event.track_id,
                         event.car_class_limit,
@@ -183,11 +181,10 @@ def market_screen(sort_spec: SortSpec | None = None) -> ScreenData:
         tables=[
             TableData(
                 _table_title("Market", "market", sort_spec),
-                ["#", "ID", "Car", "Class", "PR", "Type", "Price", "Power", "Cond"],
+                ["#", "Car", "Class", "PR", "Type", "Price", "Power", "Cond"],
                 [
                     [
                         index,
-                        car.identity.id,
                         car.identity.name,
                         derived_class(car),
                         class_rating(car),
@@ -227,7 +224,6 @@ def upgrades_slot_screen(state: GameState, car_id: str) -> ScreenData:
         available_count = sum(1 for part in parts if part.slot == rule.id)
         rows.append([
             index,
-            rule.id,
             rule.label,
             installed_part.name if installed_part else "stock",
             owned_count,
@@ -241,7 +237,7 @@ def upgrades_slot_screen(state: GameState, car_id: str) -> ScreenData:
         name="upgrades_slot",
         title="Upgrades",
         subtitle=car.identity.name,
-        tables=[TableData("Part Slots", ["#", "Slot", "Name", "Installed", "Owned", "Catalog"], rows)],
+        tables=[TableData("Part Slots", ["#", "Slot", "Installed", "Owned", "Catalog"], rows)],
         messages=messages,
     )
 
@@ -260,7 +256,6 @@ def upgrades_part_screen(state: GameState, car_id: str, slot: str) -> ScreenData
         installed = installed_id is not None and installed_id.id == part.id
         rows.append([
             index,
-            part.id,
             part.name,
             part.stage if part.stage else "-",
             f"${part.cost}",
@@ -273,7 +268,7 @@ def upgrades_part_screen(state: GameState, car_id: str, slot: str) -> ScreenData
         name="upgrades_part",
         title=f"Upgrades · {rule.label}",
         subtitle=f"{car.identity.name} / installed: {installed_name}",
-        tables=[TableData(rule.label, ["#", "ID", "Part", "Stage", "Cost", "Status", "Effect"], rows)],
+        tables=[TableData(rule.label, ["#", "Part", "Stage", "Cost", "Status", "Effect"], rows)],
         messages=[rule.description] if rule.description else [],
     )
 
@@ -926,7 +921,7 @@ def race_entry_screen(state: GameState, step: str = "events", sort_spec: SortSpe
         drivers = sort_items("drivers", state.hired_drivers or load_drivers(), sort_spec)
         screen = drivers_screen(state, sort_spec)
         screen.tables[0].rows = [
-            [index, driver.id, driver.name, driver.pace, driver.consistency, driver.feedback, driver.potential, f"${driver.salary}"]
+            [index, driver.name, driver.pace, driver.consistency, driver.feedback, driver.potential, f"${driver.salary}"]
             for index, driver in enumerate(drivers, start=1)
         ]
         return screen

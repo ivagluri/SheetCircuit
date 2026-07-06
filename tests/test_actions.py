@@ -47,7 +47,7 @@ class ActionLayerTests(unittest.TestCase):
         market = market_screen()
 
         self.assertEqual(garage.name, "garage")
-        self.assertEqual(garage.tables[0].headers[1], "ID")
+        self.assertEqual(garage.tables[0].headers[1], "Car")
         self.assertEqual(events.tables[0].title, "Events")
         self.assertTrue(market.tables[0].rows)
         self.assertIn("tables", asdict(garage))
@@ -64,20 +64,21 @@ class ActionLayerTests(unittest.TestCase):
         })
 
         screen = events_screen(state)
+        # Rows are keyed by the visible Event name now that the ID column is gone.
         rows = {row[1]: row for row in screen.tables[0].rows}
 
-        self.assertEqual(screen.tables[0].headers[5:8], ["Req", "Status", "Best"])
-        self.assertEqual(rows["sunday_cup"][5:8], ["Lv 1", "Open", "Win"])
-        self.assertEqual(rows["clubman_trial"][5], "Lv 2")
-        self.assertTrue(str(rows["clubman_trial"][6]).startswith("Locked"))
-        self.assertEqual(rows["clubman_trial"][7], "No starts")
+        self.assertEqual(screen.tables[0].headers[4:7], ["Req", "Status", "Best"])
+        self.assertEqual(rows["Sunday Cup"][4:7], ["Lv 1", "Open", "Win"])
+        self.assertEqual(rows["Clubman Trial"][4], "Lv 2")
+        self.assertTrue(str(rows["Clubman Trial"][5]).startswith("Locked"))
+        self.assertEqual(rows["Clubman Trial"][6], "No starts")
 
     def test_car_screens_can_be_sorted_by_price_and_power(self) -> None:
         price_sorted = market_screen(parse_sort_spec("market", "price"))
         power_sorted = market_screen(parse_sort_spec("market", "hp"))
 
-        prices = [int(row[6].replace("$", "")) for row in price_sorted.tables[0].rows]
-        powers = [int(row[7].replace(" hp", "")) for row in power_sorted.tables[0].rows]
+        prices = [int(row[5].replace("$", "")) for row in price_sorted.tables[0].rows]
+        powers = [int(row[6].replace(" hp", "")) for row in power_sorted.tables[0].rows]
 
         self.assertEqual(prices, sorted(prices))
         self.assertEqual(powers, sorted(powers, reverse=True))
@@ -88,7 +89,7 @@ class ActionLayerTests(unittest.TestCase):
         state = GameState()
 
         screen = drivers_screen(state, parse_sort_spec("drivers", "pace"))
-        paces = [row[3] for row in screen.tables[0].rows]
+        paces = [row[2] for row in screen.tables[0].rows]
 
         self.assertEqual(paces, sorted(paces, reverse=True))
 
@@ -207,13 +208,14 @@ class ActionLayerTests(unittest.TestCase):
         car = state.garage[0]
 
         screen = upgrades_part_screen(state, car.identity.id, "tires")
-        part_ids = [row[1] for row in screen.tables[0].rows]
-        self.assertEqual(part_ids, [
-            "economy_tires_1",
-            "street_tires_1",
-            "sport_tires_1",
-            "semi_slick_tires_1",
-            "slick_tires_1",
+        # The ID column is gone; the Part column (row[1]) is the display name.
+        part_names = [row[1] for row in screen.tables[0].rows]
+        self.assertEqual(part_names, [
+            "Economy Tyres",
+            "Street Performance Tyres",
+            "Sport Tyres",
+            "Semi-Slick Tyres",
+            "Racing Slicks",
         ])
 
     def test_tune_screen_surfaces_ranges_and_choice_options(self) -> None:
@@ -340,12 +342,12 @@ class ActionLayerTests(unittest.TestCase):
         garage = garage_screen(state)
         market = market_screen()
 
-        self.assertEqual(garage.tables[0].headers[4:6], ["PR", "Type"])
-        self.assertEqual(market.tables[0].headers[4:6], ["PR", "Type"])
-        self.assertIsInstance(garage.tables[0].rows[0][4], int)
-        self.assertIsInstance(market.tables[0].rows[0][4], int)
-        self.assertTrue(garage.tables[0].rows[0][5])
-        self.assertTrue(market.tables[0].rows[0][5])
+        self.assertEqual(garage.tables[0].headers[3:5], ["PR", "Type"])
+        self.assertEqual(market.tables[0].headers[3:5], ["PR", "Type"])
+        self.assertIsInstance(garage.tables[0].rows[0][3], int)
+        self.assertIsInstance(market.tables[0].rows[0][3], int)
+        self.assertTrue(garage.tables[0].rows[0][4])
+        self.assertTrue(market.tables[0].rows[0][4])
 
     def test_economy_and_tune_actions_mutate_state_and_return_screen(self) -> None:
         state = GameState()

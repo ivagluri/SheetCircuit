@@ -3,6 +3,20 @@
 Shipped history: what landed, by commit, newest first. (Older sections below were
 written on the `refactor/track-agnostic-sim` branch.)
 
+## UI polish
+
+- **Race banner names the event, track, and driver** — the live race screen led with
+  only "Lap X/Y"; it now reads e.g. `Sunday Cup @ Maple Short · Pete Novak · Lap 2/5`
+  so you can see what you're running and who's driving without waiting for the results
+  screen (shared render path, so CLI and web both get it).
+- **Internal IDs dropped from the data tables** — with names rendering reliably
+  everywhere, the redundant `ID` column is gone from every list screen (garage, market,
+  drivers, events, part slots, and the parts catalog) in both the terminal and the
+  browser; the part-slot table's duplicated id/name pair collapses to the slot label,
+  and the upgrades/tune breadcrumbs show the car's name instead of its id. Selecting by
+  number (or still typing an id) is unchanged; only the display column was removed. The
+  single `ID` field in the car/event/part *detail* views is intentionally kept.
+
 ## One screen contract (UI/UX unification)
 
 - **Universal keys + shell framework** — every screen now obeys one input contract,

@@ -45,7 +45,7 @@ class WebNavigationTests(TestCase):
         out = game.render()
         self.assertIn("SheetCircuit", out)
         self.assertIn("Garage", out)
-        self.assertIn("torino_500r", out)
+        self.assertIn("Torino 500R", out)  # the car's display name (ID column removed)
         self.assertEqual(meta(game)["mode"], MODE_MENU)
 
     def test_hotkeys_switch_screens(self) -> None:

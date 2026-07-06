@@ -81,9 +81,9 @@ MODE_RACE_DRIVER = "race_driver"
 MODE_RACE = "race"
 MODE_RACE_RESULT = "race_result"
 
-_GARAGE_HEADERS = ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"]
-_DRIVER_HEADERS = ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"]
-_EVENT_HEADERS = ["#", "ID", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"]
+_GARAGE_HEADERS = ["#", "Car", "Class", "PR", "Type", "Condition", "Power"]
+_DRIVER_HEADERS = ["#", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"]
+_EVENT_HEADERS = ["#", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"]
 
 _PROMPT_LABELS = {
     MODE_MENU: "Choice",

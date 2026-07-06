@@ -61,7 +61,6 @@ def garage_rows(game_state: GameState, sort_spec: SortSpec | None = None) -> lis
     return [
         [
             index,
-            car.identity.id,
             car.identity.name,
             derived_class(car),
             class_rating(car),
@@ -78,7 +77,6 @@ def driver_rows(drivers: list[Driver], sort_spec: SortSpec | None = None) -> lis
     return [
         [
             index,
-            driver.id,
             driver.name,
             driver.pace,
             driver.consistency,
@@ -100,7 +98,6 @@ def event_rows(
     return [
         [
             index,
-            event.id,
             event.name,
             tracks[event.track_id].name if event.track_id in tracks else event.track_id,
             event.car_class_limit,
@@ -119,7 +116,6 @@ def market_rows(cars: list[Car], sort_spec: SortSpec | None = None) -> list[list
     return [
         [
             index,
-            car.identity.id,
             car.identity.name,
             derived_class(car),
             class_rating(car),

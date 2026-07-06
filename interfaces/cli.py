@@ -752,7 +752,7 @@ def _garage_picker_show(state: GameState, title: str, subtitle: str, screen_labe
         terminal.header(title, subtitle)
         terminal.print(status_bar(state.money, state.week, len(state.garage), screen_label, state.team_xp))
         shell.render_chrome()
-        terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
+        terminal.table(_sort_table_title("Garage", "garage"), ["#", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
         return _sorted_garage(state)
     return show
 
@@ -807,7 +807,15 @@ def _upgrades_picker(state: GameState) -> None:
     _upgrades_slot_picker(state, car.identity.id)
 
 
+def _car_display_name(state: GameState, car_id: str) -> str:
+    """The car's display name for breadcrumbs; falls back to the id if not found."""
+    car = next((c for c in state.garage if c.identity.id == car_id), None)
+    return car.identity.name if car is not None else car_id
+
+
 def _upgrades_slot_picker(state: GameState, car_id: str) -> None:
+    car_name = _car_display_name(state, car_id)
+
     def render() -> None:
         screen = upgrades_slot_screen(state, car_id)
         terminal.clear()
@@ -817,7 +825,7 @@ def _upgrades_slot_picker(state: GameState, car_id: str) -> None:
         _render_action_screen(screen)
         terminal.print("number/name = open slot")
 
-    with shell.screen(Screen(f"Upgrades {car_id}", render=render)):
+    with shell.screen(Screen(f"Upgrades {car_name}", render=render)):
         while True:
             render()
             action = shell.prompt("Slot")
@@ -968,6 +976,7 @@ def _tune_editor(state: GameState, car_id: str) -> None:
     Edits are STAGED into a draft; [w] applies the whole draft atomically and
     backing out with staged changes asks first (mirrors the creator's edit loop)."""
     draft: dict[str, object] = {}
+    car_name = _car_display_name(state, car_id)
 
     def render() -> None:
         screen = tune_editor_screen(state, car_id, draft)
@@ -978,7 +987,7 @@ def _tune_editor(state: GameState, car_id: str) -> None:
         _render_action_screen(screen)
         terminal.print("number/name = open section")
 
-    with shell.screen(Screen(f"Tune {car_id}", keys=(_TUNE_APPLY_KEY,), render=render, dirty=lambda: bool(draft))):
+    with shell.screen(Screen(f"Tune {car_name}", keys=(_TUNE_APPLY_KEY,), render=render, dirty=lambda: bool(draft))):
         while True:
             render()
             action = shell.prompt("Section")
@@ -1137,7 +1146,7 @@ def _hire_picker(state: GameState) -> None:
         terminal.print(status_bar(state.money, state.week, len(state.garage), "hire", state.team_xp))
         shell.render_chrome()
         available = available_drivers()
-        terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(available))
+        terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(available))
         return available
 
     driver = _picker(show, lambda item: item.id, "Hire", sort_screen="drivers")
@@ -1159,7 +1168,7 @@ def _fire_picker(state: GameState) -> None:
         terminal.print(status_bar(state.money, state.week, len(state.garage), "fire", state.team_xp))
         shell.render_chrome()
         drivers = _sorted_hired_drivers(state)
-        terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(drivers))
+        terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(drivers))
         return drivers
 
     driver = _picker(show, lambda item: item.id, "Release", sort_screen="drivers")
@@ -1184,7 +1193,7 @@ def _race_picker(state: GameState) -> None:
         events = _sorted_events()
         terminal.table(
             _sort_table_title("Available Events", "events"),
-            ["#", "ID", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"],
+            ["#", "Event", "Track", "Class", "Req", "Status", "Best", "Fee", "Opp"],
             event_rows(events, tracks, state=state),
         )
         return events
@@ -1204,7 +1213,7 @@ def _race_picker(state: GameState) -> None:
         terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry", state.team_xp))
         shell.render_chrome()
         drivers = sort_items("drivers", state.hired_drivers or load_drivers(), _screen_sort("drivers"))
-        terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(drivers))
+        terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(drivers))
         return drivers
 
     driver = _picker(show_drivers, lambda item: item.id, "Driver", crumb="Race Entry", sort_screen="drivers")
