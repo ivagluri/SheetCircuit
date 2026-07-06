@@ -27,6 +27,7 @@ from game.actions import (
     start_race_action,
     tune_car_action,
     tune_fields_screen,
+    upgrade_part_detail_screen,
     upgrades_part_screen,
     upgrades_slot_screen,
 )
@@ -221,6 +222,20 @@ class ActionLayerTests(unittest.TestCase):
         self.assertIn("Compound: Sport", effect_text)
         self.assertNotIn("tires.", effect_text)
         self.assertFalse(any("\n" in str(row[5]) for row in screen.tables[0].rows))
+
+    def test_upgrade_part_detail_uses_readable_effect_rows(self) -> None:
+        state = new_career()
+        car_id = state.garage[0].identity.id
+
+        screen = upgrade_part_detail_screen(state, car_id, "sports_ecu")
+        rows = {row[0]: row[1] for row in screen.tables[0].rows}
+
+        self.assertEqual(screen.name, "upgrades_action")
+        self.assertEqual(rows["Status"], "shop")
+        self.assertIn("Power +5 hp", rows["Improves"])
+        self.assertIn("Fuel Efficiency -1", rows["Reduces"])
+        self.assertEqual(rows["Unlocks"], "unlocks Engine Map")
+        self.assertFalse(any("\n" in str(row[1]) for row in screen.tables[0].rows))
 
     def test_tune_screen_surfaces_ranges_and_choice_options(self) -> None:
         state = new_career()

@@ -342,6 +342,8 @@ class CliTests(TestCase):
         self.assertTrue(acted)
         self.assertLess(state.money, money_before)
         self.assertIn("Bought", output.getvalue())
+        self.assertIn("Unlocks", output.getvalue())
+        self.assertIn("unlocks Engine Map", output.getvalue())
 
     def test_race_commands_accept_display_labels(self) -> None:
         self.assertEqual(_race_command("Save Fuel"), "save_fuel")

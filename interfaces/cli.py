@@ -51,6 +51,7 @@ from game.actions import (
     tune_car_action,
     tune_editor_screen,
     tune_section_screen,
+    upgrade_part_detail_screen,
     upgrades_part_screen,
     upgrades_slot_screen,
 )
@@ -897,7 +898,16 @@ def _upgrade_part_action_prompt(state: GameState, car_id: str, part_id: str) -> 
             LocalKey("y", "Buy", words=("buy",)),
             LocalKey("i", "Buy & install", words=("install", "equip")),
         )
-    with shell.screen(Screen(part.name, keys=keys)):
+    def render() -> None:
+        screen = upgrade_part_detail_screen(state, car_id, part.id)
+        terminal.clear()
+        terminal.header(screen.title, screen.subtitle)
+        terminal.print(status_bar(state.money, state.week, len(state.garage), "upgrades", state.team_xp))
+        shell.render_chrome()
+        _render_action_screen(screen)
+
+    with shell.screen(Screen(part.name, keys=keys, render=render)):
+        render()
         action = shell.prompt("Action", empty="back")
         if action.kind != "local":
             return False

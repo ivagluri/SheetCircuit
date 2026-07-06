@@ -14,7 +14,7 @@ from game.game_state import GameState
 from game.loader import load_cars, load_drivers, load_events, load_parts, load_tracks, resolve_race
 from game.market import list_free_agents, list_market_cars
 from game.models import RaceSession, RaceTickResult
-from game.part_effects import compact_part_effect_summary
+from game.part_effects import compact_part_effect_summary, readable_part_effect_rows
 from game.parts import (
     SLOT_RULES,
     TUNE_MENU_FIELD_GROUPS,
@@ -276,6 +276,32 @@ def upgrades_part_screen(state: GameState, car_id: str, slot: str) -> ScreenData
 
 def _part_effect_summary(part, catalog=None) -> str:
     return compact_part_effect_summary(part, catalog)
+
+
+def upgrade_part_detail_screen(state: GameState, car_id: str, part_id: str) -> ScreenData:
+    car = _garage_car_or_raise(state, car_id)
+    parts = load_parts()
+    part = part_map(parts).get(canonical_part_id(part_id))
+    if part is None:
+        raise ValueError(f"Unknown part: {part_id}")
+    rule = next(rule for rule in SLOT_RULES if rule.id == part.slot)
+    owned = part.id in normalize_part_ids(car.owned_parts)
+    installed = installed_part_for_slot(car, part.slot, parts)
+    is_installed = installed is not None and installed.id == part.id
+    rows = [
+        ["ID", part.id],
+        ["Slot", rule.label],
+        ["Stage", part.stage if part.stage else "-"],
+        ["Cost", f"${part.cost}"],
+        ["Status", "installed" if is_installed else ("owned" if owned else "shop")],
+    ]
+    rows.extend(readable_part_effect_rows(part, parts))
+    return ScreenData(
+        name="upgrades_action",
+        title="Upgrades",
+        subtitle=f"{car.identity.name} / {part.name}",
+        tables=[TableData("Part", ["Field", "Value"], rows)],
+    )
 
 
 def car_detail_screen(state: GameState, car_id: str) -> ScreenData:

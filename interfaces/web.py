@@ -40,6 +40,7 @@ from game.actions import (
     tune_car_action,
     tune_editor_screen,
     tune_section_screen,
+    upgrade_part_detail_screen,
     uninstall_part_action,
     upgrades_part_screen,
     upgrades_slot_screen,
@@ -604,15 +605,10 @@ class WebGame:
             cli._render_action_screen(screen)
             terminal.print("number/id = select part  |  U = unequip slot  |  B = back")
         elif self.mode == MODE_UPGRADES_ACTION:
-            part = self._upgrade_part()
-            terminal.header("Upgrades", f"{self._upgrade_car_id} / {part.name}")
+            screen = upgrade_part_detail_screen(self.state, self._upgrade_car_id, self._upgrade_part_id)
+            terminal.header(screen.title, screen.subtitle)
             self._print_status_menu("upgrades")
-            terminal.table("Part", ["Field", "Value"], [
-                ["ID", part.id],
-                ["Slot", part.slot],
-                ["Stage", part.stage if part.stage else "-"],
-                ["Cost", f"${part.cost}"],
-            ])
+            cli._render_action_screen(screen)
             terminal.print(self._upgrade_action_hint())
         elif self.mode == MODE_TUNE_CAR:
             terminal.header("Tune", "Choose car, field, and value. q cancels.")
