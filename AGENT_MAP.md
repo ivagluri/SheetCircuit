@@ -7,9 +7,11 @@ Project docs: `CHANGELOG.md` = shipped history (what landed, by commit), self-co
 ## Run And Test
 
 - Start game: `python3 main.py`
+- Start creator: `python3 creator.py`
 - Full tests: `python3 -m unittest discover -s tests`
 - Compile check: `python3 -m compileall .`
 - Progression probe: `python3 tools/probe_progression.py`
+- Pace/thermal probe: `python3 tools/pace_probe.py` (per-lap temps/wear/incident table)
 - Optional terminal polish: `python3 -m pip install -r requirements.txt`
 
 ## Top-Level Flow
@@ -18,10 +20,11 @@ Project docs: `CHANGELOG.md` = shipped history (what landed, by commit), self-co
 main.py
   -> interfaces.cli.main()
     -> new_career()
-    -> command_loop()
-      -> render current screen
+    -> command_loop()                # starts on the Home screen
+      -> render current screen (chrome: status bar + breadcrumb + footer)
       -> run_menu_choice() or run_command()
       -> game.actions / game.* engine functions
+      (GoHome from any nested picker/editor unwinds back to Home)
 ```
 
 For future web UI, prefer calling `game.actions` instead of `interfaces.cli`.
@@ -45,8 +48,18 @@ game/
                      team_xp, garage, hired_drivers, event_progress.
   save_load.py       Versioned JSON save/load (schema v2 includes team progression).
   actions.py         UI-neutral service layer for CLI and future web UI.
-  economy.py         buy_car(), sell_car(), repair_car().
-  market.py          list_market_cars().
+  economy.py         buy_car(), sell_car(), repair_car(), buy_part(), install_part(),
+                     uninstall_part() (unequip = back to stock, no refund).
+  parts.py           GT-style upgrade parts: SLOT_RULES (one part per slot),
+                     part_map()/canonical_part_id(), installed_part_for_slot(),
+                     installed_unlocks() — parts can gate tune fields (e.g. a
+                     sports ECU unlocks engine maps; lock_reason_for_tune_field()).
+  market.py          list_market_cars(), list_free_agents() — a persisted rotating
+                     free-agent driver market (GameState.free_agents, churned every
+                     N weeks, seeded per career).
+  driver_gen.py      Procedural drivers: generate_driver()/archetypes/market pools,
+                     name pools, potential + salary formulas. Rivals get real
+                     generated drivers (no "Rival N"). Driver.potential caps XP growth.
   progression.py     Pure team career progression helpers: Team XP -> Team Level,
                      event-progress normalization/update, and Team XP award math
                      (finish quality, event kind, repeat wins, first-win bonus).
@@ -76,11 +89,27 @@ game/
   sorting.py         SortSpec parsing and per-screen list sorting (class/PR/type-aware).
 
 interfaces/
-  cli.py             Terminal state machine, menu flow, guided pickers.
-  terminal.py        Rich/stdlib terminal adapter.
-  menu.py            Main menu hotkeys and global status bar, including Team
-                     Level/XP display via `team_xp_status()`.
+  shell.py           THE universal screen contract (see ## UI Shell Contract):
+                     pure dispatch(), Screen/LocalKey, nav stack + breadcrumb,
+                     auto-generated footer, slash palette, confirm helpers, GoHome.
+  cli.py             Terminal state machine on top of the shell: Home + browse
+                     screens (run_menu_choice), guided pickers (_picker/_choose),
+                     upgrades/tune editors, the live race loop.
+  terminal.py        Rich/stdlib terminal adapter. Chrome (footers/breadcrumbs)
+                     must go through print_plain() — rich's markup parser eats
+                     bracketed text like "[q Quit]" otherwise.
+  menu.py            MENU_ACTIONS (Home tab list + hotkeys) and global status bar,
+                     including Team Level/XP display via `team_xp_status()`.
   render_text.py     Legacy/simple row render helpers.
+  web.py             Browser (Pyodide) adapter; reuses cli render helpers.
+
+editor/
+  app.py             CreatorApp (creator.py entry): interactive car/track/event
+                     editor. Same universal contract via the pure shell pieces
+                     (dispatch/footer_line) read through its scriptable ask() seam,
+                     with a local crumb() breadcrumb trail.
+  fields.py          Car/track/event field schemas + templates (harvested by the
+                     compendium; the tune menu mirrors the car schema).
 
 compendium/
   model.py           Entry/Section/Chapter dataclasses (the doc data model).
@@ -94,6 +123,9 @@ compendium/
 
 tools/
   probe_progression.py  Dependency-free Team XP payout and pacing probe.
+  pace_probe.py         Pace/thermal tuning harness: deterministic per-lap table of
+                        temps, tyre/fuel %, lap time, incident probabilities for any
+                        car at a fixed command (the tactical-pace rework's instrument).
   build_web.py          Bundles the game/creator (embedded Python + Pyodide) and
                         renders the static compendium page. SOURCE_GLOBS must
                         embed everything the bundle imports (incl. compendium/*.py
@@ -158,6 +190,12 @@ PR     synthetic derived performance rating from effective race stats
 Type   short role hint from stat shape/tags: Balanced, Power, Handling, Challenge, etc.
 ```
 
+upgrades_slot_screen(state, car_id)        # part slots + what's installed
+upgrades_part_screen(state, car_id, slot)  # one slot's parts (owned/installed/price)
+buy_part_action(state, car_id, part_id, install=False)
+install_part_action(state, car_id, part_id)      # installing an owned part is free
+uninstall_part_action(state, car_id, slot_or_part_id)  # back to stock, no refund
+
 buy_car_action(state, car_id)
 sell_car_action(state, car_id)
 repair_car_action(state, car_id)
@@ -196,23 +234,73 @@ Each `Event` has `min_team_level` and `event_kind`. The loader infers missing
 The global CLI/web status bar includes compact Team Level/XP text from
 `interfaces.menu.team_xp_status()` so progression is visible on every screen.
 
+## UI Shell Contract
+
+`interfaces/shell.py` is the one input contract every screen obeys — never
+hand-roll a `while True: input()` loop for a new screen.
+
+Universal keys (un-shadowable, on every screen, always in the footer):
+
+```text
+b / back        pop one level (cancel picker, leave detail, step up an editor;
+                root tab -> Home; Home -> quit-confirm)
+q / quit        quit with a confirm prompt, from anywhere
+? / h / help    unified context-aware help (universal tables + the active
+                screen's key table + screen-specific notes)
+```
+
+Slash palette (works at any prompt): `/save` (instant save), `/home`/`/menu`
+(jump to Home, confirming if edits are staged), `/ref` (compendium overlay,
+returns in place), `/quit` `/help` aliases; `/load` is Home-only.
+
+Building blocks:
+
+```text
+dispatch(raw, keys)        pure dispatcher -> Action(kind, value); order is
+                           palette/universal -> local keys -> free text
+Screen(name, keys, render, dirty, help)   pushed via shell.screen() (a context
+                           manager) -> nav stack drives the breadcrumb
+LocalKey(key, label, words, description)  one entry of a screen's key table;
+                           the footer and help are GENERATED from it, so an
+                           advertised key can never be dead
+shell.prompt(label)        footer + read + intercept universal/palette; returns
+                           only back/local/text to the calling loop
+GoHome                     exception; /home raises it, command_loop catches it
+confirm(prompt)            y/N helper
+```
+
+Gotchas: chrome must print via `terminal.print_plain()` (rich markup eats
+`[q Quit]`); the creator uses the pure pieces (`dispatch`/`footer_line`)
+through `CreatorApp.prompt_action()`/`ask()` so tests can script it; the race
+loop reads stdin via select but builds its footer/help from
+`cli._race_local_keys()` — keep that table collision-free (pace n/f vs
+presentation l/> was a real shadowing bug). Local keys must avoid b/q/h.
+Upgrades action prompt is y=buy, i=install/buy&install, u=unequip.
+
+`tests/test_shell.py` pins the contract at the framework level.
+
 ## Main Game Loop
 
 `interfaces.cli.command_loop()` is currently the text UI loop.
 
 ```text
 command_loop(state)
-  screen = "garage"
-  clear + render current screen
+  screen = "home"                    # Home is the root; tabs are its children
+  clear + render screen (header, status bar, breadcrumb, tab bar*, body, footer)
   prompt Choice:
-  run_menu_choice(state, raw, screen)
+  run_menu_choice(state, raw, screen)   # pure seam: returns (state, screen)
 ```
 
-Menu hotkeys live in [interfaces/menu.py](interfaces/menu.py):
+\*The tab bar (`menu_bar()`) renders only where its hotkeys are live: Home and
+the four root browse tabs. Modal sub-screens (pickers/editors/details/race)
+show breadcrumb + auto-footer instead.
+
+Menu hotkeys live in [interfaces/menu.py](interfaces/menu.py) (`MENU_ACTIONS`
+is the Home tab list's source of truth):
 
 ```text
-G Garage, E Events, D Drivers, M Market, R Race,
-X Sell, T Tune, P Repair, S Save, L Load, H Help, Q Quit
+G Garage, E Events, D Drivers, M Market, R Race, X Sell, U Upgrades,
+T Tune, P Repair, S Save, L Load, C Compendium, H Help, Q Quit (confirms)
 ```
 
 On passive list screens, entering a row number or ID opens detail:
@@ -352,17 +440,41 @@ setting (`tune.engine_map`), never changed mid-race (`compute_effective_stats` t
 normal, push, go_all_out, save_tyres, save_fuel, cool_down, pit
 ```
 
-`COMMAND_MODIFIERS[name]` = (pace, tire_wear, fuel_burn, engine_heat, mistake, stress);
-pace > 1 is faster, the other columns are >1 = more of that effect (all six columns are
-live — stress uses `COMMAND_STRESS_INDEX`). Every command gets the passive cooling
-baseline; `TYRE_COOLING_COMMANDS` / `ENGINE_COOLING_COMMANDS` multiply it by the
+`COMMAND_MODIFIERS[name]` = (pace, tire_wear, fuel_burn, engine_heat, mistake, stress,
+overtake); pace > 1 is faster, the other columns are >1 = more of that effect (all seven
+columns are live — see the `COMMAND_*_INDEX` constants). Every command gets the passive
+cooling baseline; `TYRE_COOLING_COMMANDS` / `ENGINE_COOLING_COMMANDS` multiply it by the
 matching `*_COOLING_BOOST`. `go_all_out` can crash a car out
 (`race_session._dnf_chance`, eased by driver consistency/mechanical sympathy — hook for
 future driver levels). `pit` is one-shot: `simulate_tick` resets `pace_mode` to `normal`
-after the stop and the CLI loop resumes the prior command. The AI is a rule-based pit
-boss (`_ai_command`): pit when tyres/fuel cross `AI_PIT_TIRE_PCT`/`AI_PIT_FUEL_PCT`,
-lift to the matching cooling command past an overheat threshold, `push` in a close
-battle, else `normal`.
+after the stop and the CLI loop resumes the prior command.
+
+**Tactical pace model** (tuned via `tools/pace_probe.py`): push/all-out are
+*heat-limited bursts*, not free pace. The thermal brake makes engine heat climb hard at
+all-out (a mid car redlines in ~2 laps; even the coolest engine within ~3 —
+`ENGINE_HEAT_FACTOR_MIN`) and recover in ~1 cool-down lap; heat rates are normalised +
+compressed (`ENGINE_HEAT_REF`/`EXPONENT`) so cooling/engine-map stay real build levers.
+Overheat has two teeth: a warning band that clearly bleeds lap time, then a danger band
+where a mechanical issue is roughly a coin flip to end the race. The overtake column
+(graded N<P<O) multiplies an attacker's pass chance and divides a defender's, and a
+failed hot attempt can be *botched* (pass fails AND ~2.5s lost). Tyre wear is the slow
+permanent layer under it: a linear lap-time tax plus a convex end-of-life cliff (the
+"pit now" pressure in enduros; a lightly-worn sprint set stays cheap).
+`tests/test_commands.py` + the exploit-closed guard pin that managed rhythm beats
+held all-out.
+
+The AI is a rule-based pit boss playing the same game (`_ai_command`): pit when
+tyres/fuel cross `AI_PIT_TIRE_PCT`/`AI_PIT_FUEL_PCT`, lift to the matching cooling
+command past an overheat threshold, and fight tactically — within the attack gap a
+healthy rival goes `go_all_out`, merely near it leans on `push`, and on the last lap of
+a battle it sends it even in the red (gated by its own reliability/skill, so it can
+cook itself).
+
+**Race loop keys** (`cli._run_race`): the footer + help are generated from
+`cli._race_local_keys()` — pace n/p/o/t/f/c/i, presentation `l` next-lap / `>` faster /
+`x` end, empty Enter toggles pause (PAUSED banner; sim only advances while running),
+`?` opens help with the sim clock frozen, `b` leave-race confirm (simulate to end,
+result recorded), `q` quit-game confirm.
 
 ## Opponents And Entry Rules
 
@@ -460,6 +572,12 @@ players memorize internal values; every knob influences `compute_effective_stats
 
 Choice fields (`value_type="choice"`) carry an `OptionData.description`; the CLI picker renders it as an **Effect** column so the player sees what each option does. `engine_map` uses this — `actions._engine_map_desc` summarises each map's power/fuel/heat trade-off (`ENGINE_MAP_POWER`/`FUEL`/`HEAT`). Reuse this pattern for any new enum field instead of hardcoding prose.
 
+Some tune fields/values are **gated by installed parts** (GT-style unlocks): a
+field can arrive locked with a reason (`FieldData.locked`/`lock_reason` via
+`game/parts.py: lock_reason_for_tune_field` / `tune_field_value_allowed`), e.g.
+non-stock engine maps need a sports ECU. Buy/install parts through the upgrades
+flow (`upgrades_slot_screen` → `upgrades_part_screen` → buy/install/unequip).
+
 ## Data Loading
 
 [game/loader.py](game/loader.py):
@@ -515,7 +633,9 @@ drift: the in-game manpages-style screens and the standalone static page.
   screen token (`compendium`, `compendium:cars/Tune`, `compendium?<id>`) so the
   terminal and Pyodide web build share one render path. `compendium_nav()` maps an
   input to the next token (used by `cli.run_menu_choice` and `web._menu_input`).
-  Reachable via the `C` hotkey and `compendium <field>` direct-jump. Per-field help
+  Reachable via the `C` hotkey, `compendium <field>` direct-jump, and the `/ref`
+  overlay from any prompt (returns in place; leaving the compendium goes back to
+  wherever it was opened from). Per-field help
   also surfaces in the tune editor (`FieldData.help` from `TUNE_LOOKUP`, shown when
   a field is opened — NOT as a table column, which breaks the pinned layout), the
   driver detail Help column, and creator field notes (`registry.entry_for`). The
@@ -532,9 +652,16 @@ drift: the in-game manpages-style screens and the standalone static page.
 ## Common Change Targets
 
 - New car/driver/event/part/track: add JSON under `data/`, update tests if needed.
+  Parts live in `data/parts/seed_parts.json` (slot, price, effects, optional
+  `unlocks`); every part/slot needs a compendium entry (completeness test).
+- New screen or picker: go through `interfaces/shell.py` — push a `Screen` with a
+  `LocalKey` table and read input via `shell.prompt()` (or `cli._picker` for list
+  pickers; `CreatorApp.prompt_action` in the editor). Never hand-roll an input
+  loop, never print chrome with markup-parsing `terminal.print` (use
+  `print_plain`), and never bind a local key to b/q/h.
 - New tune field: update `TuneSetup`, seed JSON, `TUNE_FIELD_RANGES`, `_TUNE_FIELD_GROUPS`/`_TUNE_FIELD_LABELS` in actions.py, fold it into `compute_effective_stats` (centered factor, ideal in constants), and add a `compendium/content_cars.py` entry (the completeness test fails otherwise), tests.
 - New schema field (car/track/event) or segment tag: add the field to `editor.fields` (or the tag to `SEGMENT_TAG_*`), then a matching `compendium/content_*.py` entry — `tests/test_compendium.py` fails until documented. See ## Compendium.
-- New race command: update `COMMAND_MODIFIERS` (6-column tuple), `race_command_options()`, cooling sets if it cools, tests. Engine maps are NOT commands — they live in `tune.engine_map`.
+- New race command: update `COMMAND_MODIFIERS` (7-column tuple incl. overtake), `race_command_options()`, cooling sets if it cools, tests — and make sure its key doesn't collide in `cli._race_local_keys()`. Engine maps are NOT commands — they live in `tune.engine_map`.
 - New sortable field/screen: update the per-screen options in `game/sorting.py`, tests.
 - Balance lap times: update constants first, then formulas in `effective_stats.py` or `simulation.py`.
   Pace is **proportional**: `lap = base_lap_time × _pace_multiplier(composite, pace_factor, driver_pace)`
@@ -573,7 +700,14 @@ test_economy.py            Buy/sell/repair/prizes.
 test_opponents.py          Event restrictions, pace floors, and opponent generation.
 test_car_catalog.py        Catalog class distribution and S-class competitiveness.
 test_actions.py            UI-neutral action/screen layer.
-test_cli.py                Terminal menu/screen behavior.
+test_shell.py              The universal screen contract (dispatch, palette, back
+                           semantics, footer generation, dirty-jump confirms).
+test_cli.py                Terminal menu/screen behavior (Home, b/q/? semantics,
+                           pickers, tune editor, upgrades rebind, race key table).
+test_driver_gen.py         Procedural drivers: generator determinism, potential,
+                           salary, market churn, save round-trip.
+test_editor_templates.py   Creator schemas/templates + unsaved-draft guard +
+                           creator compendium browser.
 test_compendium.py         Doc registry completeness/consistency tripwires.
 test_build_web.py          Static compendium render + bundle isolation-import guard.
 test_presentation_timing.py Resolution-invariance of lap noise, watched-time tick density,

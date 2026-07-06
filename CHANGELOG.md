@@ -1,7 +1,93 @@
 # SheetCircuit — Changelog
 
-Work on the `refactor/track-agnostic-sim` branch: making the simulation track-agnostic,
-de-pinned from the sample catalog, and honest about time. Newest first.
+Shipped history: what landed, by commit, newest first. (Older sections below were
+written on the `refactor/track-agnostic-sim` branch.)
+
+## One screen contract (UI/UX unification)
+
+- **Universal keys + shell framework** — every screen now obeys one input contract,
+  enforced by the new `interfaces/shell.py` rather than per-screen discipline: `b`/`back`
+  pops one level everywhere (pickers, details, editors, compendium, race), `q`/`quit`
+  always quit-confirms, `?`/`h` opens one context-aware help, and a slash palette works
+  from any prompt (`/save` instant save, `/home` jumps to the new **Home** root menu,
+  `/ref` opens the compendium overlay and returns in place, `/load` stays Home-only).
+  Screens declare a key table; the breadcrumb (`Home › Upgrades car › Tires`) and footer
+  are auto-generated from it, so an advertised key can never be dead — which killed the
+  tab bar printed (dead) on every sub-screen, the `q`=quit-vs-cancel ambiguity, and the
+  upgrades prompt where `b` meant *buy* (now y=buy, i=install, u=unequip). The race gains
+  Enter-to-pause with a PAUSED banner, help that freezes the sim clock, `b` leave-race
+  confirm, and a footer listing *all* keys — un-shadowing the pace hotkeys N/F from
+  next-lap/faster (now `l`/`>`). Same contract in the creator (its `B`/`W` keep working;
+  `?` help + footer + breadcrumb added). Chrome prints through a markup-safe
+  `terminal.print_plain` (rich ate `[q Quit]` as a style tag). New `tests/test_shell.py`
+  pins the contract; 437 tests green.
+
+## GT-style parts & upgrades
+
+- **Parts catalog + tune unlocks** (`b68715a`) — a Gran Turismo-style upgrade economy:
+  30 parts across one-per-slot categories (`game/parts.py` SLOT_RULES), bought per car,
+  installed/unequipped freely once owned (unequip = back to stock, no refund). Part
+  effects fold into `compute_effective_stats`, and parts **gate tune fields** — e.g.
+  non-stock engine maps need a sports ECU (`lock_reason_for_tune_field`). Guided
+  upgrades flow (car → slot → part) in CLI and web, a parts chapter in the compendium,
+  an `open_track_day` no-fee event, and save-schema support for owned/installed parts.
+
+## Tactical pace
+
+- **Heat-limited bursts** (`aa34781`, Phases A–C) — Normal/Push/All-Out finally matter in
+  short sprints. Thermal brake: engine heat genuinely climbs at all-out (a mid car
+  redlines in ~2 laps) and recovers in ~1 cool-down lap, with catalog heat rates
+  normalised so cooling/engine-map stay real build levers. Overheat teeth: a warning
+  band that bleeds lap time, then a danger band where a mechanical issue is ~a coin
+  flip. Pace now feeds **overtaking** (new modifier column, graded N<P<O, two-sided:
+  boosts the attacker, weakens the defender) and a failed hot attempt can be *botched*
+  (~2.5s lost).
+- **Rivals play the same game** (`4db8085`, Phase D) — within the attack gap a healthy
+  rival sends `go_all_out`, merely near it leans on `push`, and on the final lap of a
+  battle it throws everything at the flag even in the red — and can cook itself.
+- **Progressive tyre tax** (`c60a885`, Phase E) — worn tyres cost a steady linear tax
+  plus a convex end-of-life cliff (0% ≈ 12s/lap): real pit pressure in enduros while a
+  lightly-worn sprint set stays cheap.
+- **Exploit closed** (`8f0b81d`, Phase F) — regression-tested: managed rhythm (cruise +
+  final-lap burst) beats held all-out on mean finish and never DNFs, while naive
+  all-out throws ~7% of races away. Cool-car floor raised so even the kei starter pays
+  within ~3 laps.
+- **Tooling & fixes** (`0c64f8f`, `e965d6a`) — `tools/pace_probe.py` (the per-lap
+  thermal/wear instrumentation the rework was tuned against); shadowed pace hotkeys
+  fixed and an elapsed clock added to all race bars.
+
+## Procedural drivers
+
+- **Generator, market, potential** (`62dba07`, `e2f6b27`) — the fixed 4-driver roster is
+  replaced by a procedurally generated, developing population: `game/driver_gen.py`
+  (archetypes, name pools, potential + salary formulas), a persisted rotating
+  **free-agent market** (churns every few weeks, seeded per career), and
+  `Driver.potential` capping XP growth. Race rivals get real generated drivers instead
+  of "Rival N". Fixed hired-generated-driver race entry; `tests/test_driver_gen.py`
+  pins determinism, market churn, and save round-trips.
+
+## Compendium
+
+- **Single-source reference docs** (`b86a126` → `cad5acd`) — the `compendium/` package
+  is the one registry documenting every editable/tunable parameter (cars, parts,
+  drivers, tracks, events): ranges/choices harvested programmatically from the editor
+  schemas + constants, only prose hand-written. Three consumers that cannot drift:
+  in-game manpages-style screens (`C` hotkey, drill-down index → chapter → section →
+  field, direct `compendium <field>` jump), per-field help at point of use (tune
+  editor, driver detail, creator field notes), and a static filterable
+  `web/compendium.html`. Completeness tripwire tests fail loudly if a knob lands
+  undocumented.
+
+## Team progression
+
+- **Team XP career ladder** (`a92b025` → `2df617d`) — pure, derived progression:
+  `GameState.team_xp` → Team Level via thresholds (never stored), XP awarded from
+  finish quality × event class × event kind with repeat-win smoothing and a first-win
+  bonus. Events carry `min_team_level` gates + `event_kind`; per-event progress
+  (starts/wins/podiums/best) persists in saves (schema v2). Team Level/XP shows in the
+  global status bar, post-race commits it all with before→after tables, and
+  `tools/probe_progression.py` checks pacing without racing. Post-race results got a
+  compact multi-column layout (`4ab367c`).
 
 ## UI consistency
 

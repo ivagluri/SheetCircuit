@@ -17,27 +17,49 @@ a JSON file to move it between devices.
 required). For color tables, optionally `python3 -m pip install -r
 requirements.txt`.
 
+## Getting around
+
+The game opens on a **Home menu** listing every tab (Garage, Events, Drivers,
+Market, Race…). Type a highlighted key or the full word to open one; enter a
+row number or ID on any list to see details. Three keys work the same on every
+screen — **`b`** goes back one level, **`?`** opens help for wherever you are,
+and **`q`** quits (it asks first) — and each screen's footer shows exactly the
+keys that work there. Slash commands work from any prompt: `/save` saves
+instantly, `/home` jumps back to the main menu, `/ref` opens the in-game
+reference book (the compendium, also on `C`) and returns you where you were.
+
+A first session, roughly: check your starter car in the **Garage**, pick a
+cheap event under **Events** (your team level gates the bigger ones), then
+**R** to race — pick the event, a car, and a driver, and you're on track.
+Prize money funds repairs, parts, better cars, and better drivers.
+
 ## The game
 
 - Start with a beater and **$8,000**; buy, sell, repair, and race your way up
   through a market of 27 cars — from a 32 hp microcar to Le Mans prototypes.
+  Wins earn **Team XP** that levels your outfit up into bigger events.
 - Every car's **class and PR (performance rating)** are computed, not stored:
   each car is run on fixed drag, slalom, and hybrid reference tracks, so
   home-built cars are rated exactly like stock ones.
-- **Hire drivers** with different pace, consistency, and feedback skills; they
-  earn XP as they race for you.
-- **Tune** 22 setup fields per car — tire pressures, gearing, diff, brake bias,
-  ride height, camber, engine maps, and more — and it all feeds the simulation.
-- **Race live**: pick an event, car, and driver, then manage the race tick by
-  tick with pace commands (push, save tyres, save fuel, cool down, pit…) while
-  tires wear, fuel burns, engines heat, and race-day weather rolls in. Rivals
-  run their own pit strategy, passes must be earned through dirty air, and
-  mistakes, damage, or an empty tank can wreck a run. Fast-forward laps, change
-  presentation speed, or sim to the end at any point.
+- **Hire drivers** from a rotating free-agent market — procedurally generated,
+  each with pace, consistency, feedback, a salary, and a hidden ceiling
+  (potential). They earn XP as they race for you.
+- **Upgrade and tune**: buy Gran Turismo-style parts (one per slot — ECUs,
+  turbos, suspensions, tyres…) and dial in ~50 setup knobs per car, from tire
+  pressures and gearing to engine maps; some knobs unlock only with the right
+  part installed. All of it feeds the simulation.
+- **Race live**: manage the race tick by tick with pace commands — push and
+  all-out are heat-limited bursts that also help you make passes stick, cooling
+  commands claw the temps back, and holding the red line risks a blow-up.
+  Tires wear, fuel burns, weather rolls in, and rivals fight back with their
+  own tactics and pit strategy. Pause with Enter, fast-forward laps, or sim to
+  the end at any point.
 - 12 events across 9 tracks — sprints, ovals, hillclimbs, rallies, top-speed
   runs, duration enduros, and a no-fee practice fallback. Tracks are pure
   geometry; race length lives on the event, so one track can host both a sprint
   and an enduro.
+- Stuck on what a stat or knob actually does? The **compendium** (`C` in-game,
+  `/ref` from anywhere) documents every parameter in the game.
 
 ## Create your own content
 
