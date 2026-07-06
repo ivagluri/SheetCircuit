@@ -54,6 +54,9 @@ game/
                      part_map()/canonical_part_id(), installed_part_for_slot(),
                      installed_unlocks() — parts can gate tune fields (e.g. a
                      sports ECU unlocks engine maps; lock_reason_for_tune_field()).
+  part_effects.py    Readable part-effect display layer: stat-path metadata,
+                     simulation-aware polarity, catalog-relative intensity,
+                     compact summaries, and selected-part detail rows.
   market.py          list_market_cars(), list_free_agents() — a persisted rotating
                      free-agent driver market (GameState.free_agents, churned every
                      N weeks, seeded per career).
