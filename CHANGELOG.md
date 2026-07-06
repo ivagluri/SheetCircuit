@@ -5,6 +5,11 @@ written on the `refactor/track-agnostic-sim` branch.)
 
 ## UI polish
 
+- **Readable upgrade effects** — the upgrade shop and parts compendium no longer expose
+  raw stat paths like `powertrain.power_hp`; part rows now show compact mechanical
+  summaries such as `Power +`, `Drag --`, and `unlocks Engine Map`, while selected-part
+  prompts show separate rows for improvements, reductions, numeric overrides, and
+  tune-control unlocks.
 - **Race banner names the event, track, and driver** — the live race screen led with
   only "Lap X/Y"; it now reads e.g. `Sunday Cup @ Maple Short · Pete Novak · Lap 2/5`
   so you can see what you're running and who's driving without waiting for the results
