@@ -41,6 +41,14 @@ class Terminal:
         else:
             print(text)
 
+    def print_plain(self, text: object = "") -> None:
+        """Print without markup interpretation: chrome like "[q Quit]" must
+        render its brackets literally instead of being parsed as a rich tag."""
+        if self._console is not None:
+            self._console.print(text, markup=False, highlight=False)
+        else:
+            print(text)
+
     def clear(self) -> None:
         if not sys.stdout.isatty():
             return

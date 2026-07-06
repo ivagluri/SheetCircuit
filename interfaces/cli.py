@@ -63,6 +63,16 @@ from game.sorting import SortSpec, is_sortable_screen, parse_sort_spec, sort_fie
 from game.simulation import SimulationError
 from game.tuning import TuningError
 from interfaces.menu import menu_bar, menu_command, status_bar, team_xp_status
+from interfaces.shell import (
+    PALETTE_COMMANDS,
+    GoHome,
+    LocalKey,
+    Screen,
+    confirm,
+    footer_line,
+    shell,
+    universal_help_tables,
+)
 from interfaces.render_text import (
     driver_rows,
     event_rows,
@@ -91,8 +101,11 @@ def main() -> None:
 
 def command_loop(state: GameState) -> None:
     subtitle = "Rich UI enabled." if RICH_AVAILABLE else "Install rich for color tables: python3 -m pip install -r requirements.txt"
-    screen = "garage"
+    screen = "home"
+    shell.ref_handler = _ref_overlay
+    shell.help_handler = _show_help_body
     while True:
+        shell.save_handler = lambda s=state: terminal.print(save_game_action(s).message)
         terminal.clear()
         _render_screen(state, screen, subtitle)
         raw = terminal.prompt("Choice").strip()
@@ -100,27 +113,67 @@ def command_loop(state: GameState) -> None:
             continue
         try:
             state, screen = run_menu_choice(state, raw, screen)
+        except GoHome:
+            screen = "home"
         except (EconomyError, TuningError, ValueError) as exc:
             terminal.print(exc)
             terminal.pause()
 
 
+# Where leaving the compendium returns to: set when the compendium is opened so
+# backing out past the index (or finishing a /ref detour) lands where you were.
+_REF_RETURN: str | None = None
+
+
+def _open_compendium_from(current_screen: str) -> None:
+    global _REF_RETURN
+    if not current_screen.startswith(COMPENDIUM_PREFIX):
+        _REF_RETURN = current_screen
+
+
+def _compendium_return() -> str:
+    global _REF_RETURN
+    target = _REF_RETURN or "home"
+    _REF_RETURN = None
+    return target
+
+
 def run_menu_choice(state: GameState, raw: str, current_screen: str = "garage") -> tuple[GameState, str]:
+    text = raw.strip()
+    low = text.lower()
     if current_screen.startswith(COMPENDIUM_PREFIX):
         nav = compendium_nav(current_screen, raw)
         if nav is not None:
-            return state, nav or "garage"
-    if raw.strip().isdigit() or "_" in raw.strip():
-        detail_screen = _screen_selection(state, current_screen, raw.strip())
+            return state, (nav or _compendium_return())
+    if low.startswith("/"):
+        return _palette_choice(state, low, current_screen)
+    if low in {"b", "back"}:
+        if current_screen == "home":
+            if confirm("Quit the game?"):
+                raise SystemExit
+            return state, "home"
+        return state, "home"
+    if low in {"q", "quit"}:
+        if confirm("Quit the game?"):
+            raise SystemExit
+        return state, current_screen
+    if low == "?":
+        return state, "help"
+    if text.isdigit() or "_" in text:
+        detail_screen = _screen_selection(state, current_screen, text)
         if detail_screen is not None:
             _show_detail_screen(state, detail_screen, current_screen)
             return state, current_screen
-    command = menu_command(raw) if len(raw.strip()) == 1 else None
-    command = command or raw.strip()
-    if command in {"garage", "drivers", "events", "market", "help", "compendium"}:
+    command = menu_command(text) if len(text) == 1 else None
+    command = command or text
+    if command in {"garage", "drivers", "events", "market", "help", "home"}:
         return state, command
-    tokens = shlex.split(raw.strip())
+    if command == "compendium":
+        _open_compendium_from(current_screen)
+        return state, "compendium"
+    tokens = shlex.split(text)
     if tokens and tokens[0].lower() == "compendium":
+        _open_compendium_from(current_screen)
         return state, compendium_token_from_args(tokens[1:])
     if tokens and tokens[0].lower() == "sort":
         sorted_screen = _apply_sort_choice(tokens, current_screen)
@@ -155,13 +208,39 @@ def run_menu_choice(state: GameState, raw: str, current_screen: str = "garage") 
         return state, current_screen
     if command == "load":
         return _load_picker(state), "garage"
-    if command == "quit":
-        raise SystemExit
     if tokens and tokens[0].lower() in {"ext", "extended"}:
         car_token = tokens[1] if len(tokens) > 1 else None
         _show_extended_car(state, current_screen, car_token)
         return state, current_screen
     return run_command(state, command), current_screen
+
+
+def _palette_choice(state: GameState, low: str, current_screen: str) -> tuple[GameState, str]:
+    name = PALETTE_COMMANDS.get(low.split()[0])
+    if name == "save":
+        terminal.print(save_game_action(state).message)
+        terminal.pause()
+        return state, current_screen
+    if name == "home":
+        return state, "home"
+    if name == "ref":
+        _open_compendium_from(current_screen)
+        return state, COMPENDIUM_PREFIX
+    if name == "load":
+        if current_screen == "home":
+            return _load_picker(state), "home"
+        terminal.print("/load works from the Home screen only (it replaces the current career).")
+        terminal.pause()
+        return state, current_screen
+    if name == "quit":
+        if confirm("Quit the game?"):
+            raise SystemExit
+        return state, current_screen
+    if name == "help":
+        return state, "help"
+    terminal.print(f"Unknown command {low}. Palette: /save /home /ref /quit /help")
+    terminal.pause()
+    return state, current_screen
 
 
 def run_command(state: GameState, raw: str) -> GameState:
@@ -271,12 +350,32 @@ def run_command(state: GameState, raw: str) -> GameState:
     return state
 
 
+_BROWSE_SCREENS = ("garage", "drivers", "events", "market")
+
+
+def _layer_breadcrumb(screen: str) -> str:
+    if screen == "home":
+        return "Home"
+    if screen.startswith(COMPENDIUM_PREFIX):
+        path, query = parse_compendium_token(screen)
+        crumbs = ["Home", "Compendium"] + [part.title() for part in path]
+        if query:
+            crumbs.append(query.rsplit(".", 1)[-1])
+        return " › ".join(crumbs)
+    return f"Home › {screen.title()}"
+
+
 def _render_screen(state: GameState, screen: str, subtitle: str = "") -> None:
     label = COMPENDIUM_PREFIX if screen.startswith(COMPENDIUM_PREFIX) else screen
     terminal.header("SheetCircuit", subtitle)
     terminal.print(status_bar(state.money, state.week, len(state.garage), label, state.team_xp))
-    terminal.menu(menu_bar())
-    if screen == "garage":
+    terminal.print_plain(_layer_breadcrumb(screen))
+    if screen == "home" or screen in _BROWSE_SCREENS:
+        # The tab bar renders only where its hotkeys are live: Home and the root tabs.
+        terminal.menu(menu_bar())
+    if screen == "home":
+        _show_home()
+    elif screen == "garage":
         _show_garage(state)
     elif screen == "drivers":
         _show_drivers(state)
@@ -290,15 +389,28 @@ def _render_screen(state: GameState, screen: str, subtitle: str = "") -> None:
         _show_compendium(screen)
     else:
         _show_garage(state)
+    if screen == "home":
+        terminal.print_plain("[? Help]  [q Quit]")
+    else:
+        terminal.print_plain(footer_line())
 
 
-def _show_compendium(screen: str) -> None:
+def _show_home() -> None:
+    terminal.print("Pick a tab: type its key or full name (e.g. 'g' or 'garage').")
+    terminal.print("'b' returns here from any tab; '/home' jumps here from any depth; '/save' saves instantly.")
+
+
+def _show_compendium(screen: str, overlay: bool = False) -> None:
     path, query = parse_compendium_token(screen)
     data = compendium_screen(path, query)
     terminal.print(data.title)
     _render_action_screen(data)
-    if query:
-        terminal.print("'b' back to the index  |  a hotkey (G/D/E/…) to leave")
+    if overlay:
+        # Inside the /ref overlay only navigation + universal keys are live, so
+        # the browse-screen hints (tab hotkeys, compendium jumps) must not show.
+        terminal.print("Enter a number/name to open  |  'b' backs out one level")
+    elif query:
+        terminal.print("'b' back to the section  |  a hotkey (G/D/E/…) to leave")
     elif path:
         terminal.print("Enter a number/name to open  |  'b' up a level  |  'compendium <field>' to jump")
     else:
@@ -342,24 +454,20 @@ def _show_extended_car(state: GameState, screen: str, car_token: str | None) -> 
             terminal.pause()
             return
     else:
-        def show():
-            terminal.clear()
-            _render_screen(state, screen)
-            return _sorted_market() if screen == "market" else _sorted_garage(state)
-
-        car = _choose(cars, get_id, "Extended view (number or ID)", sort_screen=screen, refresh=show)
+        subtitle = _PICKER_SUBTITLE.format(noun="a market car" if screen == "market" else "a garage car")
+        if screen == "market":
+            show = _market_picker_show(state, "Extended View", subtitle)
+        else:
+            show = _garage_picker_show(state, "Extended View", subtitle, "garage")
+        car = _picker(show, get_id, "Extended view (number or ID)", crumb="Extended View", sort_screen=screen)
         if car is None:
             return
     _show_detail_screen(state, get_screen(car), screen)
 
 
 def _buy_on_market(state: GameState) -> None:
-    def show():
-        terminal.clear()
-        _render_screen(state, "market")
-        return _sorted_market()
-
-    car = _choose(_sorted_market(), lambda item: item.identity.id, "Buy (number or ID)", sort_screen="market", refresh=show)
+    show = _market_picker_show(state, "Buy Car", _PICKER_SUBTITLE.format(noun="a market car"))
+    car = _picker(show, lambda item: item.identity.id, "Buy (number or ID)", crumb="Buy", sort_screen="market")
     if car is None:
         return
     result = buy_car_action(state, car.identity.id)
@@ -367,13 +475,53 @@ def _buy_on_market(state: GameState) -> None:
     terminal.pause()
 
 
+def _interactive() -> bool:
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
 def _show_detail_screen(state: GameState, screen, parent_screen: str) -> None:
-    terminal.clear()
-    terminal.header(screen.title, screen.subtitle)
-    terminal.print(status_bar(state.money, state.week, len(state.garage), parent_screen, state.team_xp))
-    terminal.menu(menu_bar())
-    _render_action_screen(screen)
-    terminal.pause()
+    def render() -> None:
+        terminal.clear()
+        terminal.header(screen.title, screen.subtitle)
+        terminal.print(status_bar(state.money, state.week, len(state.garage), parent_screen, state.team_xp))
+        terminal.print_plain(f"{_layer_breadcrumb(parent_screen)} › {screen.title}")
+        _render_action_screen(screen)
+
+    render()
+    if not _interactive():
+        return
+    with shell.screen(Screen(screen.title, keys=(LocalKey("Enter", "Back"),), render=render)):
+        while True:
+            action = shell.prompt("Back", empty="back")
+            if action.kind in {"back", "local"}:
+                return
+            terminal.print("Enter or b returns to the previous screen.")
+
+
+def _ref_overlay() -> None:
+    """The /ref palette command: browse the compendium from any depth, then
+    return exactly where you were (the caller's loop re-renders its screen)."""
+    from interfaces.shell import dispatch
+
+    token = COMPENDIUM_PREFIX
+    while True:
+        terminal.clear()
+        terminal.print_plain(_layer_breadcrumb(token) + "  (reference overlay — b backs out)")
+        _show_compendium(token, overlay=True)
+        terminal.print_plain(footer_line())
+        raw = terminal.prompt("Reference")
+        nav = compendium_nav(token, raw)
+        if nav is not None:
+            if nav == "":
+                return
+            token = nav
+            continue
+        action = dispatch(raw)
+        if action.kind == "quit":
+            if shell.confirm_quit():
+                raise SystemExit
+        elif action.kind == "help":
+            shell.show_help()
 
 
 def _screen_selection(state: GameState, screen: str, raw: str):
@@ -487,8 +635,13 @@ def _render_action_screen(screen) -> None:
 
 
 def _show_help() -> None:
+    universal_help_tables()
+    _show_help_body()
+
+
+def _show_help_body() -> None:
     terminal.table(
-        "Menu Hotkeys",
+        "Menu Hotkeys (Home and root tabs)",
         ["Key", "Action"],
         [
             ["G", "Garage screen"],
@@ -502,8 +655,10 @@ def _show_help() -> None:
             ["P", "Guided repair"],
             ["S", "Save game"],
             ["L", "Load game"],
-            ["H", "Help"],
-            ["Q", "Quit"],
+            ["C", "Compendium"],
+            ["H / ?", "Help"],
+            ["Q", "Quit (asks to confirm)"],
+            ["B", "Back (root tabs return Home; Home asks to quit)"],
         ],
     )
     terminal.table(
@@ -575,15 +730,18 @@ def _show_race_help() -> None:
         ["Key", "Command", "Effect"],
         [[option.key, option.label, option.description] for option in race_command_options()]
         + [
-            ["L / N / next", "Next lap", "Fast-forward to the end of the current lap"],
-            ["F / ff / >", "Faster", "Cycle presentation speed (1x/2x/4x/8x); no effect on the result"],
+            ["L / next", "Next lap", "Fast-forward to the end of the current lap"],
+            ["> / ff", "Faster", "Cycle presentation speed (1x/2x/4x/8x); no effect on the result"],
             ["X / end", "End", "Simulate remaining laps instantly and show result"],
-            ["? / help", "Help", "Show race command help"],
+            ["Enter", "Pause", "Toggle pause (empty input); PAUSED shows in the lap bar"],
+            ["b / leave", "Leave race", "Confirm, then simulate to the end and record the result"],
+            ["? / h / help", "Help", "Show this help (the race clock freezes while it is open)"],
+            ["q / quit", "Quit", "Quit the game (asks to confirm)"],
         ],
     )
 
 
-_PICKER_SUBTITLE = "Choose {noun} by number or ID; 'sort <field>' re-orders; q cancels."
+_PICKER_SUBTITLE = "Choose {noun} by number or ID; 'sort <field>' re-orders; b cancels."
 
 
 def _garage_picker_show(state: GameState, title: str, subtitle: str, screen_label: str):
@@ -593,9 +751,22 @@ def _garage_picker_show(state: GameState, title: str, subtitle: str, screen_labe
         terminal.clear()
         terminal.header(title, subtitle)
         terminal.print(status_bar(state.money, state.week, len(state.garage), screen_label, state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         terminal.table(_sort_table_title("Garage", "garage"), ["#", "ID", "Car", "Class", "PR", "Type", "Condition", "Power"], garage_rows(state, _screen_sort("garage")))
         return _sorted_garage(state)
+    return show
+
+
+def _market_picker_show(state: GameState, title: str, subtitle: str, screen_label: str = "market"):
+    """Render a market-table picker view and return the sorted cars (same role as
+    _garage_picker_show, for market flows)."""
+    def show():
+        terminal.clear()
+        terminal.header(title, subtitle)
+        terminal.print(status_bar(state.money, state.week, len(state.garage), screen_label, state.team_xp))
+        shell.render_chrome()
+        _render_action_screen(market_screen(_screen_sort("market")))
+        return _sorted_market()
     return show
 
 
@@ -604,7 +775,7 @@ def _sell_picker(state: GameState) -> None:
         terminal.print("Garage is empty.")
         return
     show = _garage_picker_show(state, "Sell Car", _PICKER_SUBTITLE.format(noun="a garage car"), "sell")
-    car = _choose(show(), lambda item: item.identity.id, "Sell", sort_screen="garage", refresh=show)
+    car = _picker(show, lambda item: item.identity.id, "Sell", crumb="Sell", sort_screen="garage")
     if car is None:
         return
     result = sell_car_action(state, car.identity.id)
@@ -617,7 +788,7 @@ def _repair_picker(state: GameState) -> None:
         terminal.print("Garage is empty.")
         return
     show = _garage_picker_show(state, "Repair", _PICKER_SUBTITLE.format(noun="a garage car"), "repair")
-    car = _choose(show(), lambda item: item.identity.id, "Repair", sort_screen="garage", refresh=show)
+    car = _picker(show, lambda item: item.identity.id, "Repair", sort_screen="garage")
     if car is None:
         return
     result = repair_car_action(state, car.identity.id)
@@ -629,64 +800,80 @@ def _upgrades_picker(state: GameState) -> None:
     if not state.garage:
         terminal.print("Garage is empty.")
         return
-    show = _garage_picker_show(state, "Upgrades", "Choose a car to upgrade. q cancels.", "upgrades")
-    car = _choose(show(), lambda item: item.identity.id, "Car", sort_screen="garage", refresh=show)
+    show = _garage_picker_show(state, "Upgrades", "Choose a car to upgrade. b cancels.", "upgrades")
+    car = _picker(show, lambda item: item.identity.id, "Car", crumb="Upgrades", sort_screen="garage")
     if car is None:
         return
     _upgrades_slot_picker(state, car.identity.id)
 
 
 def _upgrades_slot_picker(state: GameState, car_id: str) -> None:
-    while True:
+    def render() -> None:
         screen = upgrades_slot_screen(state, car_id)
         terminal.clear()
         terminal.header(screen.title, screen.subtitle)
         terminal.print(status_bar(state.money, state.week, len(state.garage), "upgrades", state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         _render_action_screen(screen)
-        terminal.print("number/name = open slot  |  B = back")
-        raw = terminal.prompt("Slot").strip()
-        if raw.lower() in {"b", "q", "cancel", ""}:
-            return
-        slot = _match_part_slot(raw)
-        if slot is None:
-            terminal.print(f"Unknown part slot: {raw}")
-            terminal.pause()
-            continue
-        _upgrades_part_picker(state, car_id, slot)
+        terminal.print("number/name = open slot")
+
+    with shell.screen(Screen(f"Upgrades {car_id}", render=render)):
+        while True:
+            render()
+            action = shell.prompt("Slot")
+            if action.kind == "back":
+                return
+            raw = action.value
+            slot = _match_part_slot(raw)
+            if slot is None:
+                terminal.print(f"Unknown part slot: {raw}")
+                terminal.pause()
+                continue
+            _upgrades_part_picker(state, car_id, slot)
+
+
+_UNEQUIP_SLOT_KEY = LocalKey(
+    "u", "Unequip slot", words=("unequip", "uninstall"),
+    description="Unequip the installed part back to stock (no refund)",
+)
 
 
 def _upgrades_part_picker(state: GameState, car_id: str, slot: str) -> None:
-    while True:
+    def render() -> None:
         screen = upgrades_part_screen(state, car_id, slot)
         terminal.clear()
         terminal.header(screen.title, screen.subtitle)
         terminal.print(status_bar(state.money, state.week, len(state.garage), "upgrades", state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         _render_action_screen(screen)
-        terminal.print("number/id = select part  |  U = unequip slot  |  B = back")
-        raw = terminal.prompt("Part").strip()
-        low = raw.lower()
-        if low in {"b", "q", "cancel", ""}:
-            return
-        if low in {"u", "unequip", "uninstall"}:
-            try:
-                result = uninstall_part_action(state, car_id, slot)
-                terminal.print(result.message)
-            except EconomyError as exc:
-                terminal.print(exc)
-            terminal.pause()
-            continue
-        part = _match_slot_part(slot, raw)
-        if part is None:
-            terminal.print(f"Unknown part: {raw}")
-            terminal.pause()
-            continue
-        if _upgrade_part_action_prompt(state, car_id, part.id):
-            continue
+        terminal.print("number/id = select part")
+
+    with shell.screen(Screen(slot.title(), keys=(_UNEQUIP_SLOT_KEY,), render=render)):
+        while True:
+            render()
+            action = shell.prompt("Part")
+            if action.kind == "back":
+                return
+            if action.kind == "local" and action.value == "u":
+                try:
+                    result = uninstall_part_action(state, car_id, slot)
+                    terminal.print(result.message)
+                except EconomyError as exc:
+                    terminal.print(exc)
+                terminal.pause()
+                continue
+            raw = action.value
+            part = _match_slot_part(slot, raw)
+            if part is None:
+                terminal.print(f"Unknown part: {raw}")
+                terminal.pause()
+                continue
+            _upgrade_part_action_prompt(state, car_id, part.id)
 
 
 def _upgrade_part_action_prompt(state: GameState, car_id: str, part_id: str) -> bool:
+    """One part's action prompt. Local keys are y/i/u (b/q/? stay universal):
+    y=buy, i=install (or buy & install), u=unequip — words work too."""
     car = next(car for car in state.garage if car.identity.id == car_id)
     parts = load_parts()
     part = part_map(parts)[canonical_part_id(part_id)]
@@ -694,31 +881,35 @@ def _upgrade_part_action_prompt(state: GameState, car_id: str, part_id: str) -> 
     installed = installed_part_for_slot(car, part.slot, parts)
     is_installed = installed is not None and installed.id == part.id
     if is_installed:
-        prompt = "[u] unequip  [b] back"
+        keys = (LocalKey("u", "Unequip", words=("unequip", "uninstall")),)
     elif owned:
-        prompt = "[i] install  [b] back"
+        keys = (LocalKey("i", "Install", words=("install", "equip")),)
     else:
-        prompt = "[b] buy  [i] buy & install  [q] back"
-    raw = terminal.prompt(prompt).strip().lower()
-    if raw in {"", "q", "back", "cancel"}:
-        return False
-    try:
-        if is_installed and raw in {"u", "unequip", "uninstall"}:
-            result = uninstall_part_action(state, car_id, part.slot)
-        elif owned and raw in {"i", "install", "equip"}:
-            result = install_part_action(state, car_id, part.id)
-        elif not owned and raw in {"b", "buy"}:
-            result = buy_part_action(state, car_id, part.id)
-        elif not owned and raw in {"i", "install", "equip"}:
-            result = buy_part_action(state, car_id, part.id, install=True)
-        else:
-            terminal.print("No action taken.")
-            terminal.pause()
+        keys = (
+            LocalKey("y", "Buy", words=("buy",)),
+            LocalKey("i", "Buy & install", words=("install", "equip")),
+        )
+    with shell.screen(Screen(part.name, keys=keys)):
+        action = shell.prompt("Action", empty="back")
+        if action.kind != "local":
             return False
-    except EconomyError as exc:
-        terminal.print(exc)
-        terminal.pause()
-        return True
+        try:
+            if is_installed and action.value == "u":
+                result = uninstall_part_action(state, car_id, part.slot)
+            elif owned and action.value == "i":
+                result = install_part_action(state, car_id, part.id)
+            elif not owned and action.value == "y":
+                result = buy_part_action(state, car_id, part.id)
+            elif not owned and action.value == "i":
+                result = buy_part_action(state, car_id, part.id, install=True)
+            else:
+                terminal.print("No action taken.")
+                terminal.pause()
+                return False
+        except EconomyError as exc:
+            terminal.print(exc)
+            terminal.pause()
+            return True
     terminal.print(result.message)
     terminal.pause()
     return True
@@ -758,91 +949,108 @@ def _tune_picker(state: GameState) -> None:
         return
     # Deliberately not sortable: the tune flow keeps its plain picker (and the tune
     # fields list keeps its authored subsystem grouping).
-    _garage_picker_show(state, "Tune", "Choose a car to set up. q cancels.", "tune")()
-    car = _choose(_sorted_garage(state), lambda item: item.identity.id, "Car")
+    show = _garage_picker_show(state, "Tune", "Choose a car to set up. b cancels.", "tune")
+    car = _picker(show, lambda item: item.identity.id, "Car", crumb="Tune", sortable=False)
     if car is None:
         return
     _tune_editor(state, car.identity.id)
 
 
+_TUNE_APPLY_KEY = LocalKey(
+    "w", "Apply setup", words=("write", "apply"),
+    description="Apply all staged changes atomically",
+)
+
+
 def _tune_editor(state: GameState, car_id: str) -> None:
     """Creator-style setup editor: sections -> fields -> value.
 
-    Edits are STAGED into a draft; [W] applies the whole draft atomically and
+    Edits are STAGED into a draft; [w] applies the whole draft atomically and
     backing out with staged changes asks first (mirrors the creator's edit loop)."""
     draft: dict[str, object] = {}
-    while True:
+
+    def render() -> None:
         screen = tune_editor_screen(state, car_id, draft)
         terminal.clear()
         terminal.header(screen.title, screen.subtitle)
         terminal.print(status_bar(state.money, state.week, len(state.garage), "tune", state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         _render_action_screen(screen)
-        terminal.print("number/name = open section  |  W = apply staged setup  |  B = back")
-        raw = terminal.prompt("Section").strip()
-        low = raw.lower()
-        if low in {"b", "q", "cancel", ""}:
-            if not draft:
-                return
-            confirm = terminal.prompt(
-                "Staged changes not applied — [s] apply & exit, [d] discard & exit, anything else keeps editing"
-            ).strip().lower()
-            if confirm == "s" and _apply_staged_tune(state, car_id, draft):
-                return
-            if confirm == "d":
-                return
-            continue
-        if low == "w":
-            if _apply_staged_tune(state, car_id, draft):
-                draft = {}
-            continue
-        try:
-            tune_section_screen(state, car_id, raw, draft)
-        except ValueError as exc:
-            terminal.print(exc)
-            terminal.pause()
-            continue
-        _tune_section_editor(state, car_id, raw, draft)
+        terminal.print("number/name = open section")
+
+    with shell.screen(Screen(f"Tune {car_id}", keys=(_TUNE_APPLY_KEY,), render=render, dirty=lambda: bool(draft))):
+        while True:
+            render()
+            action = shell.prompt("Section")
+            if action.kind == "back":
+                if not draft:
+                    return
+                choice = terminal.prompt(
+                    "Staged changes not applied — [s] apply & exit, [d] discard & exit, anything else keeps editing"
+                ).strip().lower()
+                if choice == "s" and _apply_staged_tune(state, car_id, draft):
+                    return
+                if choice == "d":
+                    return
+                continue
+            if action.kind == "local" and action.value == "w":
+                if _apply_staged_tune(state, car_id, draft):
+                    draft.clear()
+                continue
+            raw = action.value
+            try:
+                tune_section_screen(state, car_id, raw, draft)
+            except ValueError as exc:
+                terminal.print(exc)
+                terminal.pause()
+                continue
+            _tune_section_editor(state, car_id, raw, draft)
 
 
 def _tune_section_editor(state: GameState, car_id: str, section: str, draft: dict[str, object]) -> None:
-    while True:
+    def render() -> None:
         screen = tune_section_screen(state, car_id, section, draft)
         terminal.clear()
         terminal.header(screen.title, screen.subtitle)
         terminal.print(status_bar(state.money, state.week, len(state.garage), "tune", state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         _render_action_screen(screen)
-        terminal.print("number/name = edit field  |  B = back to sections")
-        raw = terminal.prompt("Field").strip()
-        if raw.lower() in {"b", "q", "cancel", ""}:
-            return
-        selected_field = _match_tune_field(screen.fields, raw)
-        if selected_field is None:
-            terminal.print(f"Unknown tune field: {raw}")
-            terminal.pause()
-            continue
-        if selected_field.locked:
-            terminal.print(selected_field.lock_reason)
-            terminal.pause()
-            continue
-        if selected_field.help:
-            terminal.print(f"  {selected_field.help}")
-        try:
-            value = _prompt_field_value(selected_field)
-            if value is None:
-                terminal.print("No change staged.")
+        terminal.print("number/name = edit field")
+
+    with shell.screen(Screen(section.title() if not section.isdigit() else "Section", render=render)):
+        while True:
+            screen = tune_section_screen(state, car_id, section, draft)
+            render()
+            action = shell.prompt("Field")
+            if action.kind == "back":
+                return
+            raw = action.value
+            selected_field = _match_tune_field(screen.fields, raw)
+            if selected_field is None:
+                terminal.print(f"Unknown tune field: {raw}")
+                terminal.pause()
                 continue
-            stage_tune_value(state, car_id, selected_field.name, value)
-        except TuningError as exc:
-            terminal.print(f"Rejected: {exc}")
-            terminal.pause()
-            continue
-        if value == selected_field.current:
-            # Re-entering the applied value un-stages the field.
-            draft.pop(selected_field.name, None)
-        else:
-            draft[selected_field.name] = value
+            if selected_field.locked:
+                terminal.print(selected_field.lock_reason)
+                terminal.pause()
+                continue
+            if selected_field.help:
+                terminal.print(f"  {selected_field.help}")
+            try:
+                value = _prompt_field_value(selected_field)
+                if value is None:
+                    terminal.print("No change staged.")
+                    continue
+                stage_tune_value(state, car_id, selected_field.name, value)
+            except TuningError as exc:
+                terminal.print(f"Rejected: {exc}")
+                terminal.pause()
+                continue
+            if value == selected_field.current:
+                # Re-entering the applied value un-stages the field.
+                draft.pop(selected_field.name, None)
+            else:
+                draft[selected_field.name] = value
 
 
 def _match_tune_field(fields: list, raw: str):
@@ -879,7 +1087,7 @@ def _prompt_field_value(field) -> object | None:
             rows = [[index, option.label, option.value] for index, option in enumerate(field.options, start=1)]
             terminal.table(f"{field.label} Options", ["#", "Option", "Value"], rows)
         raw = terminal.prompt("Option").strip()
-        if raw == "" or raw.lower() in {"q", "quit", "cancel"}:
+        if raw == "" or raw.lower() in {"b", "back", "q", "quit", "cancel"}:
             return None
         if raw.isdigit() and 1 <= int(raw) <= len(field.options):
             return field.options[int(raw) - 1].value
@@ -890,20 +1098,24 @@ def _prompt_field_value(field) -> object | None:
         raise TuningError(f"Unknown option for {field.label}: {raw}")
     range_text = f"{field.minimum:g}-{field.maximum:g}" if field.minimum is not None and field.maximum is not None else ""
     value = terminal.prompt(f"Value ({range_text})").strip()
-    if value == "" or value.lower() in {"q", "quit", "cancel"}:
+    if value == "" or value.lower() in {"b", "back", "q", "quit", "cancel"}:
         return None
     return _parse_value(value)
 
 
 def _save_picker(state: GameState) -> None:
-    path = terminal.prompt("Save path", "saves/save1.json")
+    path = terminal.prompt("Save path (b cancels)", "saves/save1.json")
+    if path.strip().lower() in {"b", "back", "cancel"}:
+        return
     result = save_game_action(state, path)
     terminal.print(result.message)
     terminal.pause()
 
 
 def _load_picker(state: GameState) -> GameState:
-    path = terminal.prompt("Load path", "saves/save1.json")
+    path = terminal.prompt("Load path (b cancels)", "saves/save1.json")
+    if path.strip().lower() in {"b", "back", "cancel"}:
+        return state
     result = load_game_action(path)
     loaded = result.state
     terminal.print(result.message)
@@ -923,12 +1135,12 @@ def _hire_picker(state: GameState) -> None:
         terminal.clear()
         terminal.header("Hire Driver", _PICKER_SUBTITLE.format(noun="a driver"))
         terminal.print(status_bar(state.money, state.week, len(state.garage), "hire", state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         available = available_drivers()
         terminal.table(_sort_table_title("Available Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(available))
         return available
 
-    driver = _choose(show(), lambda item: item.id, "Hire", sort_screen="drivers", refresh=show)
+    driver = _picker(show, lambda item: item.id, "Hire", sort_screen="drivers")
     if driver is None:
         return
     result = hire_driver_action(state, driver.id)
@@ -945,12 +1157,12 @@ def _fire_picker(state: GameState) -> None:
         terminal.clear()
         terminal.header("Release Driver", _PICKER_SUBTITLE.format(noun="a driver"))
         terminal.print(status_bar(state.money, state.week, len(state.garage), "fire", state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         drivers = _sorted_hired_drivers(state)
         terminal.table(_sort_table_title("Your Team", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(drivers))
         return drivers
 
-    driver = _choose(show(), lambda item: item.id, "Release", sort_screen="drivers", refresh=show)
+    driver = _picker(show, lambda item: item.id, "Release", sort_screen="drivers")
     if driver is None:
         return
     result = fire_driver_action(state, driver.id)
@@ -966,9 +1178,9 @@ def _race_picker(state: GameState) -> None:
 
     def show_events():
         terminal.clear()
-        terminal.header("Race Entry", "Choose an event, car, and driver. Enter a number or ID; 'sort <field>' re-orders; q cancels.")
+        terminal.header("Race Entry", "Choose an event, car, and driver. Enter a number or ID; 'sort <field>' re-orders; b cancels.")
         terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry", state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         events = _sorted_events()
         terminal.table(
             _sort_table_title("Available Events", "events"),
@@ -977,12 +1189,12 @@ def _race_picker(state: GameState) -> None:
         )
         return events
 
-    event = _choose(show_events(), lambda item: item.id, "Event", sort_screen="events", refresh=show_events)
+    event = _picker(show_events, lambda item: item.id, "Event", crumb="Race Entry", sort_screen="events")
     if event is None:
         return
 
     show_cars = _garage_picker_show(state, "Race Entry", f"Event: {event.name}", "race entry")
-    car = _choose(show_cars(), lambda item: item.identity.id, "Car", sort_screen="garage", refresh=show_cars)
+    car = _picker(show_cars, lambda item: item.identity.id, "Car", crumb="Race Entry", sort_screen="garage")
     if car is None:
         return
 
@@ -990,26 +1202,44 @@ def _race_picker(state: GameState) -> None:
         terminal.clear()
         terminal.header("Race Entry", f"{event.name} / {car.identity.name}")
         terminal.print(status_bar(state.money, state.week, len(state.garage), "race entry", state.team_xp))
-        terminal.menu(menu_bar())
+        shell.render_chrome()
         drivers = sort_items("drivers", state.hired_drivers or load_drivers(), _screen_sort("drivers"))
         terminal.table(_sort_table_title("Drivers", "drivers"), ["#", "ID", "Name", "Pace", "Cons", "Feedback", "Pot", "Salary"], driver_rows(drivers))
         return drivers
 
-    driver = _choose(show_drivers(), lambda item: item.id, "Driver", sort_screen="drivers", refresh=show_drivers)
+    driver = _picker(show_drivers, lambda item: item.id, "Driver", crumb="Race Entry", sort_screen="drivers")
     if driver is None:
         return
     _run_race(state, event.id, car.identity.id, driver.id)
 
 
+def _picker(show, get_id, label: str, crumb: str | None = None, sort_screen: str | None = None, sortable: bool = True):
+    """Render one picker step under its own breadcrumb screen and run _choose.
+
+    ``show`` re-renders the picker's table and returns the (re-sorted) items; it
+    doubles as the shell redraw after a help//ref overlay."""
+    with shell.screen(Screen(crumb or label, render=lambda: show())):
+        items = show()
+        return _choose(
+            items,
+            get_id,
+            label,
+            sort_screen=sort_screen if sortable else None,
+            refresh=show if sortable else None,
+        )
+
+
 def _choose(items: list[object], get_id, label: str, sort_screen: str | None = None, refresh=None):
-    """Prompt until an item is picked (or cancelled). Every picker list is sortable
-    with the same grammar as the main screens: pass the backing sort screen plus a
-    ``refresh`` that re-renders the picker's table and returns the re-sorted items."""
+    """Prompt until an item is picked (or cancelled with b). Every picker list is
+    sortable with the same grammar as the main screens: pass the backing sort screen
+    plus a ``refresh`` that re-renders the picker's table and returns the re-sorted
+    items. Universal keys and the palette are handled by the shell prompt."""
     while True:
-        raw = terminal.prompt(label).strip()
-        if raw.lower() in {"q", "quit", "cancel"}:
+        action = shell.prompt(label)
+        if action.kind == "back":
             terminal.print("Cancelled.")
             return None
+        raw = action.value
         tokens = shlex.split(raw) if raw else []
         if tokens and tokens[0].lower() == "sort":
             if sort_screen is None or refresh is None:
@@ -1035,6 +1265,22 @@ def _choose(items: list[object], get_id, label: str, sort_screen: str | None = N
         terminal.print(f"Unknown {label.lower()}: {raw}")
 
 
+def _race_local_keys() -> tuple[LocalKey, ...]:
+    """The full race key table: pace + presentation + pause. The footer and the
+    unified help are both generated from this, so nothing can go unadvertised."""
+    keys = [
+        LocalKey(option.key.lower(), option.label, words=(option.value, option.label.lower()), description=option.description)
+        for option in race_command_options()
+    ]
+    keys += [
+        LocalKey("l", "Next lap", words=("next", "lap"), description="Fast-forward to the end of the current lap"),
+        LocalKey(">", "Faster", words=("ff", "faster"), description="Cycle presentation speed (1x/2x/4x/8x); no effect on the result"),
+        LocalKey("x", "End", words=("end", "skip"), description="Simulate remaining laps instantly and show result"),
+        LocalKey("Enter", "Pause", description="Toggle pause (empty input); PAUSED shows in the lap bar"),
+    ]
+    return tuple(keys)
+
+
 def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> None:
     try:
         race = start_race_action(state, event_id, car_id, driver_id)
@@ -1048,69 +1294,100 @@ def _run_race(state: GameState, event_id: str, car_id: str, driver_id: str) -> N
     resume_command = "normal"  # what to fall back to after a one-shot pit
     pending_command: str | None = None
     race_error = ""
-    show_help = False
-    interactive = sys.stdin.isatty() and sys.stdout.isatty()
+    paused = False
+    interactive = _interactive()
     # Constant per-update pause: tick count already scales with the car's watched length
     # (see ticks_per_lap_for), so total watched = ticks / TICK_RATE_HZ tracks the real race.
     base_tick_sleep = 1.0 / TICK_RATE_HZ
-    speed_mult = 1.0  # presentation speed; F cycles it, never touches the result
+    speed_mult = 1.0  # presentation speed; > cycles it, never touches the result
+    race_keys = _race_local_keys()
 
-    _render_race_screen(state, session, None, "")
-    _print_lap_bar(session, current_command, pending_command, speed_mult)
-
-    while not session.is_finished:
-        skip_to_lap = False
-        if interactive:
-            ready = select.select([sys.stdin], [], [], base_tick_sleep / speed_mult)[0]
-            if ready:
-                raw = sys.stdin.readline().strip()
-                low = raw.lower()
-                if low in {"help", "?"}:
-                    show_help = True
-                elif low in {"end", "skip", "x"}:
-                    result = simulate_to_end_action(session, current_command)
-                    last_result = result.tick
-                    _render_race_screen(state, session, last_result, "")
-                    terminal.print("Race simulated to completion.")
-                    break
-                elif low in {"next", "lap", "l", "n"}:
-                    skip_to_lap = True  # fast-forward over the rest of this lap
-                elif low in {"ff", "f", ">"}:
-                    speed_mult = _cycle_speed(speed_mult)
-                elif raw:
-                    matched = _race_command(raw)
-                    if matched is not None:
-                        pending_command = matched
-
-        if pending_command:
-            if pending_command == "pit" and current_command != "pit":
-                resume_command = current_command
-            current_command = pending_command
-            pending_command = None
-
-        try:
-            advance = advance_to_lap_end_action if skip_to_lap else advance_race_action
-            race_result = advance(session, current_command)
-            last_result = race_result.tick
-        except SimulationError as exc:
-            race_error = str(exc)
-            break
-
-        # Pit is one-shot: once the stop completes at lap end, resume prior pace.
-        if current_command == "pit" and last_result is not None and last_result.is_lap_end:
-            current_command = resume_command
-
+    def redraw() -> None:
         _render_race_screen(state, session, last_result, race_error)
-        race_error = ""
+        terminal.print_plain(footer_line(race_keys))
+        _print_lap_bar(session, current_command, pending_command, speed_mult, paused)
 
-        if show_help:
-            # Hold the race so help is readable; the sim only advances when we tick it,
-            # and the next tick's redraw restores the pinned race layout.
-            _show_race_help()
-            terminal.pause("Press Enter to resume the race")
-            show_help = False
+    def race_note() -> None:
+        terminal.print("The race clock is frozen while this help is open; b leaves the race (with confirm).")
 
-        _print_lap_bar(session, current_command, pending_command, speed_mult)
+    with shell.screen(Screen("Race", keys=race_keys, help=race_note)):
+        redraw()
+        while not session.is_finished:
+            skip_to_lap = False
+            if interactive:
+                ready = select.select([sys.stdin], [], [], base_tick_sleep / speed_mult)[0]
+                if ready:
+                    raw = sys.stdin.readline().strip()
+                    low = raw.lower()
+                    if raw == "":
+                        # Empty Enter toggles pause; the sim only advances while running.
+                        paused = not paused
+                        redraw()
+                        continue
+                    if low in {"?", "h", "help", "/help"}:
+                        # Blocking help: the sim clock freezes until it closes, and the
+                        # prior run/pause state carries through untouched.
+                        shell.show_help()
+                        redraw()
+                        continue
+                    if low in {"b", "back", "leave"}:
+                        if confirm("Leave the race? It is simulated to the end and the result recorded"):
+                            result = simulate_to_end_action(session, current_command)
+                            last_result = result.tick
+                            _render_race_screen(state, session, last_result, "")
+                            terminal.print("Race simulated to completion.")
+                            break
+                        redraw()
+                        continue
+                    if low in {"q", "quit", "/quit"}:
+                        if shell.confirm_quit():
+                            raise SystemExit
+                        redraw()
+                        continue
+                    if low == "/save":
+                        shell.do_save()
+                        continue
+                    if low in {"/home", "/menu", "/ref", "/load"}:
+                        terminal.print("Finish or leave the race first (b leaves).")
+                        continue
+                    if low in {"end", "skip", "x"}:
+                        result = simulate_to_end_action(session, current_command)
+                        last_result = result.tick
+                        _render_race_screen(state, session, last_result, "")
+                        terminal.print("Race simulated to completion.")
+                        break
+                    if low in {"next", "lap", "l"}:
+                        skip_to_lap = True  # fast-forward over the rest of this lap
+                    elif low in {"ff", ">", "faster"}:
+                        speed_mult = _cycle_speed(speed_mult)
+                    else:
+                        matched = _race_command(raw)
+                        if matched is not None:
+                            pending_command = matched
+
+            if paused:
+                continue
+
+            if pending_command:
+                if pending_command == "pit" and current_command != "pit":
+                    resume_command = current_command
+                current_command = pending_command
+                pending_command = None
+
+            try:
+                advance = advance_to_lap_end_action if skip_to_lap else advance_race_action
+                race_result = advance(session, current_command)
+                last_result = race_result.tick
+            except SimulationError as exc:
+                race_error = str(exc)
+                break
+
+            # Pit is one-shot: once the stop completes at lap end, resume prior pace.
+            if current_command == "pit" and last_result is not None and last_result.is_lap_end:
+                current_command = resume_command
+
+            redraw()
+            race_error = ""
 
     finished = finish_race_action(state, session)
     terminal.clear()
@@ -1129,7 +1406,7 @@ def _cycle_speed(current: float) -> float:
     return _RACE_SPEEDS[(index + 1) % len(_RACE_SPEEDS)]
 
 
-def _print_lap_bar(session, current_command: str, pending_command: str | None, speed_mult: float = 1.0) -> None:
+def _print_lap_bar(session, current_command: str, pending_command: str | None, speed_mult: float = 1.0, paused: bool = False) -> None:
     status = f"next: {pending_command}" if pending_command else current_command
     if session.duration_s is not None:
         # Duration race: the bar tracks elapsed against the time cap, not within-lap position.
@@ -1144,9 +1421,9 @@ def _print_lap_bar(session, current_command: str, pending_command: str | None, s
         label = f"Lap {lap}/{session.total_laps} · {format_race_clock(race_clock_elapsed(session))}"
     filled = int(frac * 24)
     bar = "█" * filled + "░" * (24 - filled)
+    tail = "  ‖ PAUSED — Enter resumes" if paused else ""
     sys.stdout.write(
-        f"  {label}  [{bar}] {int(frac * 100):3d}%  [{status}]  {speed_mult:g}x"
-        "  cmd+Enter  L/N=next lap  F/>=faster  X=end\n"
+        f"  {label}  [{bar}] {int(frac * 100):3d}%  [{status}]  {speed_mult:g}x{tail}\n"
     )
     sys.stdout.flush()
 
@@ -1171,7 +1448,7 @@ def _render_race_screen(state: GameState, session, result=None, error: str = "")
     terminal.clear()
     terminal.header(screen.title, screen.subtitle)
     terminal.print(status_bar(state.money, state.week, len(state.garage), "race", state.team_xp))
-    terminal.menu(_option_bar(screen.actions) + "  help")
+    shell.render_chrome()
     for message in screen.messages:
         terminal.print(message)
     # Pinned three-column layout: track strip | standings + player status | race log. Every
@@ -1307,16 +1584,6 @@ def _race_command(raw: str) -> str | None:
         if normalized in {option.key.lower(), option.value.lower(), option.label.lower()}:
             return option.value
     return None
-
-
-def _option_bar(options) -> str:
-    labels = []
-    for option in options:
-        if option.label.lower().startswith(option.key.lower()):
-            labels.append(f"[{option.key}]{option.label[1:]}")
-        else:
-            labels.append(f"[{option.key}]{option.label}")
-    return "  ".join(labels)
 
 
 if __name__ == "__main__":

@@ -38,6 +38,63 @@ class CliTests(TestCase):
         self.assertIs(next_state, state)
         self.assertEqual(screen, "events")
 
+    def test_back_returns_root_tabs_to_home(self) -> None:
+        state = new_career()
+        for tab in ("garage", "drivers", "events", "market", "help"):
+            _, screen = run_menu_choice(state, "b", tab)
+            self.assertEqual(screen, "home")
+
+    def test_back_on_home_asks_to_quit(self) -> None:
+        state = new_career()
+        with patch("builtins.input", side_effect=["n"]):
+            _, screen = run_menu_choice(state, "b", "home")
+        self.assertEqual(screen, "home")
+        with patch("builtins.input", side_effect=["y"]):
+            with self.assertRaises(SystemExit):
+                run_menu_choice(state, "b", "home")
+
+    def test_quit_asks_to_confirm_everywhere(self) -> None:
+        state = new_career()
+        with patch("builtins.input", side_effect=["n"]):
+            _, screen = run_menu_choice(state, "q", "market")
+        self.assertEqual(screen, "market")
+        with patch("builtins.input", side_effect=["y"]):
+            with self.assertRaises(SystemExit):
+                run_menu_choice(state, "quit", "garage")
+
+    def test_home_palette_jumps_home_and_load_is_home_only(self) -> None:
+        state = new_career()
+        _, screen = run_menu_choice(state, "/home", "market")
+        self.assertEqual(screen, "home")
+        _, screen = run_menu_choice(state, "/menu", "events")
+        self.assertEqual(screen, "home")
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            _, screen = run_menu_choice(state, "/load", "garage")
+        self.assertEqual(screen, "garage")
+        self.assertIn("Home screen only", output.getvalue())
+
+    def test_ref_palette_opens_compendium_and_back_returns_in_place(self) -> None:
+        state = new_career()
+        _, screen = run_menu_choice(state, "/ref", "drivers")
+        self.assertEqual(screen, "compendium")
+        _, screen = run_menu_choice(state, "b", screen)
+        self.assertEqual(screen, "drivers")
+
+    def test_question_mark_opens_help(self) -> None:
+        state = new_career()
+        _, screen = run_menu_choice(state, "?", "garage")
+        self.assertEqual(screen, "help")
+
+    def test_home_screen_lists_tabs_and_hotkeys_work_from_home(self) -> None:
+        state = new_career()
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            cli._render_screen(state, "home", "")
+        text = output.getvalue()
+        self.assertIn("[G]arage", text)
+        self.assertIn("[q Quit]", text)
+        _, screen = run_menu_choice(state, "g", "home")
+        self.assertEqual(screen, "garage")
+
     def test_number_on_drivers_screen_opens_driver_detail(self) -> None:
         state = new_career()
 
@@ -72,7 +129,7 @@ class CliTests(TestCase):
         state = new_career()
         cli._SCREEN_SORTS.clear()
         top_fee_event = sort_items("events", load_events(), SortSpec("fee", True))[0]
-        scripted_input = ["sort fee desc", "1", "q"]
+        scripted_input = ["sort fee desc", "1", "b"]
 
         with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
             run_command(state, "race")
@@ -104,7 +161,7 @@ class CliTests(TestCase):
         state = new_career()
         cli._SCREEN_SORTS.clear()
 
-        with patch("builtins.input", side_effect=["sort hp desc", "q"]), contextlib.redirect_stdout(io.StringIO()) as output:
+        with patch("builtins.input", side_effect=["sort hp desc", "b"]), contextlib.redirect_stdout(io.StringIO()) as output:
             run_command(state, "tune")
 
         self.assertIn("This list has a fixed order.", output.getvalue())
@@ -261,10 +318,46 @@ class CliTests(TestCase):
         self.assertEqual(state.garage[0].tune.engine_map, "balanced")
         self.assertIn("→", output.getvalue())  # live before→after readout rendered
 
+    def test_back_cancels_the_tune_car_picker(self) -> None:
+        # This first step used to accept only q; b is now universal.
+        state = new_career()
+        with patch("builtins.input", side_effect=["b"]), contextlib.redirect_stdout(io.StringIO()) as output:
+            run_command(state, "tune")
+        self.assertIn("Cancelled.", output.getvalue())
+
+    def test_upgrade_part_prompt_buys_with_y_and_backs_with_b(self) -> None:
+        # b used to mean buy here, colliding with universal back; the rebind is
+        # y=buy, i=buy&install, with b returning without a purchase.
+        state = new_career()
+        car_id = state.garage[0].identity.id
+        money_before = state.money
+
+        with patch("builtins.input", side_effect=["b"]), contextlib.redirect_stdout(io.StringIO()):
+            acted = cli._upgrade_part_action_prompt(state, car_id, "sports_ecu")
+        self.assertFalse(acted)
+        self.assertEqual(state.money, money_before)
+
+        with patch("builtins.input", side_effect=["y"]), contextlib.redirect_stdout(io.StringIO()) as output:
+            acted = cli._upgrade_part_action_prompt(state, car_id, "sports_ecu")
+        self.assertTrue(acted)
+        self.assertLess(state.money, money_before)
+        self.assertIn("Bought", output.getvalue())
+
     def test_race_commands_accept_display_labels(self) -> None:
         self.assertEqual(_race_command("Save Fuel"), "save_fuel")
         self.assertEqual(_race_command("Go All Out"), "go_all_out")
         self.assertEqual(_race_command("Cool Down"), "cool_down")
+
+    def test_race_key_table_is_collision_free_and_unshadowed(self) -> None:
+        # The race footer and help are generated from this one table, so a
+        # duplicate key would silently shadow a command (n/f used to be dead:
+        # eaten by next-lap and faster before reaching the pace dispatcher).
+        keys = [key.key for key in cli._race_local_keys()]
+        self.assertEqual(len(keys), len(set(keys)))
+        for pace_key in ("n", "p", "o", "t", "f", "c", "i"):
+            self.assertIn(pace_key, keys)
+        for presentation_key in ("l", ">", "x", "Enter"):
+            self.assertIn(presentation_key, keys)
 
 
 class CompendiumCliTests(TestCase):

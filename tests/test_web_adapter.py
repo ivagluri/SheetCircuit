@@ -344,7 +344,10 @@ class WebRaceTests(TestCase):
         self.assertEqual(meta(game)["mode"], "race_driver")
         out = game.handle_input("1")
         self.assertTrue(meta(game)["in_race"])
-        self.assertIn("cmd+Enter", out)
+        # The lap bar dropped its inline key hints (the CLI footer owns them now);
+        # it still shows progress, the active pace command, and the speed.
+        self.assertIn("[normal]", out)
+        self.assertIn("1x", out)
 
     def test_seeded_race_runs_to_result_and_pays_prize(self) -> None:
         game = make_game(seed=7)

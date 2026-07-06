@@ -135,8 +135,9 @@ class CreatorCompendiumTests(unittest.TestCase):
         app = CreatorApp()
         term = _RecordingTerm()
         app.term = term
-        # index → Cars (1) → Tune (by name) → field 3 → up → up → quit
-        queue = ["1", "tune", "3", "b", "b", "q"]
+        # index → Cars (1) → Tune (by name) → field 3, then b all the way out
+        # (q now quit-confirms per the universal contract; b past the index leaves)
+        queue = ["1", "tune", "3", "b", "b", "b", "b"]
 
         def fake_ask(_label):
             if not queue:

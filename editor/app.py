@@ -11,6 +11,7 @@ from __future__ import annotations
 import copy
 import json
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,7 @@ from game.loader import (
 )
 from game.models import TrackSegment
 from game.simulation import calculate_lap_time
+from interfaces.shell import Action, GoHome, LocalKey, dispatch, footer_line
 from interfaces.terminal import terminal
 
 from editor.fields import (
@@ -382,19 +384,91 @@ class CreatorApp:
             else (next(iter(self.sim_tracks), ""))
         )
         self.sim_mode = 0  # index into SIM_MODE_NAMES; cycled by [M]
+        self.trail: list[str] = ["Creator"]  # breadcrumb of open screens
 
     # -- low-level prompts --------------------------------------------------
     def ask(self, label: str) -> str:
         try:
             return input(f"{label}: ").strip()
         except EOFError:
-            return "q"
+            return "b"
 
     def note(self, text: str) -> None:
         self.term.print(text)
 
     def pause(self) -> None:
         self.term.pause()
+
+    # -- universal screen contract (same as the game: b/q/? + slash palette) --
+    @contextmanager
+    def crumb(self, name: str):
+        self.trail.append(name)
+        try:
+            yield
+        finally:
+            self.trail.pop()
+
+    def chrome(self) -> None:
+        self.term.print_plain(" › ".join(self.trail))
+
+    def confirm(self, prompt: str) -> bool:
+        return self.ask(f"{prompt} [y/N]").strip().lower() in ("y", "yes")
+
+    def prompt_action(self, label: str, keys: tuple[LocalKey, ...] = (), dirty: bool = False) -> Action:
+        """Footer + prompt + universal dispatch, reading through self.ask so the
+        editor stays scriptable. Returns only back/local/text/redraw actions."""
+        self.term.print_plain(footer_line(keys))
+        while True:
+            action = dispatch(self.ask(label), keys)
+            if action.kind == "empty":
+                continue
+            if action.kind == "quit":
+                if self.confirm("Quit the creator?" + (" Unsaved changes will be lost." if dirty else "")):
+                    raise SystemExit
+                return Action("redraw")
+            if action.kind == "help":
+                self.show_help(keys)
+                return Action("redraw")
+            if action.kind == "unknown_palette":
+                self.note(f"Unknown command {action.value}. Palette: /home /ref /quit /help")
+                continue
+            if action.kind == "palette":
+                if action.value == "home":
+                    if not dirty or self.confirm("Discard unsaved changes and return to the main menu?"):
+                        raise GoHome
+                    continue
+                if action.value == "ref":
+                    self.compendium()
+                    return Action("redraw")
+                if action.value == "save":
+                    self.note("Use w inside an editor to validate and write the open draft.")
+                    continue
+                if action.value == "load":
+                    self.note("Open an existing file from the main menu (e/k/f).")
+                    continue
+                continue
+            return action
+
+    def show_help(self, keys: tuple[LocalKey, ...] = ()) -> None:
+        self.term.table(
+            "Universal Keys (work on every screen)",
+            ["Key", "Action"],
+            [
+                ["b / back", "Go back one level"],
+                ["q / quit", "Quit the creator (asks to confirm)"],
+                ["? / h / help", "This help"],
+                ["/home", "Return to the creator main menu from any depth"],
+                ["/ref", "Open the parameter reference, then return here"],
+            ],
+        )
+        if keys:
+            self.term.table(
+                "Screen Keys",
+                ["Key", "Action"],
+                [[key.key, key.description or key.label] for key in keys],
+            )
+        self._help_body()
+        self.pause()
 
     # -- live lap-time readout ---------------------------------------------
     def _sim_lines(self, draft: dict) -> list[str]:
@@ -453,6 +527,19 @@ class CreatorApp:
             if 0 <= idx < len(tracks):
                 self.sim_track_id = tracks[idx].id
 
+    def _help_body(self) -> None:
+        self.term.table(
+            "Creator Keys",
+            ["Key", "Action"],
+            [
+                ["c / t / v", "New car / new track / new event (main menu)"],
+                ["e / k / f", "Edit an existing car / track / event (main menu)"],
+                ["r", "Browse the parameter reference (compendium)"],
+                ["w", "Write/save the open draft (validates against the game loader)"],
+                ["number", "Open the numbered section / field / segment"],
+            ],
+        )
+
     # -- entry --------------------------------------------------------------
     def run(self) -> None:
         if not sys.stdin.isatty():
@@ -464,28 +551,40 @@ class CreatorApp:
                 "SheetCircuit Creator",
                 "Interactive track & car editor — plugs straight into the game data",
             )
+            self.chrome()
             self.term.menu(
                 "[C] New car    [T] New track    [V] New event\n"
                 "[E] Edit car   [K] Edit track    [F] Edit event\n"
-                "[R] Reference (compendium)    [Q] Quit"
+                "[R] Reference (compendium)"
             )
-            choice = self.ask("Choice").lower()
-            if choice in ("q", "quit", ""):
-                return
-            if choice == "c":
-                self.new_car()
-            elif choice == "t":
-                self.edit(TRACK_SCHEMA, copy.deepcopy(TRACK_SCHEMA.template))
-            elif choice == "v":
-                self.edit(EVENT_SCHEMA, copy.deepcopy(EVENT_SCHEMA.template))
-            elif choice == "e":
-                self.open_existing(CAR_SCHEMA, "cars")
-            elif choice == "k":
-                self.open_existing(TRACK_SCHEMA, "tracks")
-            elif choice == "f":
-                self.open_existing(EVENT_SCHEMA, "events")
-            elif choice == "r":
-                self.compendium()
+            try:
+                action = self.prompt_action("Choice")
+            except GoHome:
+                continue  # /home lands on this main menu
+            if action.kind == "back":
+                if self.confirm("Quit the creator?"):
+                    return
+                continue
+            if action.kind != "text":
+                continue
+            choice = action.value.lower()
+            try:
+                if choice == "c":
+                    self.new_car()
+                elif choice == "t":
+                    self.edit(TRACK_SCHEMA, copy.deepcopy(TRACK_SCHEMA.template))
+                elif choice == "v":
+                    self.edit(EVENT_SCHEMA, copy.deepcopy(EVENT_SCHEMA.template))
+                elif choice == "e":
+                    self.open_existing(CAR_SCHEMA, "cars")
+                elif choice == "k":
+                    self.open_existing(TRACK_SCHEMA, "tracks")
+                elif choice == "f":
+                    self.open_existing(EVENT_SCHEMA, "events")
+                elif choice == "r":
+                    self.compendium()
+            except GoHome:
+                continue
 
     def compendium(self) -> None:
         """Browse the parameter reference without leaving the creator. Reuses the
@@ -500,16 +599,21 @@ class CreatorApp:
                 self.term.table(table.title, table.headers, table.rows)
             for message in data.messages:
                 self.note(message)
-            self.term.menu("number/name = open   [B] up a level   [Q] leave reference")
+            self.term.print("number/name = open a chapter/section/field")
+            self.term.print_plain(footer_line())
             raw = self.ask("Reference").strip()
-            if raw.lower() in ("q", "quit"):
-                return
             nxt = compendium_nav(token, raw)
-            if nxt is None:
-                continue  # not navigation — just redraw
-            if nxt == "":
-                return  # backed out past the index
-            token = nxt
+            if nxt is not None:
+                if nxt == "":
+                    return  # backed out past the index
+                token = nxt
+                continue
+            action = dispatch(raw)
+            if action.kind == "quit":
+                if self.confirm("Quit the creator?"):
+                    raise SystemExit
+            elif action.kind == "help":
+                self.show_help()
 
     def new_car(self) -> None:
         """Start a new car from an intrinsic archetype or by cloning a catalog car."""
@@ -588,16 +692,19 @@ class CreatorApp:
     def edit(self, schema: Schema, draft: dict) -> None:
         sections = list(schema.sections)
         is_track = schema.kind == "track"
+        is_car = schema.kind == "car"
         # Snapshot the draft so we can warn on exit if it has unsaved edits; refreshed
         # after every successful write so a saved draft reads as clean again.
         saved = copy.deepcopy(draft)
-        while True:
+
+        def render() -> None:
             self.term.clear()
             label = _get(draft, schema.id_path) or "(unnamed)"
             self.term.header(
                 f"Editing {schema.kind}: {label}",
                 "Pick a section to edit. Save validates against the game loader.",
             )
+            self.chrome()
             rows = [[str(i + 1), s.title] for i, s in enumerate(sections)]
             if is_track:
                 seg_count = len(draft.get("segments", []))
@@ -606,46 +713,54 @@ class CreatorApp:
             preview = {"track": track_preview, "event": event_preview}.get(schema.kind, car_preview)(draft)
             for line in preview:
                 self.note(line)
-            is_car = schema.kind == "car"
             if is_car:
                 for line in self._sim_lines(draft):
                     self.note(line)
-            menu = "number = edit section   [W] write/save   [B] back"
-            if is_car:
-                menu += "   [G] sim track   [M] cycle view"
-            self.term.menu(menu)
-            raw = self.ask("Choice").strip()
-            low = raw.lower()
-            if low in ("b", "q", ""):
-                if draft == saved:
-                    return
-                choice = self.ask(
-                    "Unsaved changes — [s] save  [d] discard & exit  [any] keep editing"
-                ).strip().lower()
-                if choice == "s":
-                    if self._save(schema, draft):
-                        return  # written; nothing left to lose
-                    continue  # save cancelled/failed — stay in the editor
-                if choice == "d":
-                    return
-                continue  # keep editing
-            if low == "w":
-                if self._save(schema, draft):
-                    saved = copy.deepcopy(draft)
-                continue
-            if is_car and low == "g":
-                self.pick_sim_track()
-                continue
-            if is_car and low == "m":
-                self.sim_mode = (self.sim_mode + 1) % len(SIM_MODE_NAMES)
-                continue
-            if is_track and low == "s":
-                self.edit_segments(draft)
-                continue
-            if raw.isdigit():
-                idx = int(raw) - 1
-                if 0 <= idx < len(sections):
-                    self.edit_section(schema, draft, sections[idx])
+            self.term.print("number = edit section")
+
+        keys = [LocalKey("w", "Write", words=("write",), description="Validate and save the draft")]
+        if is_car:
+            keys.append(LocalKey("g", "Sim track", description="Pick the anchor track for the lap-time readout"))
+            keys.append(LocalKey("m", "Cycle view", description="Cycle the lap-time panel view"))
+        if is_track:
+            keys.append(LocalKey("s", "Segments", words=("segments",), description="Edit the track's segment list"))
+        keys = tuple(keys)
+
+        with self.crumb(f"Edit {schema.kind}"):
+            while True:
+                render()
+                action = self.prompt_action("Choice", keys, dirty=draft != saved)
+                if action.kind == "back":
+                    if draft == saved:
+                        return
+                    choice = self.ask(
+                        "Unsaved changes — [s] save  [d] discard & exit  [any] keep editing"
+                    ).strip().lower()
+                    if choice == "s":
+                        if self._save(schema, draft):
+                            return  # written; nothing left to lose
+                        continue  # save cancelled/failed — stay in the editor
+                    if choice == "d":
+                        return
+                    continue  # keep editing
+                if action.kind == "local":
+                    if action.value == "w":
+                        if self._save(schema, draft):
+                            saved = copy.deepcopy(draft)
+                    elif action.value == "g":
+                        self.pick_sim_track()
+                    elif action.value == "m":
+                        self.sim_mode = (self.sim_mode + 1) % len(SIM_MODE_NAMES)
+                    elif action.value == "s":
+                        self.edit_segments(draft)
+                    continue
+                if action.kind != "text":
+                    continue
+                raw = action.value
+                if raw.isdigit():
+                    idx = int(raw) - 1
+                    if 0 <= idx < len(sections):
+                        self.edit_section(schema, draft, sections[idx])
 
     def _save(self, schema: Schema, draft: dict) -> bool:
         """Validate and write the draft. Returns True only if a file was written."""
@@ -683,9 +798,10 @@ class CreatorApp:
 
     # -- section field loop -------------------------------------------------
     def edit_section(self, schema: Schema, draft: dict, section: Section) -> None:
-        while True:
+        def render() -> None:
             self.term.clear()
             self.term.header(f"{schema.kind} · {section.title}")
+            self.chrome()
             rows = []
             for i, spec in enumerate(section.fields):
                 value = _get(draft, spec.path)
@@ -700,14 +816,19 @@ class CreatorApp:
             if schema.kind == "car":
                 for line in self._sim_lines(draft):
                     self.note(line)
-            self.term.menu("number = edit field   [B] back")
-            raw = self.ask("Field").strip()
-            if raw.lower() in ("b", "q", ""):
-                return
-            if raw.isdigit():
-                idx = int(raw) - 1
-                if 0 <= idx < len(section.fields):
-                    self.edit_field(draft, section.fields[idx], schema.kind)
+            self.term.print("number = edit field")
+
+        with self.crumb(section.title):
+            while True:
+                render()
+                action = self.prompt_action("Field")
+                if action.kind == "back":
+                    return
+                raw = action.value
+                if action.kind == "text" and raw.isdigit():
+                    idx = int(raw) - 1
+                    if 0 <= idx < len(section.fields):
+                        self.edit_field(draft, section.fields[idx], schema.kind)
 
     def edit_field(self, draft: dict, spec: FieldSpec, domain: str = "") -> None:
         current = _get(draft, spec.path)
@@ -738,12 +859,14 @@ class CreatorApp:
     # -- segment list editor ------------------------------------------------
     def edit_segments(self, draft: dict) -> None:
         segments: list[dict] = draft.setdefault("segments", [])
-        while True:
+
+        def render() -> None:
             self.term.clear()
             self.term.header(
                 "Track Segments",
                 "Order matters; length_pct must total 1.000. Tags shape each segment's demands.",
             )
+            self.chrome()
             rows = []
             for i, seg in enumerate(segments):
                 rows.append([
@@ -759,28 +882,39 @@ class CreatorApp:
             )
             for line in track_preview(draft):
                 self.note(line)
-            self.term.menu(
-                "number = edit   [A] add   [D <n>] delete   [N] normalize lengths   [B] back"
-            )
-            raw = self.ask("Choice").strip()
-            low = raw.lower()
-            if low in ("b", "q", ""):
-                return
-            if low == "a":
-                segments.append(copy.deepcopy(SEGMENT_TEMPLATE))
-                self.edit_segment(segments[-1])
-            elif low == "n":
-                self._normalize(segments)
-            elif low.startswith("d"):
-                rest = raw[1:].strip()
-                if rest.isdigit():
-                    idx = int(rest) - 1
+            self.term.print("number = edit a segment   d <n> = delete segment n")
+
+        keys = (
+            LocalKey("a", "Add", words=("add",), description="Append a new segment and open it"),
+            LocalKey("n", "Normalize", words=("normalize",), description="Rescale lengths so they total exactly 1.000"),
+        )
+        with self.crumb("Segments"):
+            while True:
+                render()
+                action = self.prompt_action("Choice", keys)
+                if action.kind == "back":
+                    return
+                if action.kind == "local":
+                    if action.value == "a":
+                        segments.append(copy.deepcopy(SEGMENT_TEMPLATE))
+                        self.edit_segment(segments[-1])
+                    elif action.value == "n":
+                        self._normalize(segments)
+                    continue
+                if action.kind != "text":
+                    continue
+                raw = action.value
+                low = raw.lower()
+                if low.startswith("d"):
+                    rest = raw[1:].strip()
+                    if rest.isdigit():
+                        idx = int(rest) - 1
+                        if 0 <= idx < len(segments):
+                            segments.pop(idx)
+                elif raw.isdigit():
+                    idx = int(raw) - 1
                     if 0 <= idx < len(segments):
-                        segments.pop(idx)
-            elif raw.isdigit():
-                idx = int(raw) - 1
-                if 0 <= idx < len(segments):
-                    self.edit_segment(segments[idx])
+                        self.edit_segment(segments[idx])
 
     def _normalize(self, segments: list[dict]) -> None:
         total = sum(float(s.get("length_pct", 0.0)) for s in segments)
@@ -795,9 +929,10 @@ class CreatorApp:
             biggest["length_pct"] = round(biggest["length_pct"] + drift, 4)
 
     def edit_segment(self, seg: dict) -> None:
-        while True:
+        def render() -> None:
             self.term.clear()
             self.term.header(f"Segment · {seg.get('name', '')}")
+            self.chrome()
             rows = []
             for i, spec in enumerate(SEGMENT_FIELDS):
                 rows.append([
@@ -805,34 +940,39 @@ class CreatorApp:
                     self._domain(spec), spec.help,
                 ])
             self.term.table("Segment", ["#", "field", "value", "domain", "help"], rows)
-            self.term.menu("number = edit field   [B] back")
-            raw = self.ask("Field").strip()
-            if raw.lower() in ("b", "q", ""):
-                return
-            if raw.isdigit():
-                idx = int(raw) - 1
-                if 0 <= idx < len(SEGMENT_FIELDS):
-                    spec = SEGMENT_FIELDS[idx]
-                    current = seg.get(spec.key)
-                    self.note(f"\n[bold]{spec.label}[/bold]  current: {self._fmt(current)}")
-                    if spec.help:
-                        self.note(f"  {spec.help}")
-                    entry = registry.entry_for("track", spec.path, segment=True)
-                    if entry and entry.prose:
-                        self.note(f"  {entry.prose}")
-                    if spec.choices:
-                        for j, choice in enumerate(spec.choices):
-                            self.note(f"  [{j + 1}] {choice}")
-                    if spec.kind == "tags":
-                        self.note("  space/comma separated numbers or names; 'none' clears")
-                    val = self.ask("New value (Enter to keep)")
-                    if val == "":
-                        continue
-                    try:
-                        seg[spec.key] = coerce(spec, val, current)
-                    except ValueError as exc:
-                        self.note(f"[red]Rejected:[/red] {exc}")
-                        self.pause()
+            self.term.print("number = edit field")
+
+        with self.crumb("Segment"):
+            while True:
+                render()
+                action = self.prompt_action("Field")
+                if action.kind == "back":
+                    return
+                raw = action.value
+                if action.kind == "text" and raw.isdigit():
+                    idx = int(raw) - 1
+                    if 0 <= idx < len(SEGMENT_FIELDS):
+                        spec = SEGMENT_FIELDS[idx]
+                        current = seg.get(spec.key)
+                        self.note(f"\n[bold]{spec.label}[/bold]  current: {self._fmt(current)}")
+                        if spec.help:
+                            self.note(f"  {spec.help}")
+                        entry = registry.entry_for("track", spec.path, segment=True)
+                        if entry and entry.prose:
+                            self.note(f"  {entry.prose}")
+                        if spec.choices:
+                            for j, choice in enumerate(spec.choices):
+                                self.note(f"  [{j + 1}] {choice}")
+                        if spec.kind == "tags":
+                            self.note("  space/comma separated numbers or names; 'none' clears")
+                        val = self.ask("New value (Enter to keep)")
+                        if val == "":
+                            continue
+                        try:
+                            seg[spec.key] = coerce(spec, val, current)
+                        except ValueError as exc:
+                            self.note(f"[red]Rejected:[/red] {exc}")
+                            self.pause()
 
     # -- formatting helpers -------------------------------------------------
     @staticmethod
