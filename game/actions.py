@@ -1470,7 +1470,13 @@ def race_screen(
         )
     else:
         lap_part = f"Lap {session.current_lap}/{session.total_laps}"
-    subtitle = lap_part + (
+    # Banner context: which event/track this is and who is driving — otherwise the
+    # race never says until the results screen.
+    event_name = session.event.name if session.event is not None else session.event_id
+    track_name = session.track.name if session.track is not None else session.track_id
+    driver = session.driver_roster.get(player.driver_id)
+    driver_name = driver.name if driver is not None else player.driver_id
+    subtitle = f"{event_name} @ {track_name} · {driver_name} · " + lap_part + (
         f" · S{session.current_sub_tick}/{session.ticks_per_lap}" if session.ticks_per_lap > 1 else ""
     )
     return ScreenData(

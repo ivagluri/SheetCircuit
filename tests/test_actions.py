@@ -433,6 +433,20 @@ class ActionLayerTests(unittest.TestCase):
         self.assertEqual(screen.tables[0].title, "Standings")
         self.assertIn("subtitle", asdict(screen))
 
+    def test_race_banner_names_event_track_and_driver(self) -> None:
+        # The live race must say what you're running and who's driving — not
+        # only reveal it on the results screen.
+        cars = {car.identity.id: car for car in load_cars()}
+        state = GameState(garage=[deepcopy(cars["kanto_k660"])])
+
+        session = start_race_action(state, "sunday_cup", "kanto_k660", "driver_novak", seed=3).session
+        subtitle = race_screen(session).subtitle
+
+        self.assertIn(session.event.name, subtitle)
+        self.assertIn(session.track.name, subtitle)
+        self.assertIn(session.driver_roster["driver_novak"].name, subtitle)
+        self.assertIn(f"Lap {session.current_lap}/{session.total_laps}", subtitle)
+
     def test_finish_race_commits_team_xp_event_progress_and_post_race_summary(self) -> None:
         cars = {car.identity.id: car for car in load_cars()}
         drivers = {driver.id: driver for driver in load_drivers()}
