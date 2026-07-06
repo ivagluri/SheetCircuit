@@ -81,6 +81,31 @@ class CompendiumCompletenessTests(unittest.TestCase):
         for rule in SLOT_RULES:
             self.assertIn(f"part.slot.{rule.id}", registry.ENTRIES_BY_ID, rule.id)
 
+    def test_part_catalog_summaries_are_readable(self) -> None:
+        part_entries = [
+            entry
+            for entry_id, entry in registry.ENTRIES_BY_ID.items()
+            if entry_id.startswith("part.") and not entry_id.startswith("part.slot.")
+        ]
+        self.assertTrue(part_entries)
+        raw_fragments = [
+            "powertrain.",
+            "chassis.",
+            "tires.",
+            "brakes.",
+            "suspension.",
+            "aero.",
+            "durability.",
+            "fuel.",
+        ]
+        for entry in part_entries:
+            with self.subTest(entry=entry.id):
+                self.assertFalse(any(fragment in entry.effect_summary for fragment in raw_fragments))
+                self.assertNotIn("\n", entry.effect_summary)
+        self.assertIn("unlocks Engine Map", registry.ENTRIES_BY_ID["part.sports_ecu"].effect_summary)
+        self.assertIn("Aero ++", registry.ENTRIES_BY_ID["part.aero_kit"].effect_summary)
+        self.assertIn("Drag --", registry.ENTRIES_BY_ID["part.aero_kit"].effect_summary)
+
 
 class DomainContentTests(unittest.TestCase):
     """Every section in a fully-authored chapter has an intro, and every entry

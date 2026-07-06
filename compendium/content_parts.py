@@ -8,7 +8,8 @@ the slot rules in ``game.parts``.
 from __future__ import annotations
 
 from game.loader import load_parts
-from game.parts import SLOT_RULES, TUNE_UNLOCK_LABELS
+from game.part_effects import UNLOCK_CONTROL_LABELS, compact_part_effect_summary
+from game.parts import SLOT_RULES
 from compendium.model import Chapter, Entry, Section
 
 DOMAIN = "part"
@@ -104,6 +105,7 @@ def _slots_section() -> Section:
 
 
 def _catalog_section() -> Section:
+    parts = load_parts()
     entries = tuple(
         Entry(
             id=f"part.{part.id}",
@@ -112,25 +114,20 @@ def _catalog_section() -> Section:
             label=part.name,
             units="$",
             value_range=(part.cost, part.cost),
-            effect_summary=_part_summary(part),
+            effect_summary=_part_summary(part, parts),
             prose=_part_prose(part),
             editable_in=("upgrades",),
         )
-        for part in load_parts()
+        for part in parts
     )
     return Section("Catalog", CATALOG_INTRO, entries)
 
 
-def _part_summary(part) -> str:
-    chunks = [f"Slot {part.slot}"]
+def _part_summary(part, catalog) -> str:
+    chunks = [compact_part_effect_summary(part, catalog)]
     if part.stage:
         chunks.append(f"stage {part.stage}")
-    if part.overrides:
-        chunks.extend(f"{path}={value}" for path, value in part.overrides.items())
-    if part.unlocks:
-        chunks.append("unlocks " + ", ".join(TUNE_UNLOCK_LABELS.get(key, key) for key in part.unlocks))
-    if part.modifiers:
-        chunks.append(", ".join(f"{path} {delta:+g}" for path, delta in part.modifiers.items()))
+    chunks.append(f"slot {part.slot}")
     return "; ".join(chunks)
 
 
@@ -140,7 +137,7 @@ def _part_prose(part) -> str:
     if part.slot == "fuel_cell":
         return "Adds real tank range at a weight cost; it changes pit strategy rather than raw burn rate."
     if part.unlocks:
-        labels = ", ".join(TUNE_UNLOCK_LABELS.get(key, key) for key in part.unlocks)
+        labels = ", ".join(UNLOCK_CONTROL_LABELS.get(key, key) for key in part.unlocks)
         return f"Installed hardware unlocks Tune controls for: {labels}."
     if part.stage > 1:
         return "Cumulative staged effect; it replaces the lower stage in the same slot when installed."
