@@ -1072,13 +1072,17 @@ def _tune_section_editor(state: GameState, car_id: str, section: str, draft: dic
         _render_action_screen(screen)
         terminal.print("number/name = edit field")
 
-    with shell.screen(Screen(section.title() if not section.isdigit() else "Section", render=render)):
+    with shell.screen(Screen(section.title() if not section.isdigit() else "Section", keys=(_TUNE_APPLY_KEY,), render=render)):
         while True:
             screen = tune_section_screen(state, car_id, section, draft)
             render()
             action = shell.prompt("Field")
             if action.kind == "back":
                 return
+            if action.kind == "local" and action.value == "w":
+                if _apply_staged_tune(state, car_id, draft):
+                    draft.clear()
+                continue
             raw = action.value
             selected_field = _match_tune_field(screen.fields, raw)
             if selected_field is None:

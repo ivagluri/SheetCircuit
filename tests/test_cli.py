@@ -327,6 +327,26 @@ class CliTests(TestCase):
         self.assertIn("1 staged change (not applied)", output.getvalue())
         self.assertIn("Setup applied: Engine Map.", output.getvalue())
 
+    def test_tune_apply_works_from_field_list(self) -> None:
+        state = new_career()
+        buy_part(state, state.garage[0].identity.id, "sports_ecu", install=True)
+        scripted_input = [
+            "1",
+            "2",
+            "engine map",
+            "3",
+            "w",
+            "b",
+            "b",
+        ]
+
+        with patch("builtins.input", side_effect=scripted_input), contextlib.redirect_stdout(io.StringIO()) as output:
+            run_command(state, "tune")
+
+        self.assertEqual(state.garage[0].tune.engine_map, "hot")
+        self.assertIn("[w Apply setup]", output.getvalue())
+        self.assertNotIn("Unknown tune field: w", output.getvalue())
+
     def test_tune_sections_and_fields_accept_display_labels(self) -> None:
         state = new_career()
         buy_part(state, state.garage[0].identity.id, "sports_ecu", install=True)

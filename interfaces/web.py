@@ -639,7 +639,7 @@ class WebGame:
             terminal.header(screen.title, screen.subtitle)
             self._print_status_menu("tune")
             cli._render_action_screen(screen)
-            terminal.print("number/name = edit field  |  B = back to sections")
+            terminal.print("number/name = edit field  |  W = apply staged setup  |  B = back to sections")
         elif self.mode == MODE_TUNE_EXIT:
             terminal.header("Tune", "Staged changes not applied")
             self._print_status_menu("tune")
@@ -886,9 +886,13 @@ class WebGame:
         self._print_mode_view()
 
     def _tune_field_input(self, raw: str) -> None:
-        if raw.lower() in _TUNE_BACK_WORDS:
+        low = raw.lower()
+        if low in _TUNE_BACK_WORDS:
             self.mode = MODE_TUNE_SECTIONS
             self._print_mode_view()
+            return
+        if low in {"w", "write", "apply"}:
+            self._apply_tune_draft(exit_after=False, return_mode=MODE_TUNE_FIELD)
             return
         screen = tune_section_screen(self.state, self._tune_car_id, self._tune_section, self._tune_draft)
         selected_field = cli._match_tune_field(screen.fields, raw)
@@ -953,16 +957,16 @@ class WebGame:
         self.mode = MODE_TUNE_SECTIONS
         self._print_mode_view()
 
-    def _apply_tune_draft(self, exit_after: bool) -> None:
+    def _apply_tune_draft(self, exit_after: bool, return_mode: str = MODE_TUNE_SECTIONS) -> None:
         if not self._tune_draft:
-            self.mode = MODE_TUNE_SECTIONS
+            self.mode = return_mode
             self._print_mode_view()
             terminal.print("No staged changes to apply.")
             return
         try:
             result = apply_tune_draft(self.state, self._tune_car_id, dict(self._tune_draft))
         except TuningError as exc:
-            self.mode = MODE_TUNE_SECTIONS
+            self.mode = return_mode
             self._print_mode_view()
             terminal.print(f"Cannot apply: {exc}")
             return
@@ -972,7 +976,7 @@ class WebGame:
             self.screen = "garage"
             self._print_main_view()
         else:
-            self.mode = MODE_TUNE_SECTIONS
+            self.mode = return_mode
             self._print_mode_view()
         terminal.print(result.message)
 

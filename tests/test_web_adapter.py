@@ -236,6 +236,18 @@ class WebTuneTests(TestCase):
         self.assertEqual(game.state.garage[0].tune.tire_pressure_front, 2.2)
         self.assertEqual(meta(game)["mode"], MODE_TUNE_SECTIONS)
 
+    def test_tune_apply_works_from_field_list(self) -> None:
+        game = make_game()
+        self._open_tyres_section(game)
+        game.handle_input("tire_pressure_front")
+        game.handle_input("2.2")
+        out = game.handle_input("w")
+
+        self.assertIn("Setup applied", out)
+        self.assertEqual(game.state.garage[0].tune.tire_pressure_front, 2.2)
+        self.assertEqual(meta(game)["mode"], "tune_field")
+        self.assertNotIn("Unknown tune field: w", out)
+
     def test_tune_option_field_by_number(self) -> None:
         game = make_game()
         game.handle_input("buy part torino_500r sports_ecu install")
