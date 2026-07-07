@@ -3,6 +3,24 @@
 Shipped history: what landed, by commit, newest first. (Older sections below were
 written on the `refactor/track-agnostic-sim` branch.)
 
+## Playtest fixes
+
+- **Intrinsic class/PR and gentler wear pace** (`7e09418`) — class, PR, class breakdown,
+  and performance shape now compute from a nominal-condition copy of the car, so repairing
+  or racing wear cannot flip event eligibility. Live condition still affects lap pace,
+  reliability, and resale, but the pace curve is gentle above wrecked condition; ordinary
+  wear mostly bites through failure risk and value.
+- **One-sided rival anchoring** (`c43d1f2`) — ladder/invitational rival fields keep the
+  slow-player mercy floor but no longer chase a fast legal player upward. Matchmaking caps
+  at an event-typical eligible pace, while practice events still match the player directly.
+- **Mid-pack economy relief** (`820f26d`, `f5b1a83`) — non-practice events now pay through
+  fifth place, and repairs are value-scaled with full/half/patch tiers instead of one flat
+  expensive button.
+- **Shell contract fixes** (`839da5e`, `e5cc9c3`) — guided save/load path prompts now use
+  the shared shell contract (`b/q/?` and palette work, Enter keeps the default `.json`
+  path, command-word filenames are rejected), and `[w Apply setup]` works from tune field
+  lists in both CLI and web.
+
 ## De-bloat audit
 
 - **Dead code deleted** (`479a967`) — a full-codebase audit (every definition

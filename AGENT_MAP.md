@@ -14,6 +14,8 @@ Project docs: `CHANGELOG.md` = shipped history (what landed, by commit), self-co
 - Pace/thermal probe: `python3 tools/pace_probe.py` (per-lap temps/wear/incident table)
 - Event probe: `python3 tools/probe_event.py <event_id>` (field pace, matchmaking, outcomes)
 - Car inspector: `python3 tools/inspect_car.py <car_id> [field=VALUE ...]` (stat what-ifs)
+- Scripted pty playtests: `python3 tests/playtest/play2.py` (real terminal sessions;
+  deliberately outside unittest discovery)
 - Editor reachability harness: `python3 -m editor._verify`
 - Optional terminal polish: `python3 -m pip install -r requirements.txt`
 
@@ -52,8 +54,10 @@ game/
                      team_xp, garage, hired_drivers, event_progress.
   save_load.py       Versioned JSON save/load (schema v2 includes team progression).
   actions.py         UI-neutral service layer for CLI and future web UI.
-  economy.py         buy_car(), sell_car(), repair_car(), buy_part(), install_part(),
-                     uninstall_part() (unequip = back to stock, no refund).
+  economy.py         buy_car(), sell_car(), repair_car(), repair_cost(), buy_part(),
+                     install_part(), uninstall_part() (unequip = back to stock, no
+                     refund). Repairs are value-scaled and callers choose full/half/patch
+                     point tiers.
   parts.py           GT-style upgrade parts: SLOT_RULES (one part per slot),
                      part_map()/canonical_part_id(), installed_part_for_slot(),
                      installed_unlocks() — parts can gate tune fields (e.g. a
@@ -79,14 +83,17 @@ game/
   effective_stats.py compute_effective_stats(), derived_rating()/class_rating(),
                      performance_type(). Secondary car/tune/durability stats fold
                      into the 7 effective axes via centered factors (see the
-                     "orphan-stat reference points" block in constants). Also home
-                     of the shared clamp().
+                     "orphan-stat reference points" block in constants). PR/class/shape
+                     use a nominal-condition copy, while live condition still affects
+                     pace/reliability/resale through the gentler condition curve. Also
+                     home of the shared clamp().
   reference_suite.py Intrinsic fixed archetype-track fixtures (drag/slalom/hybrid)
                      that runtime class derivation reads capability from — class is
                      a property of the car alone, never the loaded track catalog.
   event_display.py   Shared event UI text for progression requirement/status and
                      best-progress summaries.
-  opponents.py       Event entry validation and event-pace-aware AI grid generation.
+  opponents.py       Event entry validation and event-pace-aware AI grid generation:
+                     slow-player floor plus fast-player event-typical cap.
   simulation.py      Lap-time formula and non-interactive full race simulation.
                      Resolution-invariant: noise (driver variance, rival jitter) scales by
                      sqrt(slice) so any tick count yields the same per-lap spread; the live
@@ -108,7 +115,8 @@ interfaces/
                      auto-generated footer, slash palette, confirm helpers, GoHome.
   cli.py             Terminal state machine on top of the shell: Home + browse
                      screens (run_menu_choice), guided pickers (_picker/_choose),
-                     upgrades/tune editors, the live race loop.
+                     upgrades/tune editors, repair tiers, shell-backed save/load path
+                     prompts, the live race loop.
   terminal.py        Rich/stdlib terminal adapter. Chrome (footers/breadcrumbs)
                      must go through print_plain() — rich's markup parser eats
                      bracketed text like "[q Quit]" otherwise.
@@ -526,14 +534,18 @@ max_overall_condition  allowed_tires  max_class_rating
 letter class.
 
 Field generation is event-set difficulty plus dynamic pace matching (see
-`EVENT_PACE_FLOOR_PERCENTILE` and `RIVAL_MATCH_*` constants):
+`EVENT_PACE_FLOOR_PERCENTILE`, `EVENT_PACE_ANCHOR_PERCENTILE`, and `RIVAL_MATCH_*`
+constants):
 
 ```text
 1. eligible = cars that pass car_class_limit + event restrictions
 2. compute each eligible car's natural lap on the event track
-3. anchor rival selection near the player's natural event pace
-   -> higher-class events use an event-floor percentile so a very slow car
-      cannot scale the whole field all the way down
+3. anchor rival selection by event kind
+   -> practice uses the player's natural event pace
+   -> ladder/invitational events keep an event-floor percentile so a very slow
+      car cannot scale the whole field all the way down
+   -> fast legal cars are capped to an event-typical percentile, so the field
+      does not rubber-band upward forever
    -> thin/edge pools reuse nearby models with unique opponent ids
 4. rival_skill = event.rival_skill or CLASS_RIVAL_SKILL[class]
 5. each rival is a real copied car + generated Driver; no performance scalar
@@ -553,7 +565,8 @@ overtaking     (OVERTAKE_* constants)                    -> passes must stick; t
 deterministic runs / tests). `simulate_race` is the quick, deterministic,
 all-normal summary and does NOT apply jitter/reactive push. Both paths seed the
 opponent builder with the player's actual garage car, so tune/condition/upgrades
-can affect the peer pool.
+can affect the peer pool. Class/PR eligibility itself remains intrinsic and ignores
+current condition.
 
 If balancing feels wrong, inspect (tune constants first):
 
@@ -562,6 +575,18 @@ constants.py  (RIVAL_* block)
 game/opponents.py
 data/events/*.json   (one file per event; race length lives here)
 game/effective_stats.py
+```
+
+## Scripted Pty Playtests
+
+`tests/playtest/` contains expect-style terminal drivers created during the 2026-07-07
+playtest audit. They drive `python3 main.py` through a real pty and write transcript logs
+next to the scripts. Their filenames are intentionally `play*.py`, not `test*.py`, so
+unittest discovery ignores them. Run one directly when validating career pacing or shell
+contract regressions:
+
+```text
+python3 tests/playtest/play2.py
 ```
 
 ## Tuning And User Input Validation

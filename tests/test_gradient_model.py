@@ -92,8 +92,12 @@ class ClimbModelTests(unittest.TestCase):
         self.assertAlmostEqual(whole, pieces, places=6)
 
     def test_climb_does_not_change_derived_class(self) -> None:
-        # Class reads the flat reference suite's composite, not lap time, so it's untouched.
-        self.assertEqual(derived_class(self.cars["bavaria_325s"], self.parts), "D")
+        # Class reads the flat reference suite's composite, not lap time, so climb
+        # calculations must not mutate or reclass the car.
+        car = self.cars["bavaria_325s"]
+        before = derived_class(car, self.parts)
+        calculate_lap_time(compute_effective_stats(car, self.parts), self.tracks["granite_peak_hillclimb"])
+        self.assertEqual(derived_class(car, self.parts), before)
 
 
 class GranitePeakRealismTests(unittest.TestCase):
