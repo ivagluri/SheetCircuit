@@ -555,13 +555,3 @@ def load_parts(data_root: Path = DATA_ROOT) -> list[Part]:
     parts = _objects_from_dir("parts", part_from_dict, data_root)
     _validate_parts(parts)
     return parts
-
-
-def load_all_data(data_root: Path = DATA_ROOT) -> dict[str, list[Any]]:
-    return {
-        "cars": load_cars(data_root),
-        "drivers": load_drivers(data_root),
-        "tracks": load_tracks(data_root),
-        "events": load_events(data_root),
-        "parts": load_parts(data_root),
-    }

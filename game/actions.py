@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TIRE_CRITICAL_C, TUNE_FIELD_RANGES
+from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TUNE_FIELD_RANGES
 from game.economy import buy_car, buy_part, fire_driver, hire_driver, install_part, repair_car, sell_car, uninstall_part
 from game.effective_stats import class_breakdown, class_rating, compute_effective_stats, derived_class, performance_type
 from game.event_display import event_best_text, event_kind_label, event_progress_rows, event_requirement_text, team_status_text, xp_needed_for_team_level
@@ -199,14 +199,6 @@ def market_screen(sort_spec: SortSpec | None = None) -> ScreenData:
             )
         ],
     )
-
-
-def upgrades_car_screen(state: GameState, sort_spec: SortSpec | None = None) -> ScreenData:
-    screen = garage_screen(state, sort_spec)
-    screen.name = "upgrades_car"
-    screen.title = "Upgrades"
-    screen.subtitle = "Choose a car to buy, install, or unequip parts."
-    return screen
 
 
 def upgrades_slot_screen(state: GameState, car_id: str) -> ScreenData:
@@ -930,22 +922,6 @@ def event_detail_screen(event_id: str, state: GameState | None = None) -> Screen
         subtitle=track.name,
         tables=tables,
     )
-
-
-def race_entry_screen(state: GameState, step: str = "events", sort_spec: SortSpec | None = None) -> ScreenData:
-    """Guided race picker. ``sort_spec`` applies to the step's own list (events,
-    garage cars, or drivers), same as the standalone screens."""
-    if step == "cars":
-        return garage_screen(state, sort_spec)
-    if step == "drivers":
-        drivers = sort_items("drivers", state.hired_drivers or load_drivers(), sort_spec)
-        screen = drivers_screen(state, sort_spec)
-        screen.tables[0].rows = [
-            [index, driver.name, driver.pace, driver.consistency, driver.feedback, driver.potential, f"${driver.salary}"]
-            for index, driver in enumerate(drivers, start=1)
-        ]
-        return screen
-    return events_screen(state, sort_spec)
 
 
 def _table_title(title: str, screen: str, sort_spec: SortSpec | None) -> str:

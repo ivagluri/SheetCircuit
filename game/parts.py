@@ -171,13 +171,6 @@ def lock_reason_for_tune_field(car: Car, field_name: str, parts: list[Part]) -> 
     return f"Install {TUNE_UNLOCK_LABELS[unlock]} to adjust"
 
 
-def tune_field_value_allowed(car: Car, field_name: str, value: Any, parts: list[Part]) -> bool:
-    if field_name == "engine_map":
-        return value == "balanced" or UNLOCK_ECU in installed_unlocks(car, parts)
-    unlock = TUNE_FIELD_UNLOCKS.get(field_name)
-    return unlock is None or unlock in installed_unlocks(car, parts)
-
-
 def tune_unlock_required_for_value(field_name: str, value: Any) -> str:
     if field_name == "engine_map" and value != "balanced":
         return UNLOCK_ECU

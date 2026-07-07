@@ -10,7 +10,6 @@ from constants import (
     FREE_AGENT_POOL_SIZE,
     FREE_AGENT_REFRESH_WEEKS,
 )
-from game import driver_gen
 from game.driver_gen import (
     PROGRESSION_STATS,
     compute_salary,

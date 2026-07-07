@@ -44,12 +44,10 @@ from editor.fields import (
     EVENT_SCHEMA,
     SEGMENT_FIELDS,
     SEGMENT_TEMPLATE,
-    SEGMENT_TAGS,
     Schema,
     Section,
     FieldSpec,
     TRACK_SCHEMA,
-    TRACK_SECTIONS,
 )
 from editor.sample_tracks import SAMPLE_TRACKS
 from compendium import registry

@@ -29,7 +29,6 @@ from game.actions import (
     tune_fields_screen,
     upgrade_part_detail_screen,
     upgrades_part_screen,
-    upgrades_slot_screen,
 )
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState, new_career

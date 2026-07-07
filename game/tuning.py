@@ -1,28 +1,17 @@
 from __future__ import annotations
 
-from copy import deepcopy
-from dataclasses import fields
-
 from constants import (
     ENGINE_MAP_POWER,
     TUNE_FIELD_RANGES,
 )
 from game.game_state import GameState
 from game.loader import load_parts
-from game.models import Car, TuneSetup
+from game.models import Car
 from game.parts import TUNE_UNLOCK_LABELS, is_tune_setup_field, tune_unlock_required_for_value
 
 
 class TuningError(ValueError):
     """Raised when a tune cannot be applied."""
-
-
-def set_tune(game_state: GameState, car_id: str, tune_setup: TuneSetup) -> GameState:
-    car = _garage_car(game_state, car_id)
-    for field in fields(TuneSetup):
-        _validate_tune_value(car, field.name, getattr(tune_setup, field.name), getattr(car.tune, field.name))
-    car.tune = deepcopy(tune_setup)
-    return game_state
 
 
 def update_tune_fields(game_state: GameState, car_id: str, **fields: object) -> GameState:

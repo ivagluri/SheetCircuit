@@ -5,7 +5,7 @@ import shlex
 import shutil
 import sys
 
-from constants import PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ
+from constants import TICK_RATE_HZ
 # Presentation fast-forward multipliers cycled with F in the race loop. Pure render speed:
 # they change only the per-tick wall-clock pause, never the simulated result.
 _RACE_SPEEDS = (1.0, 2.0, 4.0, 8.0)
@@ -36,7 +36,6 @@ from game.actions import (
     market_car_extended_screen,
     race_clock_elapsed,
     race_command_options,
-    race_entry_screen,
     race_screen,
     repair_car_action,
     save_game_action,
@@ -81,8 +80,6 @@ from interfaces.render_text import (
     render_drivers,
     render_events,
     render_garage,
-    render_race_status,
-    standings_rows,
 )
 from interfaces.terminal import RICH_AVAILABLE, terminal
 

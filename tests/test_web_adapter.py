@@ -6,7 +6,6 @@ from unittest import TestCase
 
 import interfaces.cli as cli
 from constants import SCHEMA_VERSION
-from game.game_state import new_career
 from game.loader import load_drivers
 from interfaces.web import (
     MODE_MENU,

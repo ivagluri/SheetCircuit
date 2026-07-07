@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import constants as C
 import game.effective_stats as ES
-from game.effective_stats import compute_effective_stats, derived_class, derived_rating, performance_type, rating_class
+from game.effective_stats import compute_effective_stats, derived_rating, performance_type, rating_class
 from game.loader import load_cars, load_parts, load_tracks
 from game.simulation import calculate_lap_time
 

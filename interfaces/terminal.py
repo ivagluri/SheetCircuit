@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import shutil
 import sys
 from typing import Sequence
@@ -23,12 +22,6 @@ except ImportError:
     Panel = None
     Table = None
     RICH_AVAILABLE = False
-
-
-@dataclass
-class Column:
-    header: str
-    values: list[str]
 
 
 class Terminal:

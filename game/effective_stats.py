@@ -38,7 +38,7 @@ from constants import (
     WEIGHT_REFERENCE_KG,
 )
 from game.loader import load_parts
-from game.models import Car, EffectiveCarStats, Part, TuneSetup
+from game.models import Car, EffectiveCarStats, Part
 from game.parts import normalize_part_ids
 
 
@@ -98,12 +98,6 @@ def _apply_override(car: Car, path: str, value: int | float | str) -> None:
     target_name, attr_name = path.split(".", maxsplit=1)
     target = getattr(car, target_name)
     setattr(target, attr_name, value)
-
-
-def set_tune(car: Car, tune_setup: TuneSetup) -> Car:
-    tuned = deepcopy(car)
-    tuned.tune = deepcopy(tune_setup)
-    return tuned
 
 
 def compute_effective_stats(car: Car, parts: list[Part] | None = None) -> EffectiveCarStats:
