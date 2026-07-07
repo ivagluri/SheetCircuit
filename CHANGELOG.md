@@ -3,6 +3,30 @@
 Shipped history: what landed, by commit, newest first. (Older sections below were
 written on the `refactor/track-agnostic-sim` branch.)
 
+## De-bloat audit
+
+- **Dead code deleted** (`479a967`) — a full-codebase audit (every definition
+  cross-referenced against every call site, including tests and the web bundles) removed
+  ~15 orphaned functions left behind by earlier reworks: the legacy string renderers and
+  unused row builders in `render_text.py`, two superseded `set_tune` implementations,
+  the pre-picker `upgrades_car_screen`/`race_entry_screen` screens, `load_all_data`,
+  `tune_field_value_allowed`, the never-instantiated `Column` dataclass, the orphaned
+  `CAR_MOD_FIELD_*` constants from the removed hard-mod feature, and a dozen unused
+  imports. 211 lines gone, zero behavior change.
+- **Duplicated helpers consolidated** (`947f223`, `04b2813`) — seven copy-paste
+  duplications now live in one home each: the slot/part picker-input matchers moved from
+  both interfaces into `game.parts` (`match_part_slot`/`match_slot_part`), the compendium
+  Range/Ideal/Editable column formatters into a new `compendium/format.py` shared by the
+  in-game screens and the static page, `clamp` into `game.effective_stats`, `slug` into
+  `compendium.harvest`, the browse/sort screen tuple into `game.sorting.SORTABLE_SCREENS`,
+  text truncation into `game.actions.clip_text`, and the class rank map into
+  `constants.CLASS_ORDER` (derived from `CLASS_THRESHOLDS` so it can never drift). Only
+  visible change: post-race truncation now uses `…` instead of `...`.
+- **Agent map refreshed** (`ab561c6`) — `AGENT_MAP.md` no longer references the deleted
+  code and now documents the previously unmapped modules (`reference_suite`,
+  `compendium/harvest` + `format`, the editor web adapter/sample tracks/verify harness,
+  and the `probe_event`/`inspect_car` tools).
+
 ## UI polish
 
 - **Readable upgrade effects** (`67e97ba` → `e33b37f`) — the upgrade shop and parts compendium no longer expose
