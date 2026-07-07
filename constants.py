@@ -419,9 +419,19 @@ EVENT_PACE_FLOOR_PERCENTILE: dict[str, float] = {
     "A": 0.20,
     "S": 0.10,
 }
+# One-sided fast-player cap. Rivals in ladder/invitational events anchor no faster than
+# an event-typical eligible car, so an over-built legal entry can actually pull away.
+EVENT_PACE_ANCHOR_PERCENTILE: dict[str, float] = {
+    "E": 0.35,
+    "D": 0.35,
+    "C": 0.30,
+    "B": 0.25,
+    "A": 0.15,
+    "S": 0.05,
+}
 RIVAL_SKILL_SIGMA = 8.0          # seeded spread around an event's rival_skill
-# Rival cars are matched around the player's derived event pace instead of the
-# fastest eligible car. The band scales with track length, and the local pool expands
+# Rival cars are matched around the event anchor (player pace, slow-player floor, or
+# fast-player typical cap). The band scales with track length, and the local pool expands
 # to a few nearest neighbours so tiny catalogs still have variety.
 RIVAL_MATCH_LAP_BAND_FRAC = 0.025
 RIVAL_MATCH_EXPANSION_FACTOR = 2.0

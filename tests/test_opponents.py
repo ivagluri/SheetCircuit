@@ -102,14 +102,24 @@ class OpponentGenerationTests(unittest.TestCase):
         # field) rather than dominant or hopeless.
         self.assertLessEqual(result.player_position, field_size // 2)
 
-    def test_field_is_tight_not_a_blowout(self) -> None:
+    def test_fast_legal_entry_can_pull_clear_of_event_typical_field(self) -> None:
+        event = self.events["sunday_cup"]
+        track = self.tracks[event.track_id]
+        opponent_cars, _drivers, entries = build_opponent_grid(
+            event, "kanto_k660", self.drivers["driver_novak"], self.cars, self.parts, track, seed=1
+        )
+        player_lap = calculate_lap_time(compute_effective_stats(self.cars["kanto_k660"], self.parts), track)
+        rival_laps = [
+            calculate_lap_time(compute_effective_stats(opponent_cars[car_id], self.parts), track)
+            for car_id, _driver_id in entries
+        ]
+
+        self.assertLess(player_lap, min(rival_laps))
+
         state = GameState(garage=[deepcopy(self.cars["kanto_k660"])])
         result = simulate_race(state, "sunday_cup", "kanto_k660", "driver_novak", seed=1)
 
-        spread = max(s.total_time for s in result.standings) - min(s.total_time for s in result.standings)
-        base = self.tracks["maple_short"].base_lap_time
-        # Whole field finishes within a fraction of a single lap of each other.
-        self.assertLess(spread, base * 0.25)
+        self.assertEqual(result.player_position, 1)
 
     def test_rivals_are_not_all_identical(self) -> None:
         state = GameState(team_xp=100, garage=[deepcopy(self.cars["kanto_k660"])])

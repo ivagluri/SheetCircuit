@@ -33,6 +33,7 @@ from game.opponents import (
     _effective_rival_skill,
     _event_floor_lap,
     _event_peer_pool,
+    _event_typical_lap,
     _is_eligible,
     _natural_lap,
 )
@@ -70,6 +71,7 @@ def main() -> None:
     )
     eligible_laps = [lap for lap, _car, ok in profiles if ok]
     floor_lap = _event_floor_lap(eligible_laps, event.car_class_limit)
+    typical_lap = _event_typical_lap(eligible_laps, event.car_class_limit)
 
     print(f"\n== Field: natural lap on {track.id} (no driver, no wear — the matchmaking metric)")
     print(f"   {'lap':>9}  {'car':26} {'cls':3} {'PR':>4}  eligible")
@@ -80,6 +82,7 @@ def main() -> None:
             f" {derived_rating(car, parts):4}  {'yes' if ok else '-'}{marker}"
         )
     print(f"   pace floor for class {event.car_class_limit}: {floor_lap:.3f}")
+    print(f"   typical anchor for class {event.car_class_limit}: {typical_lap:.3f}")
 
     if not args.car_id:
         return
@@ -90,16 +93,29 @@ def main() -> None:
         print(f"\n!! {args.car_id} is not eligible for this event; matchmaking view is hypothetical.")
 
     player_lap = _natural_lap(player_car, parts, track)
-    anchor = min(player_lap, floor_lap)
     # Mirror build_opponent_grid: rivals come from the eligible field minus the player's car.
     field = [deepcopy(car) for car in cars if car.identity.id != player_car.identity.id and _is_eligible(car, event, parts)]
+    field_laps = [_natural_lap(car, parts, track) for car in field]
+    match_floor_lap = _event_floor_lap(field_laps, event.car_class_limit)
+    match_typical_lap = _event_typical_lap(field_laps, event.car_class_limit)
+    if event.event_kind == "practice":
+        anchor = player_lap
+        anchor_src = "player pace (practice)"
+    else:
+        floor_capped = min(player_lap, match_floor_lap)
+        anchor = max(floor_capped, match_typical_lap)
+        if anchor == match_typical_lap and player_lap < match_typical_lap:
+            anchor_src = "event-typical cap (player is faster)"
+        elif anchor == match_floor_lap and player_lap > match_floor_lap:
+            anchor_src = "event floor (player is slower)"
+        else:
+            anchor_src = "player pace"
     pool = _event_peer_pool(player_car, field, parts, track, event)
     race_laps = race_format.laps or (race_format.duration_s / anchor if race_format.duration_s else 0.0)
 
     from constants import RIVAL_MATCH_LAP_BAND_FRAC
 
     print(f"\n== Matchmaking for {args.car_id} (natural lap {player_lap:.3f})")
-    anchor_src = "player pace" if player_lap <= floor_lap else f"event floor (player is slower)"
     print(
         f"   anchor {anchor:.3f} ({anchor_src}) | band ±{anchor * RIVAL_MATCH_LAP_BAND_FRAC:.3f}s/lap"
         f" | race ≈ {race_laps:.1f} laps"

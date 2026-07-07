@@ -7,6 +7,7 @@ from constants import (
     CLASS_ORDER,
     CLASS_RIVAL_SKILL,
     EVENT_KIND_PRACTICE,
+    EVENT_PACE_ANCHOR_PERCENTILE,
     EVENT_PACE_FLOOR_PERCENTILE,
     RIVAL_MATCH_LAP_BAND_FRAC,
     RIVAL_MATCH_EXPANSION_FACTOR,
@@ -102,8 +103,10 @@ def _event_peer_pool(
     if event.event_kind == EVENT_KIND_PRACTICE:
         anchor_lap = player_lap
     else:
-        floor_lap = _event_floor_lap([lap for _car, lap in profiles], event.car_class_limit)
-        anchor_lap = min(player_lap, floor_lap)
+        field_laps = [lap for _car, lap in profiles]
+        floor_lap = _event_floor_lap(field_laps, event.car_class_limit)
+        typical_lap = _event_typical_lap(field_laps, event.car_class_limit)
+        anchor_lap = max(min(player_lap, floor_lap), typical_lap)
     profiles.sort(key=lambda profile: (abs(profile[1] - anchor_lap), derived_rating(profile[0], parts), profile[0].identity.id))
 
     band = anchor_lap * RIVAL_MATCH_LAP_BAND_FRAC
@@ -125,10 +128,18 @@ def _event_peer_pool(
 
 
 def _event_floor_lap(laps: list[float], class_limit: str) -> float:
+    return _event_percentile_lap(laps, class_limit, EVENT_PACE_FLOOR_PERCENTILE)
+
+
+def _event_typical_lap(laps: list[float], class_limit: str) -> float:
+    return _event_percentile_lap(laps, class_limit, EVENT_PACE_ANCHOR_PERCENTILE)
+
+
+def _event_percentile_lap(laps: list[float], class_limit: str, percentiles: dict[str, float]) -> float:
     if not laps:
         return float("inf")
     ordered = sorted(laps)
-    percentile = EVENT_PACE_FLOOR_PERCENTILE.get(class_limit, EVENT_PACE_FLOOR_PERCENTILE["E"])
+    percentile = percentiles.get(class_limit, percentiles["E"])
     percentile = clamp(percentile, 0.0, 1.0)
     index = round((len(ordered) - 1) * percentile)
     return ordered[index]
