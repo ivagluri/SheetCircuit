@@ -12,6 +12,9 @@ Project docs: `CHANGELOG.md` = shipped history (what landed, by commit), self-co
 - Compile check: `python3 -m compileall .`
 - Progression probe: `python3 tools/probe_progression.py`
 - Pace/thermal probe: `python3 tools/pace_probe.py` (per-lap temps/wear/incident table)
+- Event probe: `python3 tools/probe_event.py <event_id>` (field pace, matchmaking, outcomes)
+- Car inspector: `python3 tools/inspect_car.py <car_id> [field=VALUE ...]` (stat what-ifs)
+- Editor reachability harness: `python3 -m editor._verify`
 - Optional terminal polish: `python3 -m pip install -r requirements.txt`
 
 ## Top-Level Flow
@@ -27,7 +30,8 @@ main.py
       (GoHome from any nested picker/editor unwinds back to Home)
 ```
 
-For future web UI, prefer calling `game.actions` instead of `interfaces.cli`.
+The browser build (`interfaces/web.py`) and any future UI should prefer calling
+`game.actions` over `interfaces.cli` internals.
 
 ## Architecture Tree
 
@@ -54,6 +58,8 @@ game/
                      part_map()/canonical_part_id(), installed_part_for_slot(),
                      installed_unlocks() — parts can gate tune fields (e.g. a
                      sports ECU unlocks engine maps; lock_reason_for_tune_field()).
+                     match_part_slot()/match_slot_part() parse picker input (number,
+                     id, or label) — shared by the CLI and web interfaces.
   part_effects.py    Readable part-effect display layer: stat-path metadata,
                      simulation-aware polarity, catalog-relative intensity,
                      compact summaries, and selected-part detail rows.
@@ -66,14 +72,18 @@ game/
   progression.py     Pure team career progression helpers: Team XP -> Team Level,
                      event-progress normalization/update, and Team XP award math
                      (finish quality, event kind, repeat wins, first-win bonus).
-  tuning.py          set_tune(), update_tune_fields(), tune validation. Covers setup
-                     knobs (TuneSetup) and garage-tweakable hard-mod car stats
-                     (constants.CAR_MOD_FIELD_SECTIONS); tune_target() maps a field
-                     name to the object that owns it.
+  tuning.py          update_tune_fields(), validate_tune_field(), tune validation
+                     for the setup knobs (TuneSetup); tune_target() maps a field
+                     name to the object that owns it. Permanent hardware changes
+                     are parts (Upgrades), not tune fields.
   effective_stats.py compute_effective_stats(), derived_rating()/class_rating(),
                      performance_type(). Secondary car/tune/durability stats fold
                      into the 7 effective axes via centered factors (see the
-                     "orphan-stat reference points" block in constants).
+                     "orphan-stat reference points" block in constants). Also home
+                     of the shared clamp().
+  reference_suite.py Intrinsic fixed archetype-track fixtures (drag/slalom/hybrid)
+                     that runtime class derivation reads capability from — class is
+                     a property of the car alone, never the loaded track catalog.
   event_display.py   Shared event UI text for progression requirement/status and
                      best-progress summaries.
   opponents.py       Event entry validation and event-pace-aware AI grid generation.
@@ -89,7 +99,8 @@ game/
                      driver XP, and car wear, returning `FinishEventResult`; sessions
                      snapshot the player's pre-race car condition for post-race deltas.
   telemetry.py       Telemetry history, warnings, mistake/failure probabilities.
-  sorting.py         SortSpec parsing and per-screen list sorting (class/PR/type-aware).
+  sorting.py         SortSpec parsing and per-screen list sorting (class/PR/type-aware);
+                     SORTABLE_SCREENS is the canonical browse/sort screen tuple.
 
 interfaces/
   shell.py           THE universal screen contract (see ## UI Shell Contract):
@@ -103,8 +114,11 @@ interfaces/
                      bracketed text like "[q Quit]" otherwise.
   menu.py            MENU_ACTIONS (Home tab list + hotkeys) and global status bar,
                      including Team Level/XP display via `team_xp_status()`.
-  render_text.py     Legacy/simple row render helpers.
-  web.py             Browser (Pyodide) adapter; reuses cli render helpers.
+  render_text.py     Row builders (garage/driver/event) shared by the CLI and web
+                     table renderers, plus a few plain-text list renderers.
+  web.py             Browser (Pyodide) adapter: WebGame re-expresses the CLI's
+                     blocking loops as an input-mode state machine; reuses cli
+                     helpers rather than duplicating them.
 
 editor/
   app.py             CreatorApp (creator.py entry): interactive car/track/event
@@ -113,9 +127,22 @@ editor/
                      with a local crumb() breadcrumb trail.
   fields.py          Car/track/event field schemas + templates (harvested by the
                      compendium; the tune menu mirrors the car schema).
+  web.py             Browser (Pyodide) creator adapter (WebCreator): the editor's
+                     nested menu loops as an input-mode state machine over the
+                     untouched pure value layer (schemas/coerce/validate/previews).
+  sample_tracks.py   Synthetic extreme tracks (drag/hairpins/slalom/esses) for the
+                     creator's live lap-time panel; editor-only, separate from the
+                     class-derivation reference suite.
+  _verify.py         Manual verification harness (python3 -m editor._verify):
+                     rebuilds real-car/track facsimiles purely through the editor's
+                     field specs to prove every needed knob is reachable.
 
 compendium/
   model.py           Entry/Section/Chapter dataclasses (the doc data model).
+  harvest.py         entry_from_spec(): FieldSpec -> Entry (range/choices from the
+                     schema, prose/ideal/units from the authored table); slug().
+  format.py          Shared Range/Ideal/Editable column formatters used by both the
+                     in-game compendium screens and the static HTML renderer.
   content_*.py       Per-domain content: cars/tracks/events harvest ranges &
                      choices from editor.fields + constants (only prose is
                      hand-written); drivers hand-built from the Driver dataclass;
@@ -129,6 +156,10 @@ tools/
   pace_probe.py         Pace/thermal tuning harness: deterministic per-lap table of
                         temps, tyre/fuel %, lap time, incident probabilities for any
                         car at a fixed command (the tactical-pace rework's instrument).
+  probe_event.py        Event sanity probe: field pace spread, matchmaking view
+                        (anchor/band/peer pool), and outcome sims for one event.
+  inspect_car.py        Turn a knob, see the effect: override car fields or constants
+                        on the command line and print the resulting effective stats.
   build_web.py          Bundles the game/creator (embedded Python + Pyodide) and
                         renders the static compendium page. SOURCE_GLOBS must
                         embed everything the bundle imports (incl. compendium/*.py
@@ -164,19 +195,13 @@ market_car_extended_screen(car_id)         # full spec sheet (market)
 driver_detail_screen(driver_id)
 event_detail_screen(event_id, state=None)  # adds an "Est. Time" row (play/real) when state given
 estimate_race_times(car, driver, event, track, parts=None) -> (canonical_s, play_s)
-race_entry_screen(state, step="events", sort_spec=None)  # guided race picker
-                                           # (events/cars/drivers); sort_spec applies
-                                           # to the step's own list
 tune_editor_screen(state, car_id, draft=None)   # tune editor top level: sections + delta readout
 tune_section_screen(state, car_id, section, draft=None)  # one section's knobs (Current/Staged/Allowed)
 stage_tune_value(state, car_id, field, value)   # validate one draft value (raises TuningError)
 apply_tune_draft(state, car_id, draft)          # atomic validated apply of the whole draft
 tune_fields_screen(state, car_id)               # legacy flat list (kept for API/tests)
-# The tune menu covers the full TuneSetup PLUS the garage-tweakable hard-mod stats
-# (constants.CAR_MOD_FIELD_SECTIONS): the creator's car knobs minus intrinsic
-# properties (identity/value, engine hp/torque/aspiration/character, weight_kg,
-# durability build quality, fuel hardware, condition). Hard mods write straight
-# into the car's stat sections and persist through save/load.
+# The tune menu covers the TuneSetup setup knobs only; permanent hardware/stat
+# changes come from parts installed through the Upgrades flow.
 race_screen(session, tick=None, error="",  # pinned constant-size panels incl. "Track" strip
             log_event_chars=None)          # (vertical dot mini-map; magnified gaps, no two rows
                                            # share unless times tie). log_event_chars = Event
@@ -577,7 +602,7 @@ Choice fields (`value_type="choice"`) carry an `OptionData.description`; the CLI
 
 Some tune fields/values are **gated by installed parts** (GT-style unlocks): a
 field can arrive locked with a reason (`FieldData.locked`/`lock_reason` via
-`game/parts.py: lock_reason_for_tune_field` / `tune_field_value_allowed`), e.g.
+`game/parts.py: lock_reason_for_tune_field` / `tune_unlock_required_for_value`), e.g.
 non-stock engine maps need a sports ECU. Buy/install parts through the upgrades
 flow (`upgrades_slot_screen` → `upgrades_part_screen` → buy/install/unequip).
 
@@ -591,7 +616,6 @@ load_drivers()
 load_tracks()
 load_events()
 load_parts()
-load_all_data()
 ```
 
 Tracks derive aggregate weights/rates AND per-segment profiles from segment tags
