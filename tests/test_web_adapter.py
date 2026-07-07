@@ -13,6 +13,7 @@ from interfaces.web import (
     MODE_RACE_CAR,
     MODE_RACE_EVENT,
     MODE_RACE_RESULT,
+    MODE_REPAIR_TIER,
     MODE_TUNE_CAR,
     MODE_TUNE_SECTIONS,
     WebGame,
@@ -159,6 +160,9 @@ class WebPickerTests(TestCase):
         game = make_game()
         game.handle_input("p")
         out = game.handle_input("torino_500r")
+        self.assertIn("Repair Options", out)
+        self.assertEqual(meta(game)["mode"], MODE_REPAIR_TIER)
+        out = game.handle_input("p")
         self.assertIn("Repaired torino_500r", out)
         self.assertEqual(meta(game)["mode"], MODE_MENU)
 

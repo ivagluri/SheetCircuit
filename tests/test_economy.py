@@ -3,8 +3,8 @@ from __future__ import annotations
 from copy import deepcopy
 import unittest
 
-from constants import REPAIR_COST_PER_POINT
-from game.economy import EconomyError, buy_car, buy_part, install_part, repair_car, sell_car, uninstall_part
+from constants import REPAIR_COST_MIN_PER_POINT, REPAIR_COST_VALUE_FRACTION
+from game.economy import EconomyError, buy_car, buy_part, install_part, repair_car, repair_cost, sell_car, uninstall_part
 from game.effective_stats import compute_effective_stats
 from game.game_state import GameState
 from game.loader import load_cars
@@ -63,7 +63,27 @@ class EconomyTests(unittest.TestCase):
         self.assertEqual(car.condition.brake_condition, 85.0)
         self.assertEqual(car.condition.suspension_condition, 85.0)
         self.assertEqual(car.condition.tire_condition, 85.0)
-        self.assertEqual(state.money, 5000 - round(5 * 5 * REPAIR_COST_PER_POINT))
+        self.assertEqual(state.money, 5000 - round(5 * 5 * max(REPAIR_COST_MIN_PER_POINT, car.value * REPAIR_COST_VALUE_FRACTION)))
+
+    def test_repair_cost_scales_with_car_value_and_missing_condition(self) -> None:
+        cheap = deepcopy(self.cars["kanto_k660"])
+        expensive = deepcopy(self.cars["aichi_gt_one"])
+        for car in (cheap, expensive):
+            car.condition.overall_condition = 80.0
+            car.condition.engine_condition = 80.0
+            car.condition.brake_condition = 80.0
+            car.condition.suspension_condition = 80.0
+            car.condition.tire_condition = 80.0
+
+        self.assertEqual(repair_cost(cheap, 5.0), 110)
+        self.assertGreater(repair_cost(expensive, 5.0), repair_cost(cheap, 5.0))
+
+        cheap.condition.overall_condition = 99.0
+        cheap.condition.engine_condition = 100.0
+        cheap.condition.brake_condition = 100.0
+        cheap.condition.suspension_condition = 100.0
+        cheap.condition.tire_condition = 100.0
+        self.assertEqual(repair_cost(cheap, 5.0), round(max(REPAIR_COST_MIN_PER_POINT, cheap.value * REPAIR_COST_VALUE_FRACTION)))
 
     def test_repair_without_money_leaves_state_unchanged(self) -> None:
         car = deepcopy(self.cars["kanto_k660"])

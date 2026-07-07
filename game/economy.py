@@ -4,7 +4,8 @@ from copy import deepcopy
 
 from constants import (
     PERCENT_MAX,
-    REPAIR_COST_PER_POINT,
+    REPAIR_COST_MIN_PER_POINT,
+    REPAIR_COST_VALUE_FRACTION,
     REPAIR_MAX_POINTS,
     SELL_CONDITION_WEIGHT,
     SELL_MILEAGE_FLOOR,
@@ -54,27 +55,42 @@ def _resale_factor(car) -> float:
     return condition * mileage
 
 
+_REPAIR_FIELDS = [
+    "overall_condition",
+    "engine_condition",
+    "brake_condition",
+    "suspension_condition",
+    "tire_condition",
+]
+
+
+def repair_cost(car, points: float = REPAIR_MAX_POINTS) -> int:
+    total_points = sum(_repair_restorations(car, points).values())
+    return round(total_points * _repair_cost_per_point(car))
+
+
+def _repair_cost_per_point(car) -> float:
+    return max(REPAIR_COST_MIN_PER_POINT, car.value * REPAIR_COST_VALUE_FRACTION)
+
+
 def repair_car(game_state: GameState, car_id: str, points: float = REPAIR_MAX_POINTS) -> GameState:
     car = _garage_car(game_state, car_id)
-    fields = [
-        "overall_condition",
-        "engine_condition",
-        "brake_condition",
-        "suspension_condition",
-        "tire_condition",
-    ]
-    restorations = {
-        field: min(points, PERCENT_MAX - getattr(car.condition, field))
-        for field in fields
-    }
-    total_points = sum(restorations.values())
-    cost = round(total_points * REPAIR_COST_PER_POINT)
+    restorations = _repair_restorations(car, points)
+    cost = repair_cost(car, points)
     if game_state.money < cost:
         raise EconomyError(f"Insufficient funds for repair: {cost}")
     game_state.money -= cost
     for field, restored in restorations.items():
         setattr(car.condition, field, getattr(car.condition, field) + restored)
     return game_state
+
+
+def _repair_restorations(car, points: float) -> dict[str, float]:
+    points = max(0.0, points)
+    return {
+        field: max(0.0, min(points, PERCENT_MAX - getattr(car.condition, field)))
+        for field in _REPAIR_FIELDS
+    }
 
 
 def hire_driver(game_state: GameState, driver_id: str) -> GameState:

@@ -71,6 +71,7 @@ MODE_MENU = "menu"
 MODE_BUY = "buy"
 MODE_SELL = "sell"
 MODE_REPAIR = "repair"
+MODE_REPAIR_TIER = "repair_tier"
 MODE_HIRE = "hire"
 MODE_FIRE = "fire"
 MODE_EXT = "ext"
@@ -98,6 +99,7 @@ _PROMPT_LABELS = {
     MODE_BUY: "Buy (number or ID)",
     MODE_SELL: "Sell",
     MODE_REPAIR: "Repair",
+    MODE_REPAIR_TIER: "Repair tier",
     MODE_HIRE: "Hire",
     MODE_FIRE: "Release",
     MODE_EXT: "Extended view (number or ID)",
@@ -179,6 +181,7 @@ class WebGame:
         self._upgrade_car_id: str | None = None
         self._upgrade_slot: str = ""
         self._upgrade_part_id: str = ""
+        self._repair_car_id: str | None = None
         self._tune_car_id: str | None = None
         self._tune_section: str = ""
         self._tune_draft: dict[str, object] = {}
@@ -329,6 +332,7 @@ class WebGame:
             MODE_BUY: self._buy_input,
             MODE_SELL: self._sell_input,
             MODE_REPAIR: self._repair_input,
+            MODE_REPAIR_TIER: self._repair_tier_input,
             MODE_HIRE: self._hire_input,
             MODE_FIRE: self._fire_input,
             MODE_EXT: self._ext_input,
@@ -472,7 +476,8 @@ class WebGame:
                 self._start_picker(MODE_SELL)
         elif command == "repair":
             if len(tokens) >= 2:
-                result = repair_car_action(self.state, tokens[1])
+                points = cli._repair_tier_from_token(tokens[2]) if len(tokens) >= 3 else None
+                result = repair_car_action(self.state, tokens[1], points=points)
                 self.screen = "garage"
                 self._print_main_view()
                 terminal.print(result.message)
@@ -579,6 +584,8 @@ class WebGame:
             terminal.header("Repair", "Choose a garage car by number or ID; q cancels.")
             self._print_status_menu("repair")
             self._print_garage_table()
+        elif self.mode == MODE_REPAIR_TIER:
+            cli._render_repair_tiers(self.state, self._repair_car_id)
         elif self.mode == MODE_HIRE:
             terminal.header("Hire Driver", "Choose a driver by number or ID; q cancels.")
             self._print_status_menu("hire")
@@ -702,7 +709,23 @@ class WebGame:
         car = self._resolve(cli._sorted_garage(self.state), lambda item: item.identity.id, "Repair", raw)
         if car is None:
             return
-        result = repair_car_action(self.state, car.identity.id)
+        self._repair_car_id = car.identity.id
+        self.mode = MODE_REPAIR_TIER
+        self._print_mode_view()
+
+    def _repair_tier_input(self, raw: str) -> None:
+        low = raw.lower()
+        if low in {"b", "back"}:
+            self.mode = MODE_REPAIR
+            self._print_mode_view()
+            return
+        if low in _CANCEL_WORDS:
+            self._repair_car_id = None
+            self._cancel()
+            return
+        points = cli._repair_tier_from_token(raw)
+        result = repair_car_action(self.state, self._repair_car_id, points=points)
+        self._repair_car_id = None
         self.mode = MODE_MENU
         self.screen = "garage"
         self._print_main_view()

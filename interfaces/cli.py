@@ -5,7 +5,7 @@ import shlex
 import shutil
 import sys
 
-from constants import TICK_RATE_HZ
+from constants import REPAIR_HALF_POINTS, REPAIR_MAX_POINTS, REPAIR_PATCH_POINTS, TICK_RATE_HZ
 # Presentation fast-forward multipliers cycled with F in the race loop. Pure render speed:
 # they change only the per-tick wall-clock pause, never the simulated result.
 _RACE_SPEEDS = (1.0, 2.0, 4.0, 8.0)
@@ -55,7 +55,7 @@ from game.actions import (
     upgrades_part_screen,
     upgrades_slot_screen,
 )
-from game.economy import EconomyError
+from game.economy import EconomyError, repair_cost
 from game.game_state import GameState, new_career
 from game.loader import load_drivers, load_events, load_parts, load_tracks
 from game.market import list_market_cars
@@ -302,7 +302,8 @@ def run_command(state: GameState, raw: str) -> GameState:
         sell_car_action(state, tokens[2])
         _show_garage(state)
     elif command == "repair" and len(tokens) >= 2:
-        repair_car_action(state, tokens[1])
+        tier = _repair_tier_from_token(tokens[2]) if len(tokens) >= 3 else REPAIR_MAX_POINTS
+        repair_car_action(state, tokens[1], points=tier)
         _show_garage(state)
     elif command == "buy" and len(tokens) >= 4 and tokens[1] == "part":
         install_now = len(tokens) >= 5 and tokens[4].lower() in {"install", "installed", "equip"}
@@ -801,9 +802,62 @@ def _repair_picker(state: GameState) -> None:
     car = _picker(show, lambda item: item.identity.id, "Repair", sort_screen="garage")
     if car is None:
         return
-    result = repair_car_action(state, car.identity.id)
-    terminal.print(result.message)
-    terminal.pause()
+    _repair_tier_prompt(state, car.identity.id)
+
+
+_REPAIR_TIERS = (
+    ("f", "Full", REPAIR_MAX_POINTS, ("full",)),
+    ("h", "Half", REPAIR_HALF_POINTS, ("half",)),
+    ("p", "Patch", REPAIR_PATCH_POINTS, ("patch",)),
+)
+_REPAIR_TIER_KEYS = tuple(
+    LocalKey(key, label, words=words, description=f"Repair {points:g} condition points per system")
+    for key, label, points, words in _REPAIR_TIERS
+)
+
+
+def _repair_tier_from_token(raw: str) -> float:
+    low = raw.lower()
+    for key, _label, points, words in _REPAIR_TIERS:
+        if low == key or low in words:
+            return points
+    raise ValueError(f"Unknown repair tier: {raw}")
+
+
+def _repair_tier_rows(car) -> list[list[object]]:
+    return [
+        [key.upper(), label, f"{points:g}", f"${repair_cost(car, points):,}"]
+        for key, label, points, _words in _REPAIR_TIERS
+    ]
+
+
+def _render_repair_tiers(state: GameState, car_id: str) -> None:
+    car = next(c for c in state.garage if c.identity.id == car_id)
+    terminal.header("Repair", f"{car.identity.name} — choose repair scope")
+    terminal.print(status_bar(state.money, state.week, len(state.garage), "repair", state.team_xp))
+    shell.render_chrome()
+    terminal.table("Repair Options", ["Key", "Scope", "Points/System", "Cost"], _repair_tier_rows(car))
+
+
+def _repair_tier_prompt(state: GameState, car_id: str) -> None:
+    def render() -> None:
+        terminal.clear()
+        _render_repair_tiers(state, car_id)
+
+    with shell.screen(Screen("Repair Scope", keys=_REPAIR_TIER_KEYS, render=render)):
+        render()
+        while True:
+            action = shell.prompt("Action")
+            if action.kind == "back":
+                return
+            if action.kind != "local":
+                terminal.print(f"Unknown repair option: {action.value}")
+                continue
+            points = _repair_tier_from_token(action.value)
+            result = repair_car_action(state, car_id, points=points)
+            terminal.print(result.message)
+            terminal.pause()
+            return
 
 
 def _upgrades_picker(state: GameState) -> None:

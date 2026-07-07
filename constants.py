@@ -345,8 +345,11 @@ RACE_DAMAGE_WEAR_FACTOR = 0.25 # mid-race damage -> extra overall wear after the
 DRIVER_ENERGY_LOW_PCT = 30.0
 DRIVER_ENERGY_PACE_FRACTION = 0.04
 
-REPAIR_COST_PER_POINT = 18
+REPAIR_COST_VALUE_FRACTION = 0.002
+REPAIR_COST_MIN_PER_POINT = 4
 REPAIR_MAX_POINTS = 25
+REPAIR_HALF_POINTS = 12
+REPAIR_PATCH_POINTS = 5
 # Post-race wear scales with real race distance (a hillclimb sprint is gentler than an
 # enduro): overall wear = BASE x race_km / REFERENCE_KM, clamped to [MIN, MAX]. The
 # reference is the starter sprint (~14 km), so short races keep their historical cost.

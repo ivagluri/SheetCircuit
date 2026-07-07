@@ -168,6 +168,25 @@ class CliTests(TestCase):
         self.assertNotIn("garage", cli._SCREEN_SORTS)
         cli._SCREEN_SORTS.clear()
 
+    def test_repair_picker_prompts_for_tier(self) -> None:
+        state = new_career()
+        car = state.garage[0]
+        car.condition.overall_condition = 80.0
+        car.condition.engine_condition = 80.0
+        car.condition.brake_condition = 80.0
+        car.condition.suspension_condition = 80.0
+        car.condition.tire_condition = 80.0
+        money = state.money
+
+        with patch("builtins.input", side_effect=["1", "p", ""]), contextlib.redirect_stdout(io.StringIO()) as output:
+            run_command(state, "repair")
+
+        text = output.getvalue()
+        self.assertIn("Repair Options", text)
+        self.assertIn("Repaired torino_500r", text)
+        self.assertEqual(car.condition.overall_condition, 85.0)
+        self.assertLess(state.money, money)
+
     def test_race_command_guides_selection_and_runs_event(self) -> None:
         state = new_career()
         starting_mileage = state.garage[0].condition.mileage

@@ -6,7 +6,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from constants import ENGINE_CRITICAL_C, ENGINE_MAP_POWER, FUEL_L_PER_KM_UNIT, PRESENTATION_SPEED_FACTOR, TICK_RATE_HZ, TUNE_FIELD_RANGES
+from constants import (
+    ENGINE_CRITICAL_C,
+    ENGINE_MAP_POWER,
+    FUEL_L_PER_KM_UNIT,
+    PRESENTATION_SPEED_FACTOR,
+    REPAIR_MAX_POINTS,
+    TICK_RATE_HZ,
+    TUNE_FIELD_RANGES,
+)
 from game.economy import buy_car, buy_part, fire_driver, hire_driver, install_part, repair_car, sell_car, uninstall_part
 from game.effective_stats import class_breakdown, class_rating, compute_effective_stats, derived_class, performance_type
 from game.event_display import event_best_text, event_kind_label, event_progress_rows, event_requirement_text, team_status_text, xp_needed_for_team_level
@@ -1619,8 +1627,8 @@ def sell_car_action(state: GameState, car_id: str) -> ActionResult:
     return ActionResult(state=state, message=f"Sold {car_id}.", screen=garage_screen(state))
 
 
-def repair_car_action(state: GameState, car_id: str) -> ActionResult:
-    repair_car(state, car_id)
+def repair_car_action(state: GameState, car_id: str, points: float | None = None) -> ActionResult:
+    repair_car(state, car_id, points=REPAIR_MAX_POINTS if points is None else points)
     return ActionResult(state=state, message=f"Repaired {car_id}.", screen=garage_screen(state))
 
 
