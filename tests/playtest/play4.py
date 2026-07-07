@@ -1,4 +1,4 @@
-"""Session 4: load the session-3 save through the UI and finish the run to Team Lv3."""
+"""Session 4: load a save through the UI and continue the career."""
 import os, pty, re, select, subprocess, sys, time
 
 ROOT = "/Users/ivan/Desktop/workbin/code/sheetcircuit"
@@ -72,13 +72,11 @@ def flag(msg):
 g = Game()
 g.read_until(r"Choice: ")
 
-# load session-3 save through the UI
+# load the current smoke-test save through the UI
 out = g.do("l", r"Path: ")
-g.send("saves/audit_session3.json"); out = settle()
+g.send("saves/save1.json"); out = settle()
 money, level, xp = status(out)
 note(f"loaded save: ${money} Lv{level} {xp}xp")
-if (money, xp) != (568, 158):
-    flag(f"loaded state mismatch: expected $568/158xp, got ${money}/{xp}xp")
 
 
 def run_race(event_id, car_id):
@@ -110,9 +108,9 @@ def repair(car_id):
 
 races = 0
 for i in range(25):
-    ev = "sunday_cup" if i % 3 != 2 else "lightweight_challenge"
+    ev, car = ("sunday_cup", "eurovan_cup") if i % 3 != 2 else ("lightweight_challenge", "torino_500r")
     try:
-        out = run_race(ev, "eurovan_cup")
+        out = run_race(ev, car)
     except ValueError as exc:
         flag(str(exc)); break
     except (TimeoutError, RuntimeError) as exc:
@@ -131,17 +129,19 @@ for i in range(25):
         flag(f"broke: ${money}")
         break
     if 0 <= condition < 55 and money > 2600:
-        out = repair("eurovan_cup")
+        out = repair(car)
         money, _, _ = status(out)
-        note(f"repaired eurovan_cup, ${money}")
+        note(f"repaired {car}, ${money}")
 else:
     flag(f"did not reach Lv3 in {races} more races")
 
 # save the finished career via /save palette (instant, no path prompt) and quit
-out = g.do("/save", r"Choice: |Saved", 15)
+out = g.do("/save", r"Saved", 15)
+g.send("")
+g.read_until(r"Choice: ", 15)
 note("palette /save issued")
 g.send("q")
-g.read_until(r"\(y/N\)|Quit\?|quit", 10)
+g.read_until(r"\[y/N\]:", 10)
 g.send("y")
 time.sleep(1.0)
 if g.proc.poll() is None:

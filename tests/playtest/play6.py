@@ -142,10 +142,12 @@ else:
     flag(f"did not reach Lv3 in {races} more races")
 
 # save the finished career via /save palette (instant, no path prompt) and quit
-out = g.do("/save", r"Choice: |Saved", 15)
+out = g.do("/save", r"Saved", 15)
+g.send("")
+g.read_until(r"Choice: ", 15)
 note("palette /save issued")
 g.send("q")
-g.read_until(r"\(y/N\)|Quit\?|quit", 10)
+g.read_until(r"\[y/N\]:", 10)
 g.send("y")
 time.sleep(1.0)
 if g.proc.poll() is None:

@@ -110,11 +110,11 @@ races, phase = 0, "farm"
 for i in range(34):
     if phase == "farm" and money >= 1400:
         phase = "push"
-        note("switching to lightweight_challenge pushes with the Nagoya")
+        note("switching to lightweight_challenge pushes with the Torino")
     if phase == "push" and money < 350:
         phase = "farm"
         note("out of fee money, back to track-day farming")
-    ev, car = ("open_track_day", "nagoya_march_super") if phase == "farm" else ("lightweight_challenge", "nagoya_march_super")
+    ev, car = ("open_track_day", "nagoya_march_super") if phase == "farm" else ("lightweight_challenge", "torino_500r")
     try:
         out = run_race(ev, car)
     except ValueError as exc:
@@ -138,10 +138,12 @@ else:
     flag(f"did not reach Lv3 in {races} more races")
 
 # save the finished career via /save palette (instant, no path prompt) and quit
-out = g.do("/save", r"Choice: |Saved", 15)
+out = g.do("/save", r"Saved", 15)
+g.send("")
+g.read_until(r"Choice: ", 15)
 note("palette /save issued")
 g.send("q")
-g.read_until(r"\(y/N\)|Quit\?|quit", 10)
+g.read_until(r"\[y/N\]:", 10)
 g.send("y")
 time.sleep(1.0)
 if g.proc.poll() is None:
