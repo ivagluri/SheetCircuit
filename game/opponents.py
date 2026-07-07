@@ -4,6 +4,7 @@ import random
 from copy import deepcopy
 
 from constants import (
+    CLASS_ORDER,
     CLASS_RIVAL_SKILL,
     EVENT_KIND_PRACTICE,
     EVENT_PACE_FLOOR_PERCENTILE,
@@ -15,8 +16,6 @@ from constants import (
 from game.driver_gen import generate_driver
 from game.effective_stats import clamp, compute_effective_stats, derived_class, derived_rating
 from game.models import Car, Driver, Event, Track
-
-CLASS_ORDER = {"E": 0, "D": 1, "C": 2, "B": 3, "A": 4, "S": 5}
 
 
 class EventEntryError(ValueError):

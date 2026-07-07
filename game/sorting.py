@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, TypeVar
 
-from constants import CLASS_THRESHOLDS
+from constants import CLASS_ORDER
 from game.effective_stats import class_rating, derived_class, performance_type
 from game.models import Car, Driver, Event
 
 T = TypeVar("T")
-
-CLASS_ORDER = {class_name: index for index, class_name in enumerate(CLASS_THRESHOLDS)}
 
 
 @dataclass(frozen=True)

@@ -504,6 +504,9 @@ CLASS_THRESHOLDS: dict[str, int] = {
     "A": 760,
     "S": 960,
 }
+# Class rank for ordering/comparison (E lowest). Derived so it can never drift
+# from the thresholds table above.
+CLASS_ORDER: dict[str, int] = {class_name: index for index, class_name in enumerate(CLASS_THRESHOLDS)}
 # Car "shape" (performance_type): where a car's pace comes from, comparing its speed axes
 # (power/accel/top_speed) against its control axes (grip/braking/handling). Beyond this
 # margin it reads Power or Handling; within it, Balanced. A car below the capability floor
