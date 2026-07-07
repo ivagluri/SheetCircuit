@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -186,6 +187,32 @@ class CliTests(TestCase):
         self.assertIn("Repaired torino_500r", text)
         self.assertEqual(car.condition.overall_condition, 85.0)
         self.assertLess(state.money, money)
+
+    def test_save_path_validation_rejects_command_words_and_non_json(self) -> None:
+        with self.assertRaises(ValueError):
+            cli._validate_save_path("q")
+        with self.assertRaises(ValueError):
+            cli._validate_save_path("q.json")
+
+        self.assertEqual(cli._validate_save_path("saves/my_save.json"), "saves/my_save.json")
+
+    def test_save_picker_uses_shell_default_and_reprompts_invalid_path(self) -> None:
+        state = new_career()
+        calls = []
+
+        def fake_save(_state, path):
+            calls.append(path)
+            return SimpleNamespace(message="Saved.")
+
+        with (
+            patch("interfaces.cli.save_game_action", side_effect=fake_save),
+            patch("builtins.input", side_effect=["bad", "", ""]),
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            cli._save_picker(state)
+
+        self.assertIn("Rejected: Save path must end with .json", output.getvalue())
+        self.assertEqual(calls, ["saves/save1.json"])
 
     def test_race_command_guides_selection_and_runs_event(self) -> None:
         state = new_career()

@@ -169,6 +169,12 @@ class ShellNavigationTests(TestCase):
                 action = self.shell.prompt("Detail", empty="back")
         self.assertEqual(action.kind, "back")
 
+    def test_empty_input_can_be_returned_for_default_prompts(self) -> None:
+        with self.shell.screen(Screen("Save")):
+            with patch("builtins.input", side_effect=[""]), contextlib.redirect_stdout(io.StringIO()):
+                action = self.shell.prompt("Path", empty="return")
+        self.assertEqual(action.kind, "empty")
+
     def test_unknown_palette_command_reports_and_reprompts(self) -> None:
         with self.shell.screen(Screen("Garage")):
             with patch("builtins.input", side_effect=["/frobnicate", "b"]), contextlib.redirect_stdout(io.StringIO()) as output:

@@ -4,6 +4,7 @@ import select
 import shlex
 import shutil
 import sys
+from pathlib import Path
 
 from constants import REPAIR_HALF_POINTS, REPAIR_MAX_POINTS, REPAIR_PATCH_POINTS, TICK_RATE_HZ
 # Presentation fast-forward multipliers cycled with F in the race loop. Pure render speed:
@@ -351,10 +352,10 @@ def run_command(state: GameState, raw: str) -> GameState:
     elif command == "enter" and len(tokens) == 4:
         _run_race(state, tokens[1], tokens[2], tokens[3])
     elif command == "save":
-        result = save_game_action(state, tokens[1] if len(tokens) > 1 else "saves/save1.json")
+        result = save_game_action(state, _validate_save_path(tokens[1] if len(tokens) > 1 else _SAVE_DEFAULT_PATH))
         terminal.print(result.message)
     elif command == "load":
-        result = load_game_action(tokens[1] if len(tokens) > 1 else "saves/save1.json")
+        result = load_game_action(_validate_save_path(tokens[1] if len(tokens) > 1 else _SAVE_DEFAULT_PATH))
         state = result.state
         terminal.print(result.message)
     elif command == "quit":
@@ -1157,9 +1158,50 @@ def _prompt_field_value(field) -> object | None:
     return _parse_value(value)
 
 
+_SAVE_DEFAULT_PATH = "saves/save1.json"
+_RESERVED_PATH_NAMES = {
+    "b", "back", "q", "quit", "cancel", "?", "h", "help",
+    "save", "load", "home", "menu", "ref", "compendium",
+    "garage", "drivers", "events", "market",
+    "buy", "sell", "repair", "upgrades", "tune", "race", "enter",
+    "hire", "fire", "sort",
+}
+
+
+def _validate_save_path(raw: str) -> str:
+    path = raw.strip()
+    if not path.lower().endswith(".json"):
+        raise ValueError("Save path must end with .json")
+    name = Path(path).name.lower()
+    stem = Path(path).stem.lower()
+    if name in _RESERVED_PATH_NAMES or stem in _RESERVED_PATH_NAMES:
+        raise ValueError(f"Save path cannot use command word: {Path(path).name}")
+    return path
+
+
+def _path_picker(state: GameState, title: str) -> str | None:
+    def render() -> None:
+        terminal.clear()
+        terminal.header(title, f"Enter a .json path; Enter uses {_SAVE_DEFAULT_PATH}.")
+        terminal.print(status_bar(state.money, state.week, len(state.garage), title.lower(), state.team_xp))
+        shell.render_chrome()
+
+    with shell.screen(Screen(title, render=render)):
+        render()
+        while True:
+            action = shell.prompt("Path", empty="return")
+            if action.kind == "back":
+                return None
+            raw = _SAVE_DEFAULT_PATH if action.kind == "empty" else action.value
+            try:
+                return _validate_save_path(raw)
+            except ValueError as exc:
+                terminal.print(f"Rejected: {exc}")
+
+
 def _save_picker(state: GameState) -> None:
-    path = terminal.prompt("Save path (b cancels)", "saves/save1.json")
-    if path.strip().lower() in {"b", "back", "cancel"}:
+    path = _path_picker(state, "Save")
+    if path is None:
         return
     result = save_game_action(state, path)
     terminal.print(result.message)
@@ -1167,8 +1209,8 @@ def _save_picker(state: GameState) -> None:
 
 
 def _load_picker(state: GameState) -> GameState:
-    path = terminal.prompt("Load path (b cancels)", "saves/save1.json")
-    if path.strip().lower() in {"b", "back", "cancel"}:
+    path = _path_picker(state, "Load")
+    if path is None:
         return state
     result = load_game_action(path)
     loaded = result.state

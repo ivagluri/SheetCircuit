@@ -172,8 +172,8 @@ class Shell:
         """Render the footer, read input, and intercept everything universal.
 
         Returns only "back", "local", or "text" actions (and "empty" as "back"
-        when ``empty='back'`` — detail screens treat Enter as return). Quit,
-        help, and the palette never reach the calling screen.
+        when ``empty='back'``, or as "empty" when ``empty='return'``). Quit, help,
+        and the palette never reach the calling screen.
         """
         while True:
             terminal.print_plain(self.footer())
@@ -186,6 +186,8 @@ class Shell:
                 if action.kind == "empty":
                     if empty == "back":
                         return Action("back")
+                    if empty == "return":
+                        return action
                     continue
                 if action.kind == "quit":
                     if self.confirm_quit():
