@@ -12,22 +12,25 @@ class CarCatalogTests(unittest.TestCase):
     def setUp(self) -> None:
         self.parts = load_parts()
         self.cars = load_cars()
+        self.cars_by_id = {car.identity.id: car for car in self.cars}
         self.tracks = load_tracks()
 
-    def test_catalog_distribution_is_bottom_heavy(self) -> None:
-        # Class is now derived at runtime from capability, so the distribution isn't
-        # perfectly monotonic, but the seed catalog still skews toward the lower tiers:
-        # the bottom three classes outnumber the top three, and the endgame S tier holds
-        # exactly the three focus cars.
+    def test_catalog_has_lower_tier_depth(self) -> None:
+        # Class is derived from intrinsic capability, not catalog percentiles. This only
+        # guards the starter/midgame breadth; future catalog additions can extend either
+        # end without requiring this test to be rewritten.
         counts = Counter(derived_class(car, self.parts) for car in self.cars)
 
         lower = counts["E"] + counts["D"] + counts["C"]
         upper = counts["B"] + counts["A"] + counts["S"]
         self.assertGreater(lower, upper)
-        self.assertEqual(counts["S"], 3)
+        self.assertGreaterEqual(counts["E"], 2)
 
-    def test_s_class_has_one_car_per_endgame_focus(self) -> None:
-        s_cars = [car for car in self.cars if derived_class(car, self.parts) == "S"]
+    def test_known_endgame_focus_cars_are_s_class(self) -> None:
+        s_cars = [
+            self.cars_by_id[car_id]
+            for car_id in ("aichi_gt_one", "blackpool_twelve", "escarpa_pikes")
+        ]
         focus_tags = [
             tag
             for car in s_cars
@@ -36,9 +39,13 @@ class CarCatalogTests(unittest.TestCase):
         ]
 
         self.assertCountEqual(focus_tags, ["s_power_focus", "s_handling_focus", "s_traction_focus"])
+        self.assertTrue(all(derived_class(car, self.parts) == "S" for car in s_cars))
 
-    def test_s_class_focus_cars_are_competitive(self) -> None:
-        s_cars = [car for car in self.cars if derived_class(car, self.parts) == "S"]
+    def test_known_s_class_focus_cars_are_competitive(self) -> None:
+        s_cars = [
+            self.cars_by_id[car_id]
+            for car_id in ("aichi_gt_one", "blackpool_twelve", "escarpa_pikes")
+        ]
 
         # Proportional pace (PERF_FRACTION) lets a capability edge open a bigger lap-time gap,
         # so the intra-S spread is ~a few % of the lap. The S cars stay competitive within a
@@ -57,7 +64,10 @@ class CarCatalogTests(unittest.TestCase):
                 self.assertLess(max(laps) - min(laps), 3.1)
 
     def test_s_class_focuses_are_reflected_in_raw_stats(self) -> None:
-        s_cars = {car.identity.id: car for car in self.cars if derived_class(car, self.parts) == "S"}
+        s_cars = {
+            car_id: self.cars_by_id[car_id]
+            for car_id in ("aichi_gt_one", "blackpool_twelve", "escarpa_pikes")
+        }
 
         self.assertGreater(
             s_cars["blackpool_twelve"].powertrain.power_hp,

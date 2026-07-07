@@ -4,7 +4,8 @@ from copy import deepcopy
 import unittest
 
 from game.effective_stats import class_rating, compute_effective_stats
-from game.loader import load_cars, load_parts
+from game.loader import load_cars, load_parts, load_tracks
+from game.simulation import calculate_lap_time
 
 
 class EffectiveStatsTests(unittest.TestCase):
@@ -43,6 +44,38 @@ class EffectiveStatsTests(unittest.TestCase):
 
         self.assertLess(poor_stats.reliability, good_stats.reliability)
         self.assertLess(poor_stats.grip, good_stats.grip)
+
+    def test_condition_pace_curve_is_gentle_above_wrecked_state(self) -> None:
+        good = deepcopy(self.cars["suzuka_roadster"])
+        worn = deepcopy(good)
+        wrecked = deepcopy(good)
+        for field_name in vars(good.condition):
+            setattr(good.condition, field_name, 100)
+        for field_name in vars(worn.condition):
+            setattr(worn.condition, field_name, 70)
+        for field_name in vars(wrecked.condition):
+            setattr(wrecked.condition, field_name, 0)
+
+        good_stats = compute_effective_stats(good, self.parts)
+        worn_stats = compute_effective_stats(worn, self.parts)
+        wrecked_stats = compute_effective_stats(wrecked, self.parts)
+
+        self.assertGreater(worn_stats.power, good_stats.power * 0.90)
+        self.assertAlmostEqual(wrecked_stats.power, good_stats.power * 0.40, delta=0.01)
+
+    def test_condition_changes_pace_but_not_class_rating(self) -> None:
+        good = deepcopy(self.cars["detroit_v8"])
+        worn = deepcopy(good)
+        for field_name in vars(worn.condition):
+            setattr(worn.condition, field_name, 40)
+
+        self.assertEqual(class_rating(worn, self.parts), class_rating(good, self.parts))
+
+        track = load_tracks()[0]
+        self.assertGreater(
+            calculate_lap_time(compute_effective_stats(worn, self.parts), track),
+            calculate_lap_time(compute_effective_stats(good, self.parts), track),
+        )
 
     def test_engine_maps_change_power_and_fuel(self) -> None:
         balanced = deepcopy(self.cars["kanto_k660"])

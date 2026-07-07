@@ -11,6 +11,9 @@ from constants import (
     CAMBER_PENALTY,
     CLASS_RATING_SCALE,
     CLASS_THRESHOLDS,
+    CONDITION_FACTOR_GENTLE_SLOPE,
+    CONDITION_FACTOR_KNEE,
+    CONDITION_FACTOR_STEEP_SLOPE,
     COOLING_HEAT_REDUCTION,
     DOWNFORCE_DRAG_PENALTY,
     ENGINE_MAP_FUEL,
@@ -287,7 +290,7 @@ def derived_rating(car: Car, parts: list[Part] | None = None) -> int:
     generalises to any custom car and never goes stale. See game/reference_suite.py."""
     from game.reference_suite import mean_capability  # lazy: reference_suite -> simulation -> here
 
-    effective = compute_effective_stats(car, parts)
+    effective = compute_effective_stats(_nominal(car), parts)
     return round(mean_capability(effective) * CLASS_RATING_SCALE)
 
 
@@ -307,7 +310,7 @@ def class_breakdown(car: Car, parts: list[Part] | None = None) -> dict:
     a class that is computed rather than stored."""
     from game.reference_suite import archetype_capabilities  # lazy: avoid import cycle
 
-    effective = compute_effective_stats(car, parts)
+    effective = compute_effective_stats(_nominal(car), parts)
     caps = archetype_capabilities(effective)
     mean = sum(caps.values()) / len(caps)
     pr = round(mean * CLASS_RATING_SCALE)
@@ -327,7 +330,7 @@ def performance_type(car: Car, parts: list[Part] | None = None) -> str:
     axes. Distinguishes same-tier cars (a power specialist vs a balanced car vs a handler)."""
     from game.reference_suite import mean_capability  # lazy: avoid import cycle
 
-    effective = compute_effective_stats(car, parts)
+    effective = compute_effective_stats(_nominal(car), parts)
     if set(car.identity.tags).intersection({"challenge", "joke"}) or mean_capability(effective) < C.SHAPE_CHALLENGE_FLOOR:
         return "Challenge"
     speed = (effective.power + effective.acceleration + effective.top_speed) / 3
@@ -347,8 +350,19 @@ def rating_class(rating: int) -> str:
     return current
 
 
+def _nominal(car: Car) -> Car:
+    nominal = deepcopy(car)
+    for field_name in vars(nominal.condition):
+        setattr(nominal.condition, field_name, 0 if field_name == "mileage" else 100)
+    return nominal
+
+
 def _condition_factor(value: float) -> float:
-    return max(MIN_CONDITION_FACTOR, value / PERCENT_MAX)
+    condition = clamp(value)
+    wear = PERCENT_MAX - condition
+    steep_wear = max(0.0, CONDITION_FACTOR_KNEE - condition)
+    factor = 1 - CONDITION_FACTOR_GENTLE_SLOPE * wear - CONDITION_FACTOR_STEEP_SLOPE * steep_wear
+    return max(MIN_CONDITION_FACTOR, factor)
 
 
 def _camber_factor(front: float, rear: float) -> float:

@@ -40,11 +40,12 @@ class ReferenceClassTests(unittest.TestCase):
         self.assertEqual(derived_class(self.cars["aichi_gt_one"], self.parts), "S")
 
     def test_same_tier_cars_are_split_by_shape(self) -> None:
-        # The torino and the detroit are both entry tier by mean capability, but the shape
-        # tag carries the difference a single class letter threw away.
-        torino, detroit = self.cars["torino_500r"], self.cars["detroit_v8"]
-        self.assertEqual(derived_class(torino, self.parts), derived_class(detroit, self.parts))
-        self.assertNotEqual(performance_type(torino, self.parts), performance_type(detroit, self.parts))
+        # The K660 and Torino stay entry tier by mean capability, but the shape tag carries
+        # the difference a single class letter used to hide.
+        torino, k660 = self.cars["torino_500r"], self.cars["kanto_k660"]
+        self.assertEqual(derived_class(torino, self.parts), derived_class(k660, self.parts))
+        self.assertNotEqual(performance_type(torino, self.parts), performance_type(k660, self.parts))
+        detroit = self.cars["detroit_v8"]
         self.assertEqual(performance_type(detroit, self.parts), "Power")
 
     def test_out_of_distribution_car_classes_without_being_in_the_catalog(self) -> None:
@@ -68,6 +69,16 @@ class ReferenceClassTests(unittest.TestCase):
             self.assertEqual(bd["class"], derived_class(self.cars[cid], self.parts))
             self.assertEqual(bd["shape"], performance_type(self.cars[cid], self.parts))
             self.assertEqual(set(bd), {"drag", "slalom", "hybrid", "mean", "pr", "class", "shape"})
+
+    def test_condition_does_not_move_pr_class_or_shape(self) -> None:
+        clean = deepcopy(self.cars["bavaria_325s"])
+        battered = deepcopy(clean)
+        for field_name in vars(battered.condition):
+            setattr(battered.condition, field_name, 25)
+
+        self.assertEqual(derived_rating(battered, self.parts), derived_rating(clean, self.parts))
+        self.assertEqual(derived_class(battered, self.parts), derived_class(clean, self.parts))
+        self.assertEqual(performance_type(battered, self.parts), performance_type(clean, self.parts))
 
     def test_no_axis_pins_the_reference_suite_for_being_atypical(self) -> None:
         # Both extremes produce a full capability profile on every fixture (no zero/NaN),

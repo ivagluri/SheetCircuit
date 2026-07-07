@@ -492,17 +492,17 @@ SALARY_POTENTIAL_COEF = 0.8
 
 # Car class is derived at runtime (game/reference_suite.py): PR = mean capability
 # composite across the drag/slalom/hybrid fixtures, scaled, then bracketed. The scale
-# puts PR on a familiar ~150-1100 band; the thresholds are intrinsic capability levels
-# (validated against -- not derived from -- the catalog, which lands torino=E, the
-# detroit/k660 cluster=E, GT cars A/S).
+# puts PR on a familiar ~150-1200 band; the thresholds are round intrinsic capability
+# levels, not catalog percentiles. They preserve the starter event path while leaving room
+# for future cars to extend the catalog in either direction without redefining classes.
 CLASS_RATING_SCALE = 10
 CLASS_THRESHOLDS: dict[str, int] = {
     "E": 0,
-    "D": 340,
+    "D": 400,
     "C": 480,
     "B": 620,
     "A": 760,
-    "S": 960,
+    "S": 1000,
 }
 # Class rank for ordering/comparison (E lowest). Derived so it can never drift
 # from the thresholds table above.
@@ -532,6 +532,11 @@ AWD_GRIP_BONUS = 1.02               # small everyday grip edge for AWD cars
 AWD_LOWGRIP_BONUS = 0.45            # the real AWD payoff: grip multiplier per (1 - grip_mult), low-grip only
 
 MIN_CONDITION_FACTOR = 0.40
+# Condition mostly affects failure risk and resale value. Pace stays close until
+# the car is genuinely wrecked, avoiding class/pace whiplash from ordinary wear.
+CONDITION_FACTOR_GENTLE_SLOPE = 0.002
+CONDITION_FACTOR_KNEE = 40.0
+CONDITION_FACTOR_STEEP_SLOPE = 0.01
 BRAKE_BIAS_IDEAL = 0.60
 BRAKE_BIAS_PENALTY = 0.55
 PRESSURE_IDEAL_BAR = 2.25
