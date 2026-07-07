@@ -5,6 +5,9 @@ written on the `refactor/track-agnostic-sim` branch.)
 
 ## Playtest fixes
 
+- **Playtest smoke-driver follow-up** (`6a073a2`) — sessions 4-7 now run against the
+  documented `saves/save1.json` flow, use valid event/car pairings for lightweight
+  restrictions, and wait for the instant `/save` plus quit prompts explicitly.
 - **Intrinsic class/PR and gentler wear pace** (`7e09418`) — class, PR, class breakdown,
   and performance shape now compute from a nominal-condition copy of the car, so repairing
   or racing wear cannot flip event eligibility. Live condition still affects lap pace,
