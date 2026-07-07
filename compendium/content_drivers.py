@@ -11,12 +11,12 @@ stat actually drives, for maintainers; they are not shown to players.
 
 from __future__ import annotations
 
-import re
 from dataclasses import fields as dataclass_fields
 from typing import Any
 
 from constants import DRIVER_ARCHETYPES, DRIVER_STAT_CAP
 from game.models import Driver
+from compendium.harvest import slug
 from compendium.model import Chapter, Entry, Section
 
 DOMAIN = "driver"
@@ -142,14 +142,10 @@ _STATS: dict[str, dict[str, Any]] = {
 _SECTION_ORDER = ("Identity", "Skills", "Career")
 
 
-def _slug(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
-
-
 def _archetype_section() -> Section:
     entries = tuple(
         Entry(
-            id=f"{DOMAIN}.archetype.{_slug(name)}",
+            id=f"{DOMAIN}.archetype.{slug(name)}",
             domain=DOMAIN,
             section=_ARCHETYPE_SECTION,
             label=name,

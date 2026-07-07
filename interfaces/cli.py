@@ -16,6 +16,7 @@ from game.actions import (
     advance_to_lap_end_action,
     buy_car_action,
     car_detail_screen,
+    clip_text,
     compendium_nav,
     compendium_screen,
     compendium_token_from_args,
@@ -58,8 +59,23 @@ from game.economy import EconomyError
 from game.game_state import GameState, new_career
 from game.loader import load_drivers, load_events, load_parts, load_tracks
 from game.market import list_market_cars
-from game.parts import SLOT_RULES, canonical_part_id, installed_part_for_slot, normalize_part_ids, part_map
-from game.sorting import SortSpec, is_sortable_screen, parse_sort_spec, sort_fields, sort_items, sort_label
+from game.parts import (
+    canonical_part_id,
+    installed_part_for_slot,
+    match_part_slot,
+    match_slot_part,
+    normalize_part_ids,
+    part_map,
+)
+from game.sorting import (
+    SORTABLE_SCREENS,
+    SortSpec,
+    is_sortable_screen,
+    parse_sort_spec,
+    sort_fields,
+    sort_items,
+    sort_label,
+)
 from game.simulation import SimulationError
 from game.tuning import TuningError
 from interfaces.menu import menu_bar, menu_command, status_bar, team_xp_status
@@ -84,7 +100,6 @@ from interfaces.render_text import (
 from interfaces.terminal import RICH_AVAILABLE, terminal
 
 _SCREEN_SORTS: dict[str, SortSpec] = {}
-_SORTABLE_SCREENS = ("garage", "drivers", "events", "market")
 
 
 def main() -> None:
@@ -348,9 +363,6 @@ def run_command(state: GameState, raw: str) -> GameState:
     return state
 
 
-_BROWSE_SCREENS = ("garage", "drivers", "events", "market")
-
-
 def _layer_breadcrumb(screen: str) -> str:
     if screen == "home":
         return "Home"
@@ -368,7 +380,7 @@ def _render_screen(state: GameState, screen: str, subtitle: str = "") -> None:
     terminal.header("SheetCircuit", subtitle)
     terminal.print(status_bar(state.money, state.week, len(state.garage), label, state.team_xp))
     terminal.print_plain(_layer_breadcrumb(screen))
-    if screen == "home" or screen in _BROWSE_SCREENS:
+    if screen == "home" or screen in SORTABLE_SCREENS:
         # The tab bar renders only where its hotkeys are live: Home and the root tabs.
         terminal.menu(menu_bar())
     if screen == "home":
@@ -558,12 +570,12 @@ def _apply_sort_choice(tokens: list[str], current_screen: str) -> str | None:
 
     requested_screen = current_screen
     field_index = 1
-    if tokens[1].lower() in _SORTABLE_SCREENS:
+    if tokens[1].lower() in SORTABLE_SCREENS:
         requested_screen = tokens[1].lower()
         field_index = 2
 
     if not is_sortable_screen(requested_screen):
-        valid = ", ".join(_SORTABLE_SCREENS)
+        valid = ", ".join(SORTABLE_SCREENS)
         raise ValueError(f"Specify a sortable screen: {valid}")
     if field_index >= len(tokens):
         _show_sort_help(requested_screen)
@@ -583,7 +595,7 @@ def _apply_sort_choice(tokens: list[str], current_screen: str) -> str | None:
 
 def _show_sort_help(current_screen: str) -> None:
     rows = []
-    screens = [current_screen] if is_sortable_screen(current_screen) else list(_SORTABLE_SCREENS)
+    screens = [current_screen] if is_sortable_screen(current_screen) else list(SORTABLE_SCREENS)
     for screen in screens:
         rows.append([screen.title(), ", ".join(sort_fields(screen))])
     terminal.table("Sort Fields", ["Screen", "Fields"], rows)
@@ -717,7 +729,7 @@ def _show_help_body() -> None:
     terminal.table(
         "Sortable Fields",
         ["Screen", "Fields"],
-        [[screen.title(), ", ".join(sort_fields(screen))] for screen in _SORTABLE_SCREENS],
+        [[screen.title(), ", ".join(sort_fields(screen))] for screen in SORTABLE_SCREENS],
     )
     _show_race_help()
 
@@ -830,7 +842,7 @@ def _upgrades_slot_picker(state: GameState, car_id: str) -> None:
             if action.kind == "back":
                 return
             raw = action.value
-            slot = _match_part_slot(raw)
+            slot = match_part_slot(raw)
             if slot is None:
                 terminal.print(f"Unknown part slot: {raw}")
                 terminal.pause()
@@ -869,7 +881,7 @@ def _upgrades_part_picker(state: GameState, car_id: str, slot: str) -> None:
                 terminal.pause()
                 continue
             raw = action.value
-            part = _match_slot_part(slot, raw)
+            part = match_slot_part(slot, raw, load_parts())
             if part is None:
                 terminal.print(f"Unknown part: {raw}")
                 terminal.pause()
@@ -928,34 +940,6 @@ def _upgrade_part_action_prompt(state: GameState, car_id: str, part_id: str) -> 
     terminal.print(result.message)
     terminal.pause()
     return True
-
-
-def _match_part_slot(raw: str) -> str | None:
-    if raw.isdigit():
-        index = int(raw) - 1
-        if 0 <= index < len(SLOT_RULES):
-            return SLOT_RULES[index].id
-        return None
-    normalized = raw.lower()
-    return next(
-        (
-            rule.id
-            for rule in SLOT_RULES
-            if normalized in {rule.id.lower(), rule.label.lower()}
-        ),
-        None,
-    )
-
-
-def _match_slot_part(slot: str, raw: str):
-    parts = [part for part in load_parts() if part.slot == slot]
-    if raw.isdigit():
-        index = int(raw) - 1
-        if 0 <= index < len(parts):
-            return parts[index]
-        return None
-    canonical = canonical_part_id(raw)
-    return next((part for part in parts if part.id.lower() == canonical.lower()), None)
 
 
 def _tune_picker(state: GameState) -> None:
@@ -1550,9 +1534,9 @@ def _compact_post_race_table(table):
             if " XP (total: " in value and " +" in value:
                 driver, xp = value.rsplit(" +", 1)
                 gained, total = xp.split(" XP (total: ", 1)
-                compact_rows.append([_clip_text(driver, 12), f"+{gained} ({total.rstrip(')')})"])
+                compact_rows.append([clip_text(driver, 12), f"+{gained} ({total.rstrip(')')})"])
             else:
-                compact_rows.append([row[0], _clip_text(value, 22)])
+                compact_rows.append([row[0], clip_text(value, 22)])
         return type(table)(table.title, ["Driver", "XP"], compact_rows)
     if table.title == "Car Condition":
         labels = {"Gearbox": "Gear", "Suspension": "Susp"}
@@ -1575,12 +1559,6 @@ def _post_race_status_bar(state: GameState) -> str:
 
 def _short_level(value: str) -> str:
     return value.replace("Lv ", "L")
-
-
-def _clip_text(value: str, width: int) -> str:
-    if len(value) <= width:
-        return value
-    return value[: max(0, width - 3)] + "..."
 
 
 def _parse_value(value: str) -> object:

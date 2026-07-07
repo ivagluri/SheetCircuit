@@ -165,3 +165,9 @@ _SORT_OPTIONS = {
     "drivers": _DRIVER_SORT_OPTIONS,
     "events": _EVENT_SORT_OPTIONS,
 }
+
+# Screens that support sorting/browsing, in help-text display order. This order
+# is deliberately distinct from _SORT_OPTIONS dict order (which groups the two
+# car screens); the members must stay in sync with _SORT_OPTIONS keys.
+SORTABLE_SCREENS: tuple[str, ...] = ("garage", "drivers", "events", "market")
+assert set(SORTABLE_SCREENS) == set(_SORT_OPTIONS)

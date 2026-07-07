@@ -10,9 +10,14 @@ and for the many fields whose table row is self-explanatory.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Mapping
 
 from compendium.model import Entry
+
+
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
 def entry_from_spec(

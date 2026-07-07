@@ -48,7 +48,14 @@ from game.actions import (
 from game.economy import EconomyError
 from game.game_state import GameState, new_career
 from game.loader import DataLoadError, load_drivers, load_parts, load_tracks
-from game.parts import SLOT_RULES, canonical_part_id, installed_part_for_slot, normalize_part_ids, part_map
+from game.parts import (
+    canonical_part_id,
+    installed_part_for_slot,
+    match_part_slot,
+    match_slot_part,
+    normalize_part_ids,
+    part_map,
+)
 from game.save_load import PREVIOUS_SCHEMA_VERSION, SaveVersionError, _migrate_payload, game_state_from_dict, game_state_to_dict
 from game.simulation import SimulationError
 from game.sorting import sort_items
@@ -743,7 +750,7 @@ class WebGame:
         if low in _TUNE_BACK_WORDS:
             self._cancel()
             return
-        slot = self._match_part_slot(raw)
+        slot = match_part_slot(raw)
         if slot is None:
             self._print_mode_view()
             terminal.print(f"Unknown part slot: {raw}")
@@ -768,7 +775,7 @@ class WebGame:
             self._print_mode_view()
             terminal.print(result.message)
             return
-        part = self._match_slot_part(self._upgrade_slot, raw)
+        part = match_slot_part(self._upgrade_slot, raw, load_parts())
         if part is None:
             self._print_mode_view()
             terminal.print(f"Unknown part: {raw}")
@@ -805,32 +812,6 @@ class WebGame:
         self.mode = MODE_UPGRADES_PART
         self._print_mode_view()
         terminal.print(result.message)
-
-    def _match_part_slot(self, raw: str) -> str | None:
-        if raw.isdigit():
-            index = int(raw) - 1
-            if 0 <= index < len(SLOT_RULES):
-                return SLOT_RULES[index].id
-            return None
-        normalized = raw.lower()
-        return next(
-            (
-                rule.id
-                for rule in SLOT_RULES
-                if normalized in {rule.id.lower(), rule.label.lower()}
-            ),
-            None,
-        )
-
-    def _match_slot_part(self, slot: str, raw: str):
-        parts = [part for part in load_parts() if part.slot == slot]
-        if raw.isdigit():
-            index = int(raw) - 1
-            if 0 <= index < len(parts):
-                return parts[index]
-            return None
-        canonical = canonical_part_id(raw)
-        return next((part for part in parts if part.id.lower() == canonical.lower()), None)
 
     def _upgrade_part(self):
         return part_map(load_parts())[canonical_part_id(self._upgrade_part_id)]

@@ -125,6 +125,34 @@ def canonical_part_id(part_id: str) -> str:
     return LEGACY_PART_ID_MAP.get(part_id, part_id)
 
 
+def match_part_slot(raw: str) -> str | None:
+    if raw.isdigit():
+        index = int(raw) - 1
+        if 0 <= index < len(SLOT_RULES):
+            return SLOT_RULES[index].id
+        return None
+    normalized = raw.lower()
+    return next(
+        (
+            rule.id
+            for rule in SLOT_RULES
+            if normalized in {rule.id.lower(), rule.label.lower()}
+        ),
+        None,
+    )
+
+
+def match_slot_part(slot: str, raw: str, parts: list[Part]) -> Part | None:
+    parts = [part for part in parts if part.slot == slot]
+    if raw.isdigit():
+        index = int(raw) - 1
+        if 0 <= index < len(parts):
+            return parts[index]
+        return None
+    canonical = canonical_part_id(raw)
+    return next((part for part in parts if part.id.lower() == canonical.lower()), None)
+
+
 def normalize_part_ids(part_ids: list[str] | tuple[str, ...]) -> list[str]:
     seen: set[str] = set()
     normalized: list[str] = []

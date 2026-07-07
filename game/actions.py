@@ -31,6 +31,7 @@ from game.save_load import load_game, save_game
 from game.sorting import SortSpec, sort_items, sort_label
 from game.tuning import tune_target, update_tune_fields, validate_tune_field
 from compendium import registry
+from compendium.format import entry_editable, entry_ideal, entry_range
 
 
 def _fuel_range_km(eff) -> float:
@@ -618,7 +619,6 @@ def driver_detail_screen(driver_id: str, state: GameState | None = None) -> Scre
 # compendium_nav(), called from the interfaces before their normal dispatch.
 
 COMPENDIUM_PREFIX = "compendium"
-_EDITABLE_LABEL = {"creator": "creator", "tune_menu": "tune menu", "upgrades": "upgrades", "derived": "read-only"}
 
 
 def compendium_screen(path: tuple[str, ...] = (), query: str = "") -> ScreenData:
@@ -680,11 +680,11 @@ def _compendium_section_screen(chapter, section) -> ScreenData:
         rows.append([
             index,
             entry.label,
-            _compendium_range(entry),
+            entry_range(entry),
             entry.units or "",
-            _compendium_ideal(entry),
+            entry_ideal(entry, empty=""),
             entry.effect_summary,
-            _compendium_editable(entry),
+            entry_editable(entry),
         ])
     messages = [section.intro]
     prose = [f"{entry.label} — {entry.prose}" for entry in section.entries if entry.prose]
@@ -704,10 +704,10 @@ def _compendium_entry_screen(entry) -> ScreenData:
     rows = [
         ["Field", entry.label],
         ["Section", entry.section],
-        ["Range", _compendium_range(entry)],
+        ["Range", entry_range(entry)],
         ["Units", entry.units or "—"],
-        ["Ideal", _compendium_ideal(entry) or "—"],
-        ["Editable in", _compendium_editable(entry)],
+        ["Ideal", entry_ideal(entry)],
+        ["Editable in", entry_editable(entry)],
     ]
     messages = [entry.effect_summary]
     if entry.prose:
@@ -719,31 +719,6 @@ def _compendium_entry_screen(entry) -> ScreenData:
         tables=[TableData("Field", ["", ""], rows)],
         messages=messages,
     )
-
-
-def _compendium_range(entry) -> str:
-    if entry.choices:
-        return ", ".join(entry.choices)
-    if entry.value_range is None:
-        return "—"
-    low, high = entry.value_range
-    low_text = "…" if low is None else f"{low:g}"
-    high_text = "…" if high is None else f"{high:g}"
-    return f"{low_text}–{high_text}"
-
-
-def _compendium_ideal(entry) -> str:
-    if entry.ideal is None:
-        return ""
-    if isinstance(entry.ideal, float):
-        return f"{entry.ideal:g}"
-    return str(entry.ideal)
-
-
-def _compendium_editable(entry) -> str:
-    if not entry.editable_in:
-        return "—"
-    return ", ".join(_EDITABLE_LABEL.get(tag, tag) for tag in entry.editable_in)
 
 
 def _resolve_chapter(token):
@@ -1280,7 +1255,7 @@ _RACE_LOG_EVENT_CHARS = 38
 _RACE_STRIP_ROWS = 14
 
 
-def _clip(text: str, limit: int) -> str:
+def clip_text(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
@@ -1447,7 +1422,7 @@ def race_screen(
     tables.append(_race_track_strip(session))
     event_chars = log_event_chars or _RACE_LOG_EVENT_CHARS
     log_rows: list[list[Any]] = [
-        [lap, _clip(message, event_chars).ljust(event_chars)]
+        [lap, clip_text(message, event_chars).ljust(event_chars)]
         for lap, message in session.race_log[-_RACE_LOG_VISIBLE_EVENTS:]
     ]
     log_rows.extend([["", " " * event_chars]] * (_RACE_LOG_VISIBLE_EVENTS - len(log_rows)))

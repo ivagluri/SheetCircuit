@@ -19,6 +19,7 @@ from constants import (
     SALARY_POTENTIAL_COEF,
 )
 from constants import DRIVER_STAT_CAP
+from game.effective_stats import clamp
 from game.models import Driver
 
 # Stats that grow with XP (mirror race_session._PROGRESSION_STATS); used to compute a
@@ -44,14 +45,10 @@ LAST_NAMES = [
 ]
 
 
-def _clamp(value: float, low: float, high: float) -> float:
-    return max(low, min(high, value))
-
-
 def _skill_roll(rng: random.Random, skill: float, sigma: float = RIVAL_SKILL_SIGMA) -> int:
     """A single 5-98 stat rolled gaussian around a skill anchor. Shared by rivals and
     the market so both fields have the same statistical character."""
-    return int(round(_clamp(rng.gauss(skill, sigma), 5, 98)))
+    return int(round(clamp(rng.gauss(skill, sigma), 5, 98)))
 
 
 def random_name(rng: random.Random) -> str:
@@ -66,15 +63,15 @@ def _roll_stats(rng: random.Random, skill: float, bias: dict[str, int]) -> dict[
 
     return {
         "pace": _skill_roll(rng, anchor("pace", skill)),
-        "consistency": int(round(_clamp(rng.gauss(anchor("consistency", skill + 6), RIVAL_SKILL_SIGMA * 0.7), 20, 98))),
+        "consistency": int(round(clamp(rng.gauss(anchor("consistency", skill + 6), RIVAL_SKILL_SIGMA * 0.7), 20, 98))),
         "racecraft": _skill_roll(rng, anchor("racecraft", skill)),
-        "mechanical_sympathy": int(round(_clamp(rng.gauss(anchor("mechanical_sympathy", skill + 2), RIVAL_SKILL_SIGMA), 20, 95))),
-        "wet_skill": int(round(_clamp(rng.gauss(anchor("wet_skill", skill - 2), RIVAL_SKILL_SIGMA), 15, 98))),
-        "fitness": int(round(_clamp(50 + skill * 0.35 + bias.get("fitness", 0) + rng.uniform(-6, 6), 45, 90))),
-        "aggression": int(round(_clamp(rng.gauss(anchor("aggression", 42 + skill * 0.18), 10), 20, 95))),
+        "mechanical_sympathy": int(round(clamp(rng.gauss(anchor("mechanical_sympathy", skill + 2), RIVAL_SKILL_SIGMA), 20, 95))),
+        "wet_skill": int(round(clamp(rng.gauss(anchor("wet_skill", skill - 2), RIVAL_SKILL_SIGMA), 15, 98))),
+        "fitness": int(round(clamp(50 + skill * 0.35 + bias.get("fitness", 0) + rng.uniform(-6, 6), 45, 90))),
+        "aggression": int(round(clamp(rng.gauss(anchor("aggression", 42 + skill * 0.18), 10), 20, 95))),
         # feedback is now a real roll (rivals historically hard-coded 35); a modest,
         # skill-independent personality trait, biasable per archetype.
-        "feedback": int(round(_clamp(rng.gauss(anchor("feedback", 48), 12), 15, 95))),
+        "feedback": int(round(clamp(rng.gauss(anchor("feedback", 48), 12), 15, 95))),
     }
 
 
@@ -86,7 +83,7 @@ def compute_potential(stats: dict[str, int], headroom: int) -> int:
     """A single 0-99 ceiling: the driver's current peak progressable stat plus headroom.
     Always >= the current peak (a ceiling below current ability is meaningless)."""
     peak = max(stats[s] for s in PROGRESSION_STATS)
-    return int(_clamp(round(peak + headroom), peak, DRIVER_STAT_CAP))
+    return int(clamp(round(peak + headroom), peak, DRIVER_STAT_CAP))
 
 
 def compute_salary(stats: dict[str, int], potential: int) -> int:

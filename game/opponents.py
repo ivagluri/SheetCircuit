@@ -13,14 +13,10 @@ from constants import (
     RIVAL_MATCH_POOL_FACTOR,
 )
 from game.driver_gen import generate_driver
-from game.effective_stats import compute_effective_stats, derived_class, derived_rating
+from game.effective_stats import clamp, compute_effective_stats, derived_class, derived_rating
 from game.models import Car, Driver, Event, Track
 
 CLASS_ORDER = {"E": 0, "D": 1, "C": 2, "B": 3, "A": 4, "S": 5}
-
-
-def _clamp(value: float, low: float, high: float) -> float:
-    return max(low, min(high, value))
 
 
 class EventEntryError(ValueError):
@@ -134,7 +130,7 @@ def _event_floor_lap(laps: list[float], class_limit: str) -> float:
         return float("inf")
     ordered = sorted(laps)
     percentile = EVENT_PACE_FLOOR_PERCENTILE.get(class_limit, EVENT_PACE_FLOOR_PERCENTILE["E"])
-    percentile = _clamp(percentile, 0.0, 1.0)
+    percentile = clamp(percentile, 0.0, 1.0)
     index = round((len(ordered) - 1) * percentile)
     return ordered[index]
 
@@ -148,7 +144,7 @@ def _natural_lap(car: Car, parts: list, track: Track) -> float:
 def _effective_rival_skill(event: Event) -> int:
     default = CLASS_RIVAL_SKILL.get(event.car_class_limit, CLASS_RIVAL_SKILL["E"])
     skill = default if event.rival_skill is None else event.rival_skill
-    return int(round(_clamp(skill, 0, 100)))
+    return int(round(clamp(skill, 0, 100)))
 
 
 def _is_eligible(car: Car, event: Event, parts: list) -> bool:

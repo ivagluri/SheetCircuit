@@ -14,9 +14,9 @@ import re
 from html import escape
 
 from compendium import registry
+from compendium.format import entry_editable, entry_ideal, entry_range
 from compendium.model import Chapter, Entry, Section
 
-_EDITABLE_LABEL = {"creator": "creator", "tune_menu": "tune menu", "upgrades": "upgrades", "derived": "read-only"}
 _COLUMNS = ["Field", "Range", "Units", "Ideal", "Effect", "Editable"]
 
 
@@ -24,31 +24,8 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
-def _range(entry: Entry) -> str:
-    if entry.choices:
-        return ", ".join(entry.choices)
-    if entry.value_range is None:
-        return "—"
-    low, high = entry.value_range
-    low_text = "…" if low is None else f"{low:g}"
-    high_text = "…" if high is None else f"{high:g}"
-    return f"{low_text}–{high_text}"
-
-
-def _ideal(entry: Entry) -> str:
-    if entry.ideal is None:
-        return "—"
-    return f"{entry.ideal:g}" if isinstance(entry.ideal, float) else str(entry.ideal)
-
-
-def _editable(entry: Entry) -> str:
-    if not entry.editable_in:
-        return "—"
-    return ", ".join(_EDITABLE_LABEL.get(tag, tag) for tag in entry.editable_in)
-
-
 def _entry_text(entry: Entry) -> str:
-    parts = [entry.label, entry.effect_summary, entry.prose, _editable(entry), _range(entry), entry.units]
+    parts = [entry.label, entry.effect_summary, entry.prose, entry_editable(entry), entry_range(entry), entry.units]
     return " ".join(part for part in parts if part).lower()
 
 
@@ -58,11 +35,11 @@ def _field_table(entries: tuple[Entry, ...]) -> str:
     for entry in entries:
         cells = [
             f'<td class="field">{escape(entry.label)}</td>',
-            f"<td>{escape(_range(entry))}</td>",
+            f"<td>{escape(entry_range(entry))}</td>",
             f"<td>{escape(entry.units) or '—'}</td>",
-            f"<td>{escape(_ideal(entry))}</td>",
+            f"<td>{escape(entry_ideal(entry))}</td>",
             f'<td class="effect">{escape(entry.effect_summary)}</td>',
-            f"<td>{escape(_editable(entry))}</td>",
+            f"<td>{escape(entry_editable(entry))}</td>",
         ]
         rows.append(f'<tr class="doc-row" data-text="{escape(_entry_text(entry))}">{"".join(cells)}</tr>')
     return f'<table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
@@ -110,8 +87,8 @@ def _appendix_html() -> str:
             rows.append(
                 f'<tr class="doc-row" data-text="{escape(_entry_text(entry))}">'
                 f'<td class="field">{escape(entry.label)}</td>'
-                f"<td>{escape(_range(entry))}</td>"
-                f"<td>{escape(_ideal(entry))}</td>"
+                f"<td>{escape(entry_range(entry))}</td>"
+                f"<td>{escape(entry_ideal(entry))}</td>"
                 f'<td class="effect">{escape(entry.effect_summary)}</td></tr>'
             )
         blocks.append(

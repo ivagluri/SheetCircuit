@@ -15,12 +15,11 @@ creator schema is creator-editable.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from game.parts import TUNE_MENU_FIELD_NAMES
 from editor.fields import CAR_ARCHETYPES, CAR_SECTIONS
-from compendium.harvest import entry_from_spec
+from compendium.harvest import entry_from_spec, slug
 from compendium.model import Chapter, Entry, Section
 
 DOMAIN = "car"
@@ -291,14 +290,10 @@ FIELD_CONTENT: dict[str, dict[str, Any]] = {
 }
 
 
-def _slug(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
-
-
 def _preset_section() -> Section:
     entries = tuple(
         Entry(
-            id=f"car.preset.{_slug(name)}",
+            id=f"car.preset.{slug(name)}",
             domain=DOMAIN,
             section=_PRESET_SECTION,
             label=name,
